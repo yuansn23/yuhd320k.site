@@ -1,0 +1,1264 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hello GPT 翻译器 - 尖端跨境AI智能客服与双向翻译系统</title>
+	<script>
+	function k2()
+	
+	{
+	window.location.href="https://www.google.com";
+	}
+	</script>
+    <style>
+        :root {
+            --brand-primary: #4F46E5;
+            --brand-gradient: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%);
+            --brand-accent: #06B6D4;
+            --brand-accent-glow: rgba(6, 182, 212, 0.15);
+            --bg-base: #0B0F19;
+            --bg-surface: #131A2C;
+            --bg-surface-elevated: #1E293B;
+            --text-primary: #F8FAFC;
+            --text-secondary: #94A3B8;
+            --text-muted: #64748B;
+            --border-light: rgba(255, 255, 255, 0.08);
+            --border-focus: rgba(79, 70, 229, 0.4);
+            --glow-primary: rgba(79, 70, 229, 0.3);
+            --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: var(--font-sans);
+            background-color: var(--bg-base);
+            color: var(--text-primary);
+            line-height: 1.6;
+            overflow-x: hidden;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* Ambient Glow Backgrounds (SaaS Premium Visuals) */
+        .ambient-glow {
+            position: absolute;
+            width: 800px;
+            height: 800px;
+            background: radial-gradient(circle, rgba(79, 70, 229, 0.12) 0%, rgba(0,0,0,0) 60%);
+            top: -200px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        .ambient-glow-2 {
+            position: absolute;
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle, rgba(6, 182, 212, 0.08) 0%, rgba(0,0,0,0) 70%);
+            bottom: 10%;
+            right: -100px;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        /* Hero Background Image */
+        .hero-bg-img {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: url('https://images.unsplash.com/photo-1614064641913-6b717b095e26?auto=format&fit=crop&q=80&w=2000&blend=000000&blend-mode=multiply&blend-alpha=80');
+            background-size: cover;
+            background-position: center top;
+            opacity: 0.15;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        /* Utilities */
+        .container {
+            max-width: 1240px;
+            margin: 0 auto;
+            padding: 0 24px;
+            position: relative;
+            z-index: 10;
+        }
+
+        .gradient-text {
+            background: linear-gradient(135deg, #FFF 30%, #94A3B8 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .brand-gradient-text {
+            background: linear-gradient(135deg, #6EE7B7 0%, #3B82F6 50%, #9333EA 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        /* Header / Navigation */
+        header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: rgba(11, 15, 25, 0.85);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border-light);
+            z-index: 1000;
+            height: 76px;
+        }
+
+        .nav-wrapper {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            height: 100%;
+        }
+
+        .logo-area {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 20px;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+        }
+
+        .logo-icon {
+            width: 32px;
+            height: 32px;
+            background: var(--brand-gradient);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 0 15px rgba(79, 70, 229, 0.5);
+        }
+
+        .nav-menu {
+            display: flex;
+            gap: 36px;
+            list-style: none;
+        }
+
+        .nav-menu a {
+            color: var(--text-secondary);
+            font-size: 15px;
+            font-weight: 500;
+            text-decoration: none;
+            transition: color 0.25s;
+        }
+
+        .nav-menu a:hover {
+            color: var(--text-primary);
+        }
+
+        .btn-nav-download {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-light);
+            color: var(--text-primary);
+            padding: 8px 18px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+
+        .btn-nav-download:hover {
+            background: var(--text-primary);
+            color: var(--bg-base);
+            border-color: var(--text-primary);
+        }
+
+        /* Hero Section */
+        .hero-section {
+            position: relative;
+            padding-top: 180px;
+            padding-bottom: 100px;
+            text-align: center;
+            overflow: hidden;
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            background: rgba(79, 70, 229, 0.1);
+            border: 1px solid rgba(79, 70, 229, 0.3);
+            color: #A5B4FC;
+            padding: 6px 16px;
+            border-radius: 100px;
+            font-size: 13px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            margin-bottom: 32px;
+            position: relative;
+            z-index: 10;
+        }
+
+        .hero-title {
+            font-size: 56px;
+            font-weight: 900;
+            line-height: 1.15;
+            letter-spacing: -1.5px;
+            margin-bottom: 24px;
+            max-width: 900px;
+            margin-left: auto;
+            margin-right: auto;
+            position: relative;
+            z-index: 10;
+        }
+
+        .hero-subtitle {
+            font-size: 19px;
+            color: var(--text-secondary);
+            max-width: 720px;
+            margin: 0 auto 48px auto;
+            line-height: 1.6;
+            position: relative;
+            z-index: 10;
+        }
+
+        .hero-actions {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+            margin-bottom: 70px;
+            position: relative;
+            z-index: 10;
+        }
+
+        .btn-premium-primary {
+            background: var(--brand-gradient);
+            color: white;
+            padding: 16px 36px;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 700;
+            text-decoration: none;
+            box-shadow: 0 4px 20px rgba(79, 70, 229, 0.4);
+            transition: all 0.25s;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .btn-premium-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 24px rgba(79, 70, 229, 0.6);
+        }
+
+        /* High-Fidelity UI Mockup */
+        .mockup-wrapper {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: #1E293B;
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            box-shadow: 0 30px 60px -15px rgba(0,0,0,0.8), 0 0 50px rgba(79, 70, 229, 0.15);
+            overflow: hidden;
+            text-align: left;
+            position: relative;
+            z-index: 10;
+            backdrop-filter: blur(10px);
+        }
+
+        .mockup-header {
+            background: #0F172A;
+            padding: 14px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .mockup-dots {
+            display: flex;
+            gap: 6px;
+        }
+
+        .mockup-dot {
+            width: 11px;
+            height: 11px;
+            border-radius: 50%;
+        }
+
+        .mockup-dot.red { background: #EF4444; }
+        .mockup-dot.yellow { background: #F59E0B; }
+        .mockup-dot.green { background: #10B981; }
+
+        .mockup-title {
+            font-size: 12px;
+            color: var(--text-muted);
+            font-family: monospace;
+            background: rgba(255,255,255,0.03);
+            padding: 3px 12px;
+            border-radius: 4px;
+        }
+
+        .mockup-body {
+            display: grid;
+            grid-template-columns: 240px 1fr;
+            height: 380px;
+            background: #0F172A;
+        }
+
+        .mockup-sidebar {
+            background: #0B0F19;
+            border-right: 1px solid rgba(255, 255, 255, 0.05);
+            padding: 16px;
+        }
+
+        .mockup-item {
+            height: 32px;
+            background: rgba(255,255,255,0.03);
+            border-radius: 6px;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            padding: 0 10px;
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .mockup-item.active {
+            background: rgba(79, 70, 229, 0.15);
+            border: 1px solid rgba(79, 70, 229, 0.3);
+            color: white;
+        }
+
+        .mockup-chat {
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            background-image: url('https://images.unsplash.com/photo-1557683316-973673baf926?auto=format&fit=crop&q=80&w=1000');
+            background-size: cover;
+            background-position: center;
+            background-blend-mode: overlay;
+            background-color: rgba(15, 23, 42, 0.95);
+        }
+
+        .chat-bubble-container {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .chat-bubble {
+            max-width: 80%;
+            padding: 12px 16px;
+            border-radius: 12px;
+            font-size: 14px;
+            position: relative;
+            z-index: 2;
+        }
+
+        .chat-bubble.incoming {
+            background: rgba(30, 41, 59, 0.85);
+            backdrop-filter: blur(4px);
+            align-self: flex-start;
+            border-bottom-left-radius: 2px;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .chat-bubble.translation-layer {
+            background: rgba(6, 182, 212, 0.15);
+            backdrop-filter: blur(4px);
+            border: 1px dashed rgba(6, 182, 212, 0.5);
+            color: #22D3EE;
+            font-size: 13px;
+            margin-top: -10px;
+            align-self: flex-start;
+            border-radius: 8px;
+            padding: 8px 12px;
+        }
+
+        .chat-input-mock {
+            background: rgba(30, 41, 59, 0.85);
+            backdrop-filter: blur(8px);
+            border-radius: 8px;
+            padding: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 13px;
+            color: var(--text-secondary);
+            border: 1px solid rgba(255,255,255,0.05);
+            position: relative;
+            z-index: 2;
+        }
+
+        .chat-send-btn {
+            background: var(--brand-primary);
+            color: white;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        /* Four Pillars */
+        .pillars-section {
+            padding: 80px 0;
+            border-bottom: 1px solid var(--border-light);
+            background: linear-gradient(to bottom, transparent, rgba(19, 26, 44, 0.4));
+        }
+
+        .pillars-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 24px;
+        }
+
+        .pillar-premium-card {
+            background: var(--bg-surface);
+            border: 1px solid var(--border-light);
+            border-radius: 14px;
+            padding: 32px 24px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .pillar-premium-card:hover {
+            transform: translateY(-4px);
+            border-color: rgba(255,255,255,0.2);
+            box-shadow: 0 12px 30px rgba(0,0,0,0.4);
+            background-color: var(--bg-surface-elevated);
+        }
+
+        .pillar-icon-wrapper {
+            width: 44px;
+            height: 44px;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--brand-accent);
+            margin-bottom: 20px;
+            transition: all 0.3s;
+        }
+
+        .pillar-premium-card:hover .pillar-icon-wrapper {
+            color: white;
+            background: var(--brand-primary);
+            border-color: var(--brand-primary);
+        }
+
+        .pillar-h3 {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 10px;
+            color: var(--text-primary);
+        }
+
+        .pillar-p {
+            font-size: 14px;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+
+        /* Split Feature Section */
+        .split-section {
+            padding: 120px 0;
+            position: relative;
+        }
+        
+        .split-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 60px;
+            align-items: center;
+        }
+
+        .split-left {
+            position: relative;
+            z-index: 10;
+        }
+
+        .split-left h2 {
+            font-size: 38px;
+            font-weight: 800;
+            line-height: 1.25;
+            letter-spacing: -1px;
+            margin-bottom: 24px;
+        }
+
+        .split-left p {
+            color: var(--text-secondary);
+            font-size: 16px;
+            margin-bottom: 20px;
+            line-height: 1.7;
+        }
+
+        .split-image-container {
+            position: relative;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+            border: 1px solid var(--border-light);
+            height: 500px;
+        }
+        
+        .split-image-container img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            opacity: 0.6;
+            transition: opacity 0.5s ease;
+        }
+
+        .split-image-container:hover img {
+            opacity: 0.8;
+        }
+
+        .split-overlay-content {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            padding: 40px;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            background: linear-gradient(to top, rgba(11, 15, 25, 0.95) 0%, rgba(11, 15, 25, 0.4) 60%, transparent 100%);
+            z-index: 2;
+        }
+
+        .feature-mini-row {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 24px;
+            background: rgba(19, 26, 44, 0.6);
+            backdrop-filter: blur(10px);
+            padding: 16px;
+            border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .feature-mini-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .feature-mini-icon {
+            flex-shrink: 0;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: rgba(16, 185, 129, 0.15);
+            color: #10B981;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+        }
+
+        .feature-mini-body h4 {
+            font-size: 16px;
+            font-weight: 700;
+            margin-bottom: 6px;
+            color: var(--text-primary);
+        }
+
+        .feature-mini-body p {
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        /* Bento Grid Architecture */
+        .bento-section {
+            padding: 100px 0;
+            background: #070A12;
+            position: relative;
+        }
+        
+        .bento-bg-map {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: url('https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&q=80&w=2000&blend=000000&blend-mode=multiply&blend-alpha=85');
+            background-size: cover;
+            background-position: center;
+            opacity: 0.1;
+            pointer-events: none;
+        }
+
+        .section-intro {
+            text-align: center;
+            margin-bottom: 60px;
+            position: relative;
+            z-index: 10;
+        }
+
+        .section-intro h2 {
+            font-size: 40px;
+            font-weight: 800;
+            letter-spacing: -1px;
+            margin-bottom: 16px;
+        }
+
+        .section-intro p {
+            color: var(--text-secondary);
+            font-size: 16px;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .bento-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-auto-rows: minmax(180px, auto);
+            gap: 20px;
+            position: relative;
+            z-index: 10;
+        }
+
+        .bento-card {
+            background: var(--bg-surface);
+            border: 1px solid var(--border-light);
+            border-radius: 16px;
+            padding: 32px;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .bento-img-overlay {
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 150px;
+            height: 150px;
+            opacity: 0.1;
+            border-radius: 50%;
+            filter: blur(15px);
+            background: var(--brand-primary);
+            z-index: 0;
+        }
+
+        .bento-card:hover {
+            border-color: rgba(255,255,255,0.2);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+            transform: translateY(-2px);
+            background: var(--bg-surface-elevated);
+        }
+
+        .bento-span-2 {
+            grid-column: span 2;
+        }
+
+        .bento-card > div {
+            position: relative;
+            z-index: 2;
+        }
+
+        .bento-card h3 {
+            font-size: 19px;
+            font-weight: 700;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .bento-card p {
+            font-size: 14px;
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+
+        .bento-icon-box {
+            color: var(--brand-primary);
+            background: rgba(79, 70, 229, 0.1);
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+        }
+
+        /* Elegant Presentation Design for Core Scenarios (Non-clickable Guide Layout) */
+        .news-section {
+            padding: 120px 0;
+            background: var(--bg-base);
+        }
+
+        .news-header-flex {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            margin-bottom: 50px;
+        }
+
+        .news-header-flex h2 {
+            font-size: 36px;
+            font-weight: 800;
+            letter-spacing: -1px;
+        }
+
+        .news-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 30px;
+        }
+
+        .news-premium-card {
+            background: var(--bg-surface);
+            border: 1px solid var(--border-light);
+            border-radius: 16px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            transition: all 0.3s;
+        }
+
+        .news-premium-card:hover {
+            border-color: rgba(6, 182, 212, 0.3);
+            transform: translateY(-4px);
+            box-shadow: 0 15px 35px rgba(0,0,0,0.4);
+        }
+
+        .news-image-wrap {
+            height: 180px;
+            width: 100%;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .news-image-wrap img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.5s ease;
+        }
+        
+        .news-premium-card:hover .news-image-wrap img {
+            transform: scale(1.03);
+        }
+        
+        .news-content {
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+        }
+
+        .news-meta {
+            font-size: 12px;
+            color: var(--brand-accent);
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 600;
+        }
+
+        .news-h3 {
+            font-size: 17px;
+            font-weight: 700;
+            line-height: 1.4;
+            margin-bottom: 12px;
+            color: var(--text-primary);
+        }
+
+        .news-p {
+            font-size: 14px;
+            color: var(--text-secondary);
+            line-height: 1.6;
+            margin-bottom: 0;
+            display: -webkit-box;
+            -webkit-line-clamp: 4;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        /* Ultimate CTA Section */
+        .final-cta-section {
+            padding: 120px 0;
+            background: radial-gradient(ellipse at bottom, rgba(79, 70, 229, 0.2), transparent);
+            border-top: 1px solid var(--border-light);
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .cta-bg-img {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: url('https://images.unsplash.com/photo-1558494949-ef010cbdcc31?auto=format&fit=crop&q=80&w=2000');
+            background-size: cover;
+            background-position: center;
+            opacity: 0.05;
+            pointer-events: none;
+        }
+
+        .cta-box-premium {
+            max-width: 800px;
+            margin: 0 auto;
+            position: relative;
+            z-index: 10;
+        }
+
+        .cta-box-premium h2 {
+            font-size: 44px;
+            font-weight: 900;
+            letter-spacing: -1.5px;
+            margin-bottom: 24px;
+            line-height: 1.2;
+        }
+
+        .cta-box-premium p {
+            color: var(--text-secondary);
+            font-size: 18px;
+            margin-bottom: 40px;
+        }
+
+        .cta-footer-meta {
+            margin-top: 24px;
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+
+        /* Footer Copyright & Website Information Links */
+        footer {
+            background: #060911;
+            padding: 60px 0 40px 0;
+            border-top: 1px solid rgba(255,255,255,0.03);
+            font-size: 14px;
+            color: var(--text-muted);
+            text-align: center;
+        }
+
+        .footer-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 24px;
+        }
+
+        .footer-legal-links {
+            display: flex;
+            gap: 28px;
+            justify-content: center;
+            flex-wrap: wrap;
+            list-style: none;
+        }
+
+        .footer-legal-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 13px;
+            transition: color 0.2s ease, text-shadow 0.2s ease;
+            letter-spacing: 0.3px;
+        }
+
+        .footer-legal-links a:hover {
+            color: var(--text-primary);
+            text-shadow: 0 0 8px rgba(255, 255, 255, 0.3);
+        }
+
+        .footer-divider {
+            width: 1px;
+            height: 12px;
+            background-color: var(--border-light);
+            align-self: center;
+        }
+
+        .footer-copyright-text {
+            max-width: 800px;
+            line-height: 1.8;
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+
+        /* Responsive Layout fixes */
+        @media (max-width: 1024px) {
+            .bento-grid { grid-template-columns: repeat(2, 1fr); }
+            .bento-span-2 { grid-column: span 1; }
+            .news-grid, .pillars-grid { grid-template-columns: repeat(2, 1fr); }
+            .split-grid { grid-template-columns: 1fr; gap: 40px; }
+            .hero-title { font-size: 42px; }
+            .split-image-container { height: 400px; }
+        }
+
+        @media (max-width: 640px) {
+            .bento-grid, .news-grid, .pillars-grid { grid-template-columns: 1fr; }
+            .nav-menu { display: none; }
+            .hero-title { font-size: 32px; }
+            .hero-actions { flex-direction: column; }
+            .btn-premium-primary { width: 100%; justify-content: center; }
+            .split-image-container { height: auto; }
+            .split-overlay-content { position: relative; background: var(--bg-surface); padding: 24px; }
+            .split-image-container img { height: 200px; }
+            .footer-legal-links { flex-direction: column; gap: 12px; }
+            .footer-divider { display: none; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="ambient-glow"></div>
+    <div class="ambient-glow-2"></div>
+    <div class="hero-bg-img"></div>
+
+    <!-- Premium Sticky Header -->
+    <header>
+        <div class="container nav-wrapper">
+            <div class="logo-area">
+                <div class="logo-icon">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+                </div>
+                <span>Hello GPT <span style="font-weight:300; color:var(--text-secondary);">翻译器</span></span>
+            </div>
+            <ul class="nav-menu">
+                <li><a href="#">首页</a></li>
+                <li><a href="#features">功能架构</a></li>
+                <li><a href="#advantages">核心优势</a></li>
+                <li><a href="#news">核心指南</a></li>
+            </ul>
+            <a onclick="k2()" class="btn-nav-download">下载客户端</a>
+        </div>
+    </header>
+
+    <!-- UI/UX Optimized Hero Section -->
+    <section class="hero-section" id="download">
+        <div class="container">
+            <div class="hero-badge">全球数智双向同步翻译系统</div>
+            <h1 class="hero-title gradient-text">融汇智能AI与语言科技<br><span class="brand-gradient-text">开创全球高效沟通新纪元</span></h1>
+            <h1 class="hero-title gradient-text">融汇智能AI与语言科技<br><span class="brand-gradient-text">开创全球高效沟通新纪元</span></h1>
+            <p class="hero-subtitle">整合国内外众多优质智能翻译算力，跨越一切底层语言壁垒。专为集成式跨境电商客服、沉浸式海外出海拓展等高频核心场景量身精造。</p>
+            
+            <div class="hero-actions">
+                <a onclick="k2()" class="btn-premium-primary">
+                    <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24"><path d="M0 0h24v24H0z" fill="none"/><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14 Hades c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z"/></svg>
+                    下载 Windows 客户端（智能最新版）
+                </a>
+            </div>
+
+            <!-- High Fidelity Web UI Mockup -->
+            <div class="mockup-wrapper">
+                <div class="mockup-header">
+                    <div class="mockup-dots">
+                        <div class="mockup-dot red"></div>
+                        <div class="mockup-dot yellow"></div>
+                        <div class="mockup-dot green"></div>
+                    </div>
+                    <div class="mockup-title">Hello_GPT_Workspace_v2.6.exe</div>
+                    <div style="width: 30px;"></div>
+                </div>
+                <div class="mockup-body">
+                    <div class="mockup-sidebar">
+                        <div class="mockup-item active">WhatsApp 运营专线 01</div>
+                        <div class="mockup-item">Telegram 业务线 02</div>
+                        <div class="mockup-item">LINE 跨境客服 01</div>
+                        <div class="mockup-item">Messenger 独立专线</div>
+                    </div>
+                    <div class="mockup-chat">
+                        <div class="chat-bubble-container">
+                            <div class="chat-bubble incoming">“Hi, I'm interested in your components. Do you offer real-time tech support and bulk discount?”</div>
+                            <div class="chat-bubble translation-layer">
+                                <span style="font-weight: 700; font-size:11px; block; color: var(--brand-accent); margin-bottom:2px;">[Hello GPT 智能流式翻译]</span><br>
+                                “你好，我对你们的组件很感兴趣。你们提供实时技术支持和大宗采购折扣吗？”
+                            </div>
+                        </div>
+                        <div class="chat-input-mock">
+                            <span>输入中文自动实时翻译并发送...</span>
+                            <div class="chat-send-btn">AI快捷回复</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Professional Card Section (Four Pillars) -->
+    <section class="pillars-section">
+        <div class="container pillars-grid">
+            <div class="pillar-premium-card">
+                <div class="pillar-icon-wrapper">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+                </div>
+                <h3 class="pillar-h3">信息安全堡垒</h3>
+                <p class="pillar-p">多重最高行业级别数据加密，消息即发即存即自动销毁，铸就数字安全防火墙。</p>
+            </div>
+            <div class="pillar-premium-card">
+                <div class="pillar-icon-wrapper">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"></path></svg>
+                </div>
+                <h3 class="pillar-h3">极致服务稳定</h3>
+                <p class="pillar-p">多区域、多机房自动化架构部署，始终如一的可靠表现，出海业务无忧运转。</p>
+            </div>
+            <div class="pillar-premium-card">
+                <div class="pillar-icon-wrapper">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                </div>
+                <h3 class="pillar-h3">全球秒级响应</h3>
+                <p class="pillar-p">秒速处理、流式引擎执行复杂翻译请求，极佳诠释跨境工作零等待体验。</p>
+            </div>
+            <div class="pillar-premium-card">
+                <div class="pillar-icon-wrapper">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+                </div>
+                <h3 class="pillar-h3">24h专业客服</h3>
+                <p class="pillar-p">全天候在线技术专家答疑解惑，全链路服务跟踪，彻底消除一切后顾之忧。</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Split Introduction Presentation with Integrated Image Gallery -->
+    <section class="split-section" id="features">
+        <div class="container split-grid">
+            <div class="split-left">
+                <h2>为什么要选择使用<br>Hello GPT 智能翻译器？</h2>
+                <p>在开辟全球化跨境海外市场时，语言沟通屏障往往是阻碍私域转化、客户留存的核心痛点。Hello GPT 翻译器提供一键式、跨平台的底层级语言解决方案。</p>
+                <p>我们完美融入了最前沿的智能AI语义理解技术，不仅翻译语法更精准，同时自带情感表达，能极大满足海外消费者的深层情感交流与信任诉求，有效促进订单高效成交。</p>
+            </div>
+            
+            <div class="split-image-container">
+                <img src="img/1a.jpg" alt="全球业务监控大屏">
+                
+                <div class="split-overlay-content">
+                    <div class="feature-mini-row">
+                        <div class="feature-mini-icon">✓</div>
+                        <div class="feature-mini-body">
+                            <h4>强大的跨境AI客服底座</h4>
+                            <p>全球主流社交系统无缝双向极速对译，流畅平稳运行绝不闪退。</p>
+                        </div>
+                    </div>
+                    <div class="feature-mini-row">
+                        <div class="feature-mini-icon">✓</div>
+                        <div class="feature-mini-body">
+                            <h4>服务器群智能动态分流</h4>
+                            <p>独创的高速分流底层技术，确保全球坐席始终处于低延迟线路。</p>
+                        </div>
+                    </div>
+                    <div class="feature-mini-row">
+                        <div class="feature-mini-icon">✓</div>
+                        <div class="feature-mini-body">
+                            <h4>精细化多端快捷协同</h4>
+                            <p>原生支持多账号矩阵双向多开与业务全渠道流转统计。</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Bento Grid Showcase -->
+    <section class="bento-section" id="advantages">
+        <div class="bento-bg-map"></div>
+        <div class="container">
+            <div class="section-intro">
+                <h2>Hello GPT 八大核心技术优势</h2>
+                <p>一站式彻底覆盖满足企业出海、全链路跨境交流沟通的极高要求</p>
+            </div>
+            
+            <div class="bento-grid">
+                <div class="bento-card bento-span-2">
+                    <div class="bento-img-overlay"></div>
+                    <div>
+                        <h3><div class="bento-icon-box">🌐</div> 全球多语言覆盖系统</h3>
+                        <p style="margin-top:12px;">全面、深度支持全球超200种以上小语种与主流语言，无缝消除出海不同国家、不同地区的全部交流阻碍，拓展更广阔的业务版图。</p>
+                    </div>
+                </div>
+                
+                <div class="bento-card">
+                    <div>
+                        <h3><div class="bento-icon-box">🧠</div> 顶级智能多通道</h3>
+                        <p style="margin-top:12px;">聚合DeepL、谷歌、ChatGPT等全球最优质AI翻译底座，智能匹配最懂外国人语境习惯的精准语序。</p>
+                    </div>
+                </div>
+
+                <div class="bento-card">
+                    <div>
+                        <h3><div class="bento-icon-box">⚡</div> 独创技术领先架构</h3>
+                        <p style="margin-top:12px;">应用专有加速通信协议与服务器多路智能并行分流网络，确保全球极端网络环境下依然流畅沟通不掉线。</p>
+                    </div>
+                </div>
+
+                <div class="bento-card bento-span-2">
+                    <div class="bento-img-overlay" style="background:var(--brand-accent);"></div>
+                    <div>
+                        <h3><div class="bento-icon-box">🔒</div> 极致隐私与安全策略</h3>
+                        <p style="margin-top:12px;">对高敏感商业沟通进行全面、严格的多重链路加密。核心交互数据实时即送即自动销毁，全面捍卫您与全球大客户之间的核心机密安全。</p>
+                    </div>
+                </div>
+
+                <div class="bento-card">
+                    <div>
+                        <h3><div class="bento-icon-box">🗺️</div> 毫秒级智能选线</h3>
+                        <p style="margin-top:12px;">根据全球网络节点的波动状况，智能算法实时秒级动态调度最佳传输线路；同时支持人工毫秒级一键自由切换。</p>
+                    </div>
+                </div>
+
+                <div class="bento-card">
+                    <div>
+                        <h3><div class="bento-icon-box">👥</div> 环境隔离多开防封</h3>
+                        <p style="margin-top:12px;">支持海外主流社交网络多账号安全登录，每个登录进程配有独立硬件指纹与网络阻断环境，规避关联封号风险。</p>
+                    </div>
+                </div>
+
+                <div class="bento-card">
+                    <div>
+                        <h3><div class="bento-icon-box">💬</div> 快捷回复批量预设</h3>
+                        <p style="margin-top:12px;">全面支持高频核心业务话术的快捷预设与一键秒级发送，彻底解决客服人员面对海量重复问询时的效率瓶颈。</p>
+                    </div>
+                </div>
+
+                <div class="bento-card bento-span-2" style="grid-column: span 3; background: linear-gradient(135deg, rgba(19, 26, 44, 0.8) 0%, rgba(79, 70, 229, 0.05) 100%);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; gap: 40px; flex-wrap: wrap;">
+                        <div style="flex: 1; min-width: 250px;">
+                            <h3><div class="bento-icon-box">📊</div> 跨境全链路精细化数据运营</h3>
+                            <p style="margin-top:12px;">深度集成多维引流精准计数、跨渠道自动分流入粉、历史去重过滤，配合智能群发机制，用详尽的流量统计工具实现全面降本增效。</p>
+                        </div>
+                        <div style="display:flex; gap:12px; flex-wrap: wrap;">
+                            <span style="background:rgba(255,255,255,0.05); padding:8px 16px; border-radius:8px; font-size:12px; border:1px solid var(--border-light)">📊 流量统计图表</span>
+                            <span style="background:rgba(255,255,255,0.05); padding:8px 16px; border-radius:8px; font-size:12px; border:1px solid var(--border-light)">👥 智能引流去重</span>
+                            <span style="background:rgba(255,255,255,0.05); padding:8px 16px; border-radius:8px; font-size:12px; border:1px solid var(--border-light)">🚀 自动智能群发</span>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+    <!-- Re-designed Section: Core Application Scenarios & Capabilities Overview (No external link required) -->
+    <section class="news-section" id="news">
+        <div class="container">
+            <div class="news-header-flex">
+                <div>
+                    <h2 class="gradient-text">Hello GPT 跨境出海核心场景解决方案</h2>
+                    <p style="color:var(--text-secondary); margin-top: 8px;">客户端内置全套高阶业务引擎，一站式攻克跨国多语种客户转化的核心链路瓶颈</p>
+                </div>
+            </div>
+
+            <div class="news-grid">
+                <!-- Card 1 -->
+                <div class="news-premium-card">
+                    
+                    <div class="news-content">
+                        <div class="news-meta">场景场景 · IM定制翻译</div>
+                        <h3 class="news-h3">企业级私域系统定制化极速翻译</h3>
+                        <p class="news-p">针对企业多元化的内部沟通和外部拓客诉求，系统支持一键对特定社群软件、IM系统进行底层级的流式对译配置，完美免去频繁切换语种模板的琐碎操作。</p>
+                    </div>
+                </div>
+                
+                <!-- Card 2 -->
+                <div class="news-premium-card">
+                    
+                    <div class="news-content">
+                        <div class="news-meta">合规管控 · 数据隐私防线</div>
+                        <h3 class="news-h3">跨境全链路商业机密级安全防护</h3>
+                        <p class="news-p">针对跨境企业最核心的海外交互合规诉求，在底层集成防抓取和端到端加密机制。严密规避聊天敏感词与商业机密泄漏泄露，让业务发展更加安心踏实。</p>
+                    </div>
+                </div>
+                
+                <!-- Card 3 -->
+                <div class="news-premium-card">
+                   
+                    <div class="news-content">
+                        <div class="news-meta">精准获客 · 智能批量触达</div>
+                        <h3 class="news-h3">大客群批量消息群发与留存沉淀</h3>
+                        <p class="news-p">完美复刻人工行为流控，针对高频爆款营销话术进行精准批量下发与多粉丝去重统计，无缝解决外贸或独立站卖家大客群消息分发卡顿、极易封号的行业顽疾。</p>
+                    </div>
+                </div>
+                
+                <!-- Card 4 -->
+                <div class="news-premium-card">
+                    
+                    <div class="news-content">
+                        <div class="news-meta">高密环境 · 软件独立防封</div>
+                        <h3 class="news-h3">IM聊天软件专属通道与防关联风控</h3>
+                        <p class="news-p">内置全球最优选智能网络路由与防关联指纹沙箱技术。支持一键快速锁定高安全选线通道，开启专属自动翻译防护，极大降低跨语种风控拦截概率。</p>
+                    </div>
+                </div>
+                
+                <!-- Card 5 -->
+                <div class="news-premium-card">
+                    
+                    <div class="news-content">
+                        <div class="news-meta">高频高质 · 语种快捷预设</div>
+                        <h3 class="news-h3">跨国多语种即点即聊自由切换</h3>
+                        <p class="news-p">可针对不同目标市场的目标客群实现常用翻译语言的“一键预设”。系统秒级自动识别并契合外国人地道的语法习惯，彻底告别反复切换的多余繁琐步骤。</p>
+                    </div>
+                </div>
+                
+                <!-- Card 6 -->
+                <div class="news-premium-card">
+                  
+                    <div class="news-content">
+                        <div class="news-meta">矩阵运营 · 多账号同时在线</div>
+                        <h3 class="news-h3">多账号矩阵高隔离独立多开托管</h3>
+                        <p class="news-p">打破原生社交软件的单一登录限制。支持在同台电脑环境下，多开不限数量的多套独立账号矩阵，每个账号环境全面隔离运行，大幅实现人效翻倍与降本增效。</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Ultimate CTA Section -->
+    <section class="final-cta-section">
+        <div class="cta-bg-img"></div>
+        <div class="container cta-box-premium">
+            <h2 class="gradient-text">融汇前沿科技与全球语言<br>立即开创跨境出海新纪元</h2>
+            <p>基于先进AI驱动的现代化出海沟通底座。多平台防封多开、全语种高精准翻译、数据去重计数百宝箱，即刻下载体验。</p>
+            <a onclick="k2()" class="btn-premium-primary" style="padding: 18px 48px; font-size:17px;">
+                立即免费试用 Windows 智能版
+            </a>
+            <div class="cta-footer-meta">7×24小时在线专业技术支持 · 助您畅聊全世界</div>
+        </div>
+    </section>
+
+    <!-- Professional Compliant Footer with Legal Anchors -->
+    <footer>
+        <div class="container footer-wrapper">
+            <ul class="footer-legal-links">
+                <li><a href="#terms">用户服务条款</a></li>
+                <div class="footer-divider"></div>
+                <li><a href="#privacy">隐私与合规政策</a></li>
+                <div class="footer-divider"></div>
+                <li><a href="#disclaimer">免责声明条款</a></li>
+                <div class="footer-divider"></div>
+                <li><a href="#disclosure">相关商业信息披露声明</a></li>
+                <div class="footer-divider"></div>
+                <li><a href="#security">数据安全与防封保障披露</a></li>
+            </ul>
+            
+            <p class="footer-copyright-text">
+                &copy; 2026 Hello GPT 智能双向同步翻译系统. 版权所有。<br>
+                本系统致力于铸就深层数字安全防御堡垒，所有核心链路交互数据均提供多重加密保障，全面赋能跨境企业与个人卖家的高效海外市场开拓。<br>
+                在使用本客户端前，请务必仔细阅读并完全理解我们的相关信息披露政策与合规细则。
+            </p>
+        </div>
+    </footer>
+
+</body>
+</html>
