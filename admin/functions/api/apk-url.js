@@ -10,17 +10,17 @@ export async function onRequest(context) {
     if (!site) site = host;
 
     // 查找站点对应的账户
-    const username = (await env.APK_STORE.get('site:' + site)) || '';
+    const username = (await env.kvadmin.get('site:' + site)) || '';
     const prefix = username ? username + ':' : '';
 
-    const url = (await env.APK_STORE.get(prefix + 'apk_url')) || '';
+    const url = (await env.kvadmin.get(prefix + 'apk_url')) || '';
 
     // 计数+1
     try {
       const today = new Date().toISOString().slice(0, 10);
       for (const key of [prefix + 'download_count', prefix + 'download_' + today]) {
-        const raw = (await env.APK_STORE.get(key)) || '0';
-        await env.APK_STORE.put(key, String(parseInt(raw) + 1));
+        const raw = (await env.kvadmin.get(key)) || '0';
+        await env.kvadmin.put(key, String(parseInt(raw) + 1));
       }
     } catch (e) {}
 

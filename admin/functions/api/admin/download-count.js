@@ -11,7 +11,7 @@ export async function onRequest(context) {
       });
     }
 
-    const total = parseInt((await env.APK_STORE.get('download_count')) || '0');
+    const total = parseInt((await env.kvadmin.get('download_count')) || '0');
 
     // 列出所有 download_YYYY-MM-DD 的 key（KV 不支持 list，用已知日期推算最近30天）
     var daily = [];
@@ -20,7 +20,7 @@ export async function onRequest(context) {
       var d = new Date(now);
       d.setDate(d.getDate() - i);
       var key = 'download_' + d.toISOString().slice(0, 10);
-      var count = parseInt((await env.APK_STORE.get(key)) || '0');
+      var count = parseInt((await env.kvadmin.get(key)) || '0');
       if (count > 0) daily.push({ date: key.replace('download_', ''), count: count });
     }
 

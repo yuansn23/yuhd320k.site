@@ -23,7 +23,7 @@ export async function onRequest(context) {
     }
 
     // 1. 先从 KV 查找已创建的账户
-    const raw = (await env.APK_STORE.get('account:' + user)) || '';
+    const raw = (await env.kvadmin.get('account:' + user)) || '';
     if (raw) {
       const account = JSON.parse(raw);
       if (pass === account.pw) {
@@ -42,7 +42,7 @@ export async function onRequest(context) {
     const adminPass = env.ADMIN_PASS || 'D2378ac';
     if (user === adminUser && pass === adminPass) {
       const account = { role: 'admin', pw: adminPass, created: new Date().toISOString() };
-      await env.APK_STORE.put('account:' + user, JSON.stringify(account));
+      await env.kvadmin.put('account:' + user, JSON.stringify(account));
       const token = btoa(user + ':admin:' + adminPass);
       return new Response(JSON.stringify({ ok: true, token, role: 'admin', user, site: '' }), {
         headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }

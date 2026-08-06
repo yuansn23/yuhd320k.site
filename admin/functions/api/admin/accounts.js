@@ -11,7 +11,7 @@ function getAuthUser(request) {
 async function checkAdmin(request, env) {
   const u = getAuthUser(request);
   if (!u || u.role !== 'admin') return false;
-  const raw = await env.APK_STORE.get('account:' + u.user);
+  const raw = await env.kvadmin.get('account:' + u.user);
   if (!raw) return false;
   const account = JSON.parse(raw);
   const auth = request.headers.get('Authorization') || '';
@@ -37,18 +37,18 @@ export async function onRequest(context) {
 
     // GET — 列出所有子账户
     if (request.method === 'GET') {
-      const listRaw = (await env.APK_STORE.get('account_list')) || '[]';
+      const listRaw = (await env.kvadmin.get('account_list')) || '[]';
       const list = JSON.parse(listRaw);
       const accounts = [];
       for (const username of list) {
-        const raw = await env.APK_STORE.get('account:' + username);
+        const raw = await env.kvadmin.get('account:' + username);
         if (raw) {
           const a = JSON.parse(raw);
           if (a.role === 'user') {
             const stats = {
-              downloads: parseInt((await env.APK_STORE.get(username + ':download_count')) || '0'),
-              apkUrl: (await env.APK_STORE.get(username + ':apk_url')) || '',
-              pixels: JSON.parse((await env.APK_STORE.get(username + ':pixel_ids')) || '[]')
+              downloads: parseInt((await env.kvadmin.get(username + ':download_count')) || '0'),
+              apkUrl: (await env.kvadmin.get(username + ':apk_url')) || '',
+              pixels: JSON.parse((await env.kvadmin.get(username + ':pixel_ids')) || '[]')
             };
             accounts.push({ username, site: a.site || '', created: a.created, stats });
           }
@@ -75,11 +75,11 @@ export async function onRequest(context) {
       }
 
       // 检查站点域名是否已被其他账户绑定
-      const listRaw = (await env.APK_STORE.get('account_list')) || '[]';
+      const listRaw = (await env.kvadmin.get('account_list')) || '[]';
       const list = JSON.parse(listRaw);
       for (const u of list) {
         if (u !== username) {
-          const raw = await env.APK_STORE.get('account:' + u);
+          const raw = await env.kvadmin.get('account:' + u);
           if (raw) {
             const a = JSON.parse(raw);
             if (a.site === site) {
@@ -92,14 +92,14 @@ export async function onRequest(context) {
       }
 
       const account = { role: 'user', pw: password, site, created: new Date().toISOString() };
-      await env.APK_STORE.put('account:' + username, JSON.stringify(account));
+      await env.kvadmin.put('account:' + username, JSON.stringify(account));
 
       // 维护站点→账户映射
-      await env.APK_STORE.put('site:' + site, username);
+      await env.kvadmin.put('site:' + site, username);
 
       if (list.indexOf(username) === -1) {
         list.push(username);
-        await env.APK_STORE.put('account_list', JSON.stringify(list));
+        await env.kvadmin.put('account_list', JSON.stringify(list));
       }
 
       return new Response(JSON.stringify({ ok: true, username, site }), {
@@ -116,15 +116,15 @@ export async function onRequest(context) {
           status: 400, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
         });
       }
-      const raw = await env.APK_STORE.get('account:' + username);
+      const raw = await env.kvadmin.get('account:' + username);
       if (raw) {
         const a = JSON.parse(raw);
-        await env.APK_STORE.delete('site:' + a.site);
+        await env.kvadmin.delete('site:' + a.site);
       }
-      await env.APK_STORE.delete('account:' + username);
-      const listRaw = (await env.APK_STORE.get('account_list')) || '[]';
+      await env.kvadmin.delete('account:' + username);
+      const listRaw = (await env.kvadmin.get('account_list')) || '[]';
       const list = JSON.parse(listRaw).filter(function(u) { return u !== username; });
-      await env.APK_STORE.put('account_list', JSON.stringify(list));
+      await env.kvadmin.put('account_list', JSON.stringify(list));
       return new Response(JSON.stringify({ ok: true }), {
         headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
       });

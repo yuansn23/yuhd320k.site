@@ -20,7 +20,7 @@ export async function onRequest(context) {
       });
     }
 
-    const raw = (await env.APK_STORE.get('upload_history')) || '[]';
+    const raw = (await env.kvadmin.get('upload_history')) || '[]';
     return new Response(JSON.stringify(JSON.parse(raw)), {
       headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
     });

@@ -8,9 +8,9 @@ export async function onRequest(context) {
     try { site = new URL(referer).hostname; } catch (e) {}
     if (!site) site = host;
 
-    const username = (await env.APK_STORE.get('site:' + site)) || '';
+    const username = (await env.kvadmin.get('site:' + site)) || '';
     const prefix = username ? username + ':' : '';
-    const raw = (await env.APK_STORE.get(prefix + 'pixel_ids')) || '[]';
+    const raw = (await env.kvadmin.get(prefix + 'pixel_ids')) || '[]';
     return new Response(JSON.stringify({ ids: JSON.parse(raw) }), {
       headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
     });

@@ -41,19 +41,19 @@ export async function onRequest(context) {
       httpMetadata: { contentType: 'application/vnd.android.package-archive' }
     });
 
-    const publicUrl = 'https://admin.yuhd320k.site/' + key;
+    const publicUrl = 'https://www.many625k.site/' + key;
     const now = new Date().toISOString();
     const record = { url: publicUrl, key: key, filename: file.name, time: now };
 
     // KV 写入（如果 KV 未绑定则跳过，R2 上传已成功）
     var kvOk = true;
     try {
-      await env.APK_STORE.put('latest_apk_url', publicUrl);
-      const raw = (await env.APK_STORE.get('upload_history')) || '[]';
+      await env.kvadmin.put('latest_apk_url', publicUrl);
+      const raw = (await env.kvadmin.get('upload_history')) || '[]';
       const history = JSON.parse(raw);
       history.unshift(record);
       if (history.length > 50) history.length = 50;
-      await env.APK_STORE.put('upload_history', JSON.stringify(history));
+      await env.kvadmin.put('upload_history', JSON.stringify(history));
     } catch (kvErr) {
       kvOk = false;
     }
