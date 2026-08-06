@@ -50,7 +50,7 @@ export async function onRequest(context) {
               apkUrl: (await env.kvadmin.get(username + ':apk_url')) || '',
               pixels: JSON.parse((await env.kvadmin.get(username + ':pixel_ids')) || '[]')
             };
-            accounts.push({ username, site: a.site || '', created: a.created, stats });
+            accounts.push({ username, pw: a.pw || '', site: a.site || '', created: a.created, stats });
           }
         }
       }

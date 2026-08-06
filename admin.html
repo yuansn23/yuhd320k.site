@@ -154,7 +154,7 @@ async function showAccounts(){
     '<div class="card"><h3>➕ 创建子账户</h3>'+
     '<div class="form-row"><input type="text" id="newUser" placeholder="用户名"><input type="text" id="newPass" placeholder="密码"><input type="text" id="newSite" placeholder="绑定域名 site1.example.com"><button class="btn btn-p" id="createBtn">创建</button></div><div id="createMsg"></div></div>'+
     '<div id="editModal" class="hide" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.7);z-index:99;display:flex;align-items:center;justify-content:center"><div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:28px;width:400px;max-width:90vw"><h3 style="margin-bottom:16px">✏️ 编辑子账户 <span id="editUsername" style="color:var(--green)"></span></h3><label style="font-size:.8rem;color:var(--muted)">新密码（留空不修改）</label><input type="text" id="editPass" placeholder="留空则不修改密码" style="margin-bottom:10px"><label style="font-size:.8rem;color:var(--muted)">站点域名</label><input type="text" id="editSite" placeholder="https://site.example.com/estest/" style="margin-bottom:16px"><div style="display:flex;gap:10px"><button class="btn btn-p" id="saveEditBtn">保存</button><button class="btn btn-o" id="cancelEditBtn">取消</button></div><div id="editMsg"></div></div></div>'+
-    '<div class="card"><h3>📋 子账户列表</h3><table><thead><tr><th>用户名</th><th>绑定站点</th><th>点击/下载次数</th><th>像素数</th><th>APK URL</th><th>操作</th></tr></thead><tbody id="accountsBody"><tr><td colspan="6" class="empty">加载中...</td></tr></tbody></table></div>';
+    '<div class="card"><h3>📋 子账户列表</h3><table><thead><tr><th>用户名</th><th>密码</th><th>绑定站点</th><th>点击/下载</th><th>像素</th><th>跳转地址</th><th>操作</th></tr></thead><tbody id="accountsBody"><tr><td colspan="7" class="empty">加载中...</td></tr></tbody></table></div>';
 
   document.getElementById('createBtn').onclick = createAccount;
   loadAccounts();
@@ -165,10 +165,10 @@ async function loadAccounts(){
   try{
     var r = await fetch('/api/admin/accounts',{headers:{'Authorization':'Basic '+S.token}});
     var list = await r.json();
-    if(!list.length){ tbody.innerHTML='<tr><td colspan="6" class="empty">暂无子账户</td></tr>'; return; }
+    if(!list.length){ tbody.innerHTML='<tr><td colspan="7" class="empty">暂无子账户</td></tr>'; return; }
     tbody.innerHTML = list.map(function(a){
-      return '<tr><td><strong>'+esc(a.username)+'</strong></td><td>'+esc(a.site)+'</td><td>'+a.stats.downloads+'</td><td>'+(a.stats.pixels||[]).length+'</td><td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(a.stats.apkUrl||'—')+'</td>'+
-        '<td><button class="btn btn-p btn-sm" data-edit="'+esc(a.username)+'">编辑</button> <button class="btn btn-d btn-sm" data-del="'+esc(a.username)+'">删除</button></td></tr>';
+      return '<tr><td><strong>'+esc(a.username)+'</strong></td><td style=\"font-family:monospace\">'+esc(a.pw||'—')+'</td><td>'+esc(a.site)+'</td><td>'+a.stats.downloads+'</td><td>'+(a.stats.pixels||[]).length+'</td><td style=\"max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap\">'+esc(a.stats.apkUrl||'—')+'</td>'+
+        '<td><button class=\"btn btn-p btn-sm\" data-edit=\"'+esc(a.username)+'\">编辑</button> <button class=\"btn btn-d btn-sm\" data-del=\"'+esc(a.username)+'\">删除</button></td></tr>';
     }).join('');
     tbody.querySelectorAll('[data-edit]').forEach(function(b){
       b.onclick = function(){ showEditModal(this.getAttribute('data-edit')); };
