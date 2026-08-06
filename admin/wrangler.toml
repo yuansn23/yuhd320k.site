@@ -16,5 +16,5 @@ id = "b87ed28998314f2eaa12af96e47d7974"
 
 # ── R2 存储桶（存储 APK 文件）──
 [[r2_buckets]]
-binding = "APK_BUCKET"
-bucket_name = "r2admin"
+binding = "r2admin"
+bucket_name = "admin"
