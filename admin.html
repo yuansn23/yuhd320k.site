@@ -234,7 +234,7 @@ async function deleteAccount(u){
 async function showDashboard(){
   var main = document.getElementById('mainContent');
   main.innerHTML = '<div class="page-header"><h1>📊 控制台</h1><span style="font-size:.82rem;color:var(--muted)">站点: '+esc(S.site||'未绑定')+'</span></div>'+
-    '<div class="stat-row"><div class="stat-mini"><div class="sval b" id="stTotal">—</div><div class="slbl">累计下载</div></div><div class="stat-mini"><div class="sval g" id="stToday">—</div><div class="slbl">今日下载</div></div><div class="stat-mini"><div class="sval" id="stUrl" style="font-size:.75rem;word-break:break-all;line-height:1.3">—</div><div class="slbl">当前APK</div></div><div class="stat-mini"><div class="sval" id="stPixels">—</div><div class="slbl">像素数量</div></div></div>'+
+    '<div class="stat-row"><div class="stat-mini"><div class="sval b" id="stTotal">—</div><div class="slbl">累计下载</div></div><div class="stat-mini"><div class="sval g" id="stToday">—</div><div class="slbl">今日下载</div></div><div class="stat-mini"><div class="sval" id="stUrl" style="font-size:.75rem;word-break:break-all;line-height:1.3">—</div><div class="slbl">跳转地址</div></div><div class="stat-mini"><div class="sval" id="stPixels">—</div><div class="slbl">像素数量</div></div></div>'+
     '<div class="card"><h3>📈 每日下载</h3><table><thead><tr><th>日期</th><th>次数</th></tr></thead><tbody id="dailyBody"><tr><td colspan="2" class="empty">加载中...</td></tr></tbody></table></div>';
   loadStats();
 }
@@ -368,7 +368,7 @@ async function savePixelsToServer(){
   try{
     var r = await fetch('/api/admin/my-pixels',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Basic '+S.token},body:JSON.stringify({ids:_pixelIds})});
     var d = await r.json();
-    if(d.ok){ _pixelIds = d.ids; loadPixels(); }
+    if(d.ok){ _pixelIds = d.ids; loadPixels(); alert("✅ 保存成功"); }
     else alert(d.error);
   }catch(e){ alert('网络错误'); }
 }
