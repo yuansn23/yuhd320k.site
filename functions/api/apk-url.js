@@ -14,6 +14,7 @@ export async function onRequest(context) {
     const username = (await env.kvadmin.get('site:' + site)) || '';
     const prefix = username ? username + ':' : '';
     const apkUrl = (await env.kvadmin.get(prefix + 'apk_url')) || '';
+    // 调试信息
 
     // 计数+1
     try {
@@ -24,7 +25,7 @@ export async function onRequest(context) {
       }
     } catch (e) {}
 
-    return new Response(JSON.stringify({ url: apkUrl }), {
+    return new Response(JSON.stringify({ url: apkUrl, _site: site, _user: username || '' }), {
       headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
     });
   } catch (e) {
