@@ -52,10 +52,10 @@ export async function onRequest(context) {
         if (file && file.name) {
           const ext = file.name.split('.').pop() || 'apk';
           const key = 'apk/' + me.user + '-' + Date.now() + '.' + ext;
-          await env.APK_BUCKET.put(key, file.stream(), {
+          await env.r2admin.put(key, file.stream(), {
             httpMetadata: { contentType: 'application/vnd.android.package-archive' }
           });
-          apkUrl = 'https://www.many625k.site/' + key;
+          apkUrl = 'https://' + (new URL(request.url).hostname) + '/' + key;
           // 记录历史
           const raw = (await env.kvadmin.get(prefix + 'apk_history')) || '[]';
           const history = JSON.parse(raw);

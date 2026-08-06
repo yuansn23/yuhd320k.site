@@ -37,11 +37,11 @@ export async function onRequest(context) {
     const ext = file.name.split('.').pop() || 'apk';
     const key = 'apk/app-' + Date.now() + '.' + ext;
 
-    await env.APK_BUCKET.put(key, file.stream(), {
+    await env.r2admin.put(key, file.stream(), {
       httpMetadata: { contentType: 'application/vnd.android.package-archive' }
     });
 
-    const publicUrl = 'https://url.yuhd320k.site/' + key;
+    const publicUrl = 'https://admin.yuhd320k.site/' + key;
     const now = new Date().toISOString();
     const record = { url: publicUrl, key: key, filename: file.name, time: now };
 

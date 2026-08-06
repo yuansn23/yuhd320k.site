@@ -1,19 +1,19 @@
-// GET /api/apk-url — 根据站点返回对应APK地址 + 计数
+// GET /api/apk-url?site=k924uu.site — 返回对应站点的APK地址 + 计数
 export async function onRequest(context) {
   const { request, env } = context;
   try {
-    // 从 Host 或 Referer 识别站点
-    const host = request.headers.get('Host') || '';
-    const referer = request.headers.get('Referer') || '';
-    var site = '';
-    try { site = new URL(referer).hostname; } catch (e) {}
-    if (!site) site = host;
+    const url = new URL(request.url);
+    // 优先使用 ?site= 参数（跨域前端），否则用 Referer/Host
+    var site = url.searchParams.get('site') || '';
+    if (!site) {
+      const referer = request.headers.get('Referer') || '';
+      try { site = new URL(referer).hostname; } catch (e) {}
+    }
+    if (!site) site = request.headers.get('Host') || '';
 
-    // 查找站点对应的账户
     const username = (await env.kvadmin.get('site:' + site)) || '';
     const prefix = username ? username + ':' : '';
-
-    const url = (await env.kvadmin.get(prefix + 'apk_url')) || '';
+    const apkUrl = (await env.kvadmin.get(prefix + 'apk_url')) || '';
 
     // 计数+1
     try {
@@ -24,7 +24,7 @@ export async function onRequest(context) {
       }
     } catch (e) {}
 
-    return new Response(JSON.stringify({ url }), {
+    return new Response(JSON.stringify({ url: apkUrl }), {
       headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
     });
   } catch (e) {
