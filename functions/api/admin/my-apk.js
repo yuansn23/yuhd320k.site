@@ -64,8 +64,15 @@ export async function onRequest(context) {
           await env.kvadmin.put(prefix + 'apk_history', JSON.stringify(history));
         }
       } else {
-        // 手动输入URL
+        // 手动输入URL 或 删除历史记录
         const body = await request.json();
+        // 如果传了 history，直接覆盖历史
+        if (body.history) {
+          await env.kvadmin.put(prefix + 'apk_history', JSON.stringify(body.history));
+          return new Response(JSON.stringify({ ok: true, msg: '历史已更新' }), {
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+          });
+        }
         apkUrl = (body.url || '').trim();
         if (apkUrl) {
           const raw = (await env.kvadmin.get(prefix + 'apk_history')) || '[]';

@@ -130,7 +130,7 @@ function buildNav(){
   if(S.role==='admin'){
     nav.innerHTML = '<a class="active" data-p="accounts">📋 账户管理</a>';
   } else {
-    nav.innerHTML = '<a class="active" data-p="dashboard">📊 控制台</a><a data-p="apk">📦 跳转地址配置</a><a data-p="pixels">📡 像素管理</a>';
+    nav.innerHTML = '<a class="active" data-p="dashboard">📊 控制台</a><a data-p="apk">📦 普通跳转地址配置</a><a data-p="pixels">📡 像素管理</a>';
   }
   nav.querySelectorAll('a').forEach(function(a){
     a.onclick = function(){
@@ -262,15 +262,22 @@ async function loadStats(){
     if(!daily.length){ tbody.innerHTML='<tr><td colspan="2" class="empty">暂无数据</td></tr>'; return; }
     tbody.innerHTML = daily.map(function(x){ return '<tr><td>'+x.date+'</td><td><strong>'+x.count+'</strong></td></tr>'; }).join('');
   }catch(e){}
+  tbody.querySelectorAll('[data-delhist]').forEach(function(b){ b.onclick=function(){ deleteHistory(parseInt(this.getAttribute('data-delhist'))); }; });
 }
 
-// ========== USER: 跳转地址配置 ==========
+// ========== USER: 普通跳转地址配置 ==========
 async function showApk(){
   var main = document.getElementById('mainContent');
-  main.innerHTML = '<div class="page-header"><h1>📦 跳转地址配置</h1></div>'+
-    '<div class="card"><h3>📝 跳转地址</h3><div class="form-row"><input type="text" id="apkUrlInput" placeholder="https://cdn.example.com/app.apk"><button class="btn btn-p" id="saveUrlBtn">保存</button></div><div id="urlMsg"></div></div>'+
-    '<div class="card"><h3>📤 上传APK文件</h3><p style="color:var(--muted);font-size:.82rem;margin-bottom:12px;padding:8px 14px;background:rgba(240,136,62,.06);border-radius:6px;border-left:3px solid var(--amber)">⚠️ 上传较大，需约30秒，请耐心等待</p><div class="form-row"><input type="file" id="fileInput" accept=".apk"><button class="btn btn-p" id="uploadBtn">上传</button></div><div id="uploadMsg"></div></div>'+
-    '<div class="card"><h3>📋 上传/配置记录</h3><table><thead><tr><th>时间</th><th>文件名</th><th>URL</th></tr></thead><tbody id="historyBody"><tr><td colspan="3" class="empty">加载中...</td></tr></tbody></table></div>';
+  main.innerHTML = '<div class="page-header"><h1>📦 普通跳转地址配置</h1></div>'+
+    '<div class="card"><h3>⚙️ 配置方式</h3>'+
+    '<div style="display:flex;gap:20px;margin-bottom:16px">'+
+    '<label style="display:flex;align-items:center;gap:6px;cursor:pointer;color:var(--text);font-weight:600"><input type="radio" name="apkMode" value="url" checked onchange="toggleApkMode()"> 普通跳转地址</label>'+
+    '<label style="display:flex;align-items:center;gap:6px;cursor:pointer;color:var(--text);font-weight:600"><input type="radio" name="apkMode" value="upload" onchange="toggleApkMode()"> 上传APK文件</label>'+
+    '</div>'+
+    '<div id="modeUrl"><div class="form-row"><input type="text" id="apkUrlInput" placeholder="https://cdn.example.com/app.apk"><button class="btn btn-p" id="saveUrlBtn">保存</button></div><div id="urlMsg"></div></div>'+
+    '<div id="modeUpload" class="hide"><p style="color:var(--muted);font-size:.82rem;margin-bottom:12px;padding:8px 14px;background:rgba(240,136,62,.06);border-radius:6px;border-left:3px solid var(--amber)">⚠️ 上传较大，需约30秒。如上传错误请重新上传即可</p><div class="form-row"><input type="file" id="fileInput" accept=".apk"><button class="btn btn-p" id="uploadBtn">上传</button></div><div id="uploadMsg"></div></div>'+
+    '</div>'+
+    '<div class="card"><h3>📋 上传/配置记录</h3><table><thead><tr><th>时间</th><th>文件名</th><th>URL</th><th>操作</th></tr></thead><tbody id="historyBody"><tr><td colspan="4" class="empty">加载中...</td></tr></tbody></table></div>';
   loadApkData();
   document.getElementById('saveUrlBtn').onclick = saveUrl;
   document.getElementById('uploadBtn').onclick = uploadFile;
@@ -283,9 +290,32 @@ async function loadApkData(){
     document.getElementById('apkUrlInput').value = d.apkUrl||'';
     var tbody = document.getElementById('historyBody');
     var h = d.history||[];
-    if(!h.length){ tbody.innerHTML='<tr><td colspan="3" class="empty">暂无记录</td></tr>'; return; }
+    if(!h.length){ tbody.innerHTML='<tr><td colspan="4" class="empty">暂无记录</td></tr>'; return; }
     tbody.innerHTML = h.map(function(x){ return '<tr><td>'+fmtTime(x.time)+'</td><td>'+esc(x.filename||'')+'</td><td style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(x.url||'')+'</td></tr>'; }).join('');
   }catch(e){}
+  tbody.querySelectorAll('[data-delhist]').forEach(function(b){ b.onclick=function(){ deleteHistory(parseInt(this.getAttribute('data-delhist'))); }; });
+}
+
+async function deleteHistory(i){
+  if(!confirm('删除该记录？')) return;
+  try{
+    // Get current history, remove item, save back
+    var r = await fetch('/api/admin/my-stats',{headers:{'Authorization':'Basic '+S.token}});
+    var d = await r.json();
+    var h = d.history||[];
+    h.splice(i,1);
+    // Save modified history via my-apk with a special action
+    // Since there's no direct delete endpoint, we update via the apk_url
+    // Actually store history back directly by re-uploading the latest URL
+    await fetch('/api/admin/my-apk',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Basic '+S.token},body:JSON.stringify({url:d.apkUrl||'',history:h})});
+    loadApkData();
+  }catch(e){ alert('网络错误'); }
+}
+
+function toggleApkMode(){
+  var mode = document.querySelector('input[name="apkMode"]:checked').value;
+  document.getElementById('modeUrl').classList.toggle('hide', mode !== 'url');
+  document.getElementById('modeUpload').classList.toggle('hide', mode !== 'upload');
 }
 
 async function saveUrl(){
@@ -318,7 +348,7 @@ async function showPixels(){
   var main = document.getElementById('mainContent');
   main.innerHTML = '<div class="page-header"><h1>📡 像素管理</h1></div>'+
     '<div class="card"><h3>➕ 新增像素</h3><div class="form-row"><input type="text" id="newPixelId" placeholder="输入像素ID"><button class="btn btn-p" id="addPixelBtn">新增</button></div><div id="pixelAddMsg"></div></div>'+
-    '<div class="card"><h3>📋 像素列表 <span id="pixelCount" style="font-weight:400;font-size:.8rem;color:var(--muted)"></span></h3><table><thead><tr><th>序号</th><th>像素ID</th><th>操作</th></tr></thead><tbody id="pixelBody"><tr><td colspan="3" class="empty">加载中...</td></tr></tbody></table></div>';
+    '<div class="card"><h3>📋 像素列表 <span id="pixelCount" style="font-weight:400;font-size:.8rem;color:var(--muted)"></span></h3><table><thead><tr><th>序号</th><th>像素ID</th><th>操作</th></tr></thead><tbody id="pixelBody"><tr><td colspan="4" class="empty">加载中...</td></tr></tbody></table></div>';
   document.getElementById('addPixelBtn').onclick = addPixel;
   loadPixels();
 }
@@ -330,7 +360,7 @@ async function loadPixels(){
     _pixelIds = d.ids||[];
     document.getElementById('pixelCount').textContent = '共 '+_pixelIds.length+' 个';
     var tbody = document.getElementById('pixelBody');
-    if(!_pixelIds.length){ tbody.innerHTML='<tr><td colspan="3" class="empty">暂无</td></tr>'; return; }
+    if(!_pixelIds.length){ tbody.innerHTML='<tr><td colspan="4" class="empty">暂无</td></tr>'; return; }
     tbody.innerHTML = _pixelIds.map(function(id,i){ return '<tr><td>'+(i+1)+'</td><td><input type="text" class="pe" value="'+esc(id)+'" data-i="'+i+'" style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--border);background:#0d0f16;color:var(--text);font-size:.86rem;font-family:monospace"></td><td><button class="btn btn-p btn-sm" data-save="'+i+'">保存</button> <button class="btn btn-d btn-sm" data-del="'+i+'">删除</button></td></tr>'; }).join('');
     tbody.querySelectorAll('[data-save]').forEach(function(b){ b.onclick = function(){ savePixel(parseInt(this.getAttribute('data-save'))); }; });
     tbody.querySelectorAll('[data-edit]').forEach(function(b){
@@ -338,6 +368,7 @@ async function loadPixels(){
     });
     tbody.querySelectorAll('[data-del]').forEach(function(b){ b.onclick = function(){ delPixel(parseInt(this.getAttribute('data-del'))); }; });
   }catch(e){}
+  tbody.querySelectorAll('[data-delhist]').forEach(function(b){ b.onclick=function(){ deleteHistory(parseInt(this.getAttribute('data-delhist'))); }; });
 }
 
 function savePixel(i){
