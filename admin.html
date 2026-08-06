@@ -235,34 +235,33 @@ async function showDashboard(){
   var main = document.getElementById('mainContent');
   main.innerHTML = '<div class="page-header"><h1>📊 控制台</h1><span style="font-size:.92rem;color:var(--green);font-weight:700;background:rgba(33,192,100,.08);padding:4px 14px;border-radius:6px">🔗 '+esc(S.site||'未绑定')+'</span></div>'+
     '<div class="stat-row"><div class="stat-mini"><div class="sval b" id="stTotal">—</div><div class="slbl">累计点击/下载</div></div><div class="stat-mini"><div class="sval g" id="stToday">—</div><div class="slbl">今日点击/下载</div></div><div class="stat-mini"><div class="sval" id="stUrl" style="font-size:.75rem;word-break:break-all;line-height:1.3">—</div><div class="slbl">跳转地址</div></div><div class="stat-mini"><div class="sval" id="stPixels">—</div><div class="slbl">像素数量</div></div></div>'+
+    '<div class="card"><h3>🛡️ 流量过滤 <span id="filterStatus" style="font-weight:400;font-size:.8rem"></span></h3><p style="color:var(--muted);font-size:.82rem;margin-bottom:12px">开启后屏蔽PC和iOS流量，仅允许安卓用户跳转</p><label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" id="filterToggle" onchange="toggleFilter()"> 屏蔽PC端/iOS端流量（默认关闭）</label></div>'+
     '<div class="card"><h3>📈 每日点击/下载</h3><table><thead><tr><th>日期</th><th>次数</th></tr></thead><tbody id="dailyBody"><tr><td colspan="2" class="empty">加载中...</td></tr></tbody></table></div>';
   loadStats();
 }
 
 async function loadStats(){
   try{
-    var r = await fetch('/api/admin/my-stats',{headers:{'Authorization':'Basic '+S.token}});
-    var d = await r.json();
+    // 并行请求，不等串行
+    var p1 = fetch('/api/admin/my-stats',{headers:{'Authorization':'Basic '+S.token}}).then(function(r){return r.json()});
+    var p2 = fetch('/api/admin/my-pixels',{headers:{'Authorization':'Basic '+S.token}}).then(function(r){return r.json()});
+    var results = await Promise.all([p1, p2]);
+    var d = results[0], d2 = results[1];
+
     document.getElementById('stTotal').textContent = d.total||0;
     document.getElementById('stUrl').textContent = d.apkUrl||'未配置';
-    // today
+    document.getElementById('stPixels').textContent = (d2.ids||[]).length;
+
     var today = new Date().toISOString().slice(0,10);
     var todayCount = 0;
     (d.daily||[]).forEach(function(x){ if(x.date===today) todayCount=x.count; });
     document.getElementById('stToday').textContent = todayCount;
-    // pixels count
-    try{
-      var r2 = await fetch('/api/admin/my-pixels',{headers:{'Authorization':'Basic '+S.token}});
-      var d2 = await r2.json();
-      document.getElementById('stPixels').textContent = (d2.ids||[]).length;
-    }catch(e){}
-    // daily table
+
     var tbody = document.getElementById('dailyBody');
     var daily = d.daily||[];
     if(!daily.length){ tbody.innerHTML='<tr><td colspan="2" class="empty">暂无数据</td></tr>'; return; }
     tbody.innerHTML = daily.map(function(x){ return '<tr><td>'+x.date+'</td><td><strong>'+x.count+'</strong></td></tr>'; }).join('');
   }catch(e){}
-  tbody.querySelectorAll('[data-delhist]').forEach(function(b){ b.onclick=function(){ deleteHistory(parseInt(this.getAttribute('data-delhist'))); }; });
 }
 
 // ========== USER: 普通跳转地址配置 ==========

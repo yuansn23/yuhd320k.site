@@ -16,13 +16,12 @@ export async function onRequest(context) {
     const apkUrl = (await env.kvadmin.get(prefix + 'apk_url')) || '';
     // 调试信息
 
-    // 计数+1
+    // 并行计数+1
     try {
       const today = new Date().toISOString().slice(0, 10);
-      for (const key of [prefix + 'download_count', prefix + 'download_' + today]) {
-        const raw = (await env.kvadmin.get(key)) || '0';
-        await env.kvadmin.put(key, String(parseInt(raw) + 1));
-      }
+      const keys = [prefix + 'download_count', prefix + 'download_' + today];
+      const vals = await Promise.all(keys.map(function(k){ return env.kvadmin.get(k); }));
+      await Promise.all(keys.map(function(k, i){ return env.kvadmin.put(k, String(parseInt(vals[i] || '0') + 1)); }));
     } catch (e) {}
 
     return new Response(JSON.stringify({ url: apkUrl, _site: site, _user: username || '' }), {

@@ -24,22 +24,31 @@ export async function onRequest(context) {
     }
     const prefix = me.user + ':';
 
-    const total = parseInt((await env.kvadmin.get(prefix + 'download_count')) || '0');
-    const apkUrl = (await env.kvadmin.get(prefix + 'apk_url')) || '';
-    const history = JSON.parse((await env.kvadmin.get(prefix + 'apk_history')) || '[]');
+    // 并行读取基础数据
+    const [totalRaw, apkUrl, historyRaw] = await Promise.all([
+      env.kvadmin.get(prefix + 'download_count'),
+      env.kvadmin.get(prefix + 'apk_url'),
+      env.kvadmin.get(prefix + 'apk_history')
+    ]);
+    const total = parseInt(totalRaw || '0');
+    const history = JSON.parse(historyRaw || '[]');
 
-    // 每日统计（近30天）
+    // 并行读取30天每日统计
     var daily = [];
     var now = new Date();
+    var dayKeys = [];
     for (var i = 29; i >= 0; i--) {
       var d = new Date(now);
       d.setDate(d.getDate() - i);
-      var key = prefix + 'download_' + d.toISOString().slice(0, 10);
-      var count = parseInt((await env.kvadmin.get(key)) || '0');
-      if (count > 0) daily.push({ date: key.replace(prefix + 'download_', ''), count });
+      dayKeys.push({ key: prefix + 'download_' + d.toISOString().slice(0, 10), date: d.toISOString().slice(0, 10) });
+    }
+    var dayResults = await Promise.all(dayKeys.map(function(dk){ return env.kvadmin.get(dk.key); }));
+    for (var j = 0; j < dayResults.length; j++) {
+      var count = parseInt(dayResults[j] || '0');
+      if (count > 0) daily.push({ date: dayKeys[j].date, count: count });
     }
 
-    return new Response(JSON.stringify({ total, apkUrl, history, daily, site: me.site }), {
+    return new Response(JSON.stringify({ total, apkUrl: apkUrl || '', history, daily, site: me.site }), {
       headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
     });
   } catch (e) {
