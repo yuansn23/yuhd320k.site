@@ -11,10 +11,10 @@ ADMIN_PASS = "D2378ac"
 
 # ── KV 命名空间（存储 APK URL + 上传历史）──
 [[kv_namespaces]]
-binding = "APK_STORE"
+binding = "kvadmin"
 id = "b87ed28998314f2eaa12af96e47d7974"
 
 # ── R2 存储桶（存储 APK 文件）──
 [[r2_buckets]]
 binding = "APK_BUCKET"
-bucket_name = "apk-bucket"
+bucket_name = "r2admin"
