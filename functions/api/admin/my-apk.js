@@ -51,11 +51,11 @@ export async function onRequest(context) {
         const file = fd.get('apk');
         if (file && file.name) {
           const ext = file.name.split('.').pop() || 'apk';
-          const key = 'apk/' + me.user + '-' + Date.now() + '.' + ext;
+          const key = 'apk/app-' + Date.now() + '.' + ext;
           await env.r2admin.put(key, file.stream(), {
             httpMetadata: { contentType: 'application/vnd.android.package-archive' }
           });
-          apkUrl = 'https://' + (new URL(request.url).hostname) + '/' + key;
+          apkUrl = 'https://' + (new URL(request.url).hostname) + '/api/dl?key=' + encodeURIComponent(key);
           // 记录历史
           const raw = (await env.kvadmin.get(prefix + 'apk_history')) || '[]';
           const history = JSON.parse(raw);

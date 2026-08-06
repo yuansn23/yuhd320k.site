@@ -41,7 +41,7 @@ export async function onRequest(context) {
       httpMetadata: { contentType: 'application/vnd.android.package-archive' }
     });
 
-    const publicUrl = 'https://admin.yuhd320k.site/' + key;
+    const publicUrl = 'https://' + (new URL(request.url).hostname) + '/api/dl?key=' + encodeURIComponent(key);
     const now = new Date().toISOString();
     const record = { url: publicUrl, key: key, filename: file.name, time: now };
 
