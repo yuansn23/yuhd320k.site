@@ -1,0 +1,20 @@
+# ============================================================
+# StreamFlix — Cloudflare Pages 配置
+# ============================================================
+name = "streamflix"
+compatibility_date = "2026-01-01"
+
+# ── 管理员账号密码（唯一配置点，修改这里即可）──
+[vars]
+ADMIN_USER = "htes"
+ADMIN_PASS = "D2378ac"
+
+# ── KV 命名空间（存储 APK URL + 上传历史）──
+[[kv_namespaces]]
+binding = "APK_STORE"
+id = "365f06b2ea5b457995cbe7f4cb538f2d"
+
+# ── R2 存储桶（存储 APK 文件）──
+[[r2_buckets]]
+binding = "APK_BUCKET"
+bucket_name = "apk-bucket"

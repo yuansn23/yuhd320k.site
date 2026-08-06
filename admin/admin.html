@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>StreamFlix · 后台管理</title>
+<style>
+:root{--bg:#0f1119;--card:#181b28;--border:rgba(255,255,255,.06);--text:#e1e4ed;--muted:#7c8097;--green:#21C064;--red:#f85149;--blue:#58a6ff}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:system-ui,-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+/* 侧边栏 */
+.sidebar{width:220px;background:var(--card);border-right:1px solid var(--border);padding:24px 0;display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:10}
+.sidebar-logo{padding:0 20px 24px;border-bottom:1px solid var(--border);font-weight:800;font-size:1.05rem;display:flex;align-items:center;gap:8px}
+.sidebar-logo .dot{width:8px;height:8px;border-radius:50%;background:var(--green)}
+.sidebar-nav{flex:1;padding:12px 0}
+.sidebar-nav a{display:flex;align-items:center;gap:10px;padding:10px 20px;color:var(--muted);text-decoration:none;font-size:.88rem;transition:all .15s;border-left:2px solid transparent}
+.sidebar-nav a:hover,.sidebar-nav a.active{color:var(--text);background:rgba(255,255,255,.03);border-left-color:var(--green)}
+.sidebar-nav a.active{font-weight:600}
+.sidebar-user{padding:16px 20px;border-top:1px solid var(--border);font-size:.8rem;color:var(--muted)}
+.sidebar-user .logout{color:var(--red);cursor:pointer;font-weight:600;margin-top:6px;display:inline-block}
+.sidebar-user .logout:hover{text-decoration:underline}
+/* 主区域 */
+.main{margin-left:220px;flex:1;padding:28px 32px}
+.page-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:28px}
+.page-header h1{font-size:1.4rem;font-weight:700}
+.page-header .bread{font-size:.82rem;color:var(--muted)}
+/* 卡片 */
+.card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:24px;margin-bottom:20px}
+.card h3{font-size:1rem;margin-bottom:16px;display:flex;align-items:center;gap:8px}
+/* 表单 */
+.form-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+input[type=file]{flex:1;min-width:200px;padding:10px 14px;border-radius:8px;border:1px solid var(--border);background:#0d0f16;color:var(--text);font-size:.88rem;cursor:pointer}
+input[type=file]:focus,input[type=text]:focus,input[type=password]:focus{outline:none;border-color:var(--green)}
+input[type=text],input[type=password]{width:100%;padding:11px 14px;border-radius:8px;border:1px solid var(--border);background:#0d0f16;color:var(--text);font-size:.9rem;margin-bottom:14px}
+.btn{padding:10px 22px;border:none;border-radius:8px;font-weight:700;font-size:.88rem;cursor:pointer;transition:all .2s;white-space:nowrap}
+.btn-p{background:var(--green);color:#fff}.btn-p:hover{background:#1a9e52}
+.btn-o{background:transparent;border:1px solid var(--border);color:var(--muted)}.btn-o:hover{color:var(--text);border-color:rgba(255,255,255,.15)}
+.msg{padding:10px 14px;border-radius:8px;font-size:.84rem;margin-top:12px}
+.msg.ok{background:rgba(33,192,100,.08);color:var(--green);border:1px solid rgba(33,192,100,.15)}
+.msg.err{background:rgba(248,81,73,.08);color:var(--red);border:1px solid rgba(248,81,73,.15)}
+/* 表格 */
+table{width:100%;border-collapse:collapse;font-size:.86rem}
+th{text-align:left;padding:10px 12px;color:var(--muted);font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid var(--border)}
+td{padding:12px;border-bottom:1px solid var(--border);vertical-align:middle}
+td .fname{font-weight:600;display:block}
+td .ftime{font-size:.76rem;color:var(--muted);margin-top:2px}
+td .furl{font-size:.78rem;color:var(--blue);word-break:break-all}
+tr:hover td{background:rgba(255,255,255,.015)}
+.badge{display:inline-block;padding:3px 8px;border-radius:4px;font-size:.7rem;font-weight:700}
+.badge.latest{background:rgba(33,192,100,.12);color:var(--green)}
+.empty{text-align:center;padding:40px;color:var(--muted);font-size:.9rem}
+/* 统计 */
+.stat-row{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px}
+.stat-mini{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:18px 20px}
+.stat-mini .sval{font-size:1.6rem;font-weight:800;line-height:1}
+.stat-mini .sval.g{color:var(--green)}.stat-mini .sval.b{color:var(--blue)}
+.stat-mini .slbl{font-size:.76rem;color:var(--muted);margin-top:4px}
+/* 登录页 */
+.login-wrap{display:flex;align-items:center;justify-content:center;min-height:100vh;background:var(--bg)}
+.login-box{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:40px 32px;width:100%;max-width:380px;text-align:center}
+.login-box h2{font-size:1.3rem;margin-bottom:4px}
+.login-box .sub{color:var(--muted);font-size:.84rem;margin-bottom:24px}
+.login-box label{display:block;text-align:left;font-size:.8rem;font-weight:600;color:var(--muted);margin-bottom:4px}
+.login-box .btn{width:100%;padding:13px;margin-top:6px}
+/* 面板显隐 */
+.panel-hide{display:none}
+/* 响应式 */
+@media(max-width:900px){.stat-row{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:720px){
+  .sidebar{width:60px;padding:16px 0}
+  .sidebar-logo span,.sidebar-nav a span,.sidebar-user span{display:none}
+  .sidebar-logo{padding:0 12px 16px;justify-content:center}
+  .sidebar-nav a{justify-content:center;padding:12px}
+  .main{margin-left:60px;padding:20px 16px}
+  .stat-row{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<!-- ========== 登录页 ========== -->
+<div id="loginPage" class="login-wrap">
+  <div class="login-box">
+    <h2>🔐 StreamFlix 后台</h2>
+    <p class="sub">请输入管理员账号登录</p>
+    <label>用户名</label>
+    <input type="text" id="userInput" autocomplete="username">
+    <label>登录密码</label>
+    <input type="password" id="passInput" autocomplete="current-password">
+    <button class="btn btn-p" id="loginBtn">登 录</button>
+    <div id="loginMsg"></div>
+  </div>
+</div>
+
+<!-- ========== 后台面板 ========== -->
+<div id="adminPage" class="panel-hide">
+  <aside class="sidebar">
+    <div class="sidebar-logo"><span class="dot"></span><span>StreamFlix</span></div>
+    <nav class="sidebar-nav">
+      <a href="#" class="active" data-page="dashboard">📊 控制台</a>
+      <a href="#" data-page="upload">📤 上传APK</a>
+      <a href="#" data-page="history">📋 上传记录</a>
+      <a href="#" data-page="pixels">📡 像素管理</a>
+    </nav>
+    <div class="sidebar-user">
+      <span>👤 htes</span>
+      <span class="logout" id="logoutLink">退出登录 →</span>
+    </div>
+  </aside>
+
+  <div class="main">
+    <!-- 仪表盘 -->
+    <div id="page-dashboard">
+      <div class="page-header"><h1>📊 控制台</h1><span class="bread">首页 / 概览</span></div>
+      <div class="stat-row">
+        <div class="stat-mini"><div class="sval b" id="statCount">—</div><div class="slbl">历史上传次数</div></div>
+        <div class="stat-mini"><div class="sval g" id="statLatest">—</div><div class="slbl">最新文件名</div></div>
+        <div class="stat-mini"><div class="sval" id="statUrl" style="font-size:.75rem;word-break:break-all;line-height:1.4">—</div><div class="slbl">当前生效URL</div></div>
+        <div class="stat-mini"><div class="sval g" id="statDownloads">—</div><div class="slbl">累计下载次数</div></div>
+      </div>
+      <div class="card" id="dailyCard" style="display:none">
+        <h3>📈 每日下载统计（近30天）</h3>
+        <table>
+          <thead><tr><th>日期</th><th>下载次数</th><th>占比</th></tr></thead>
+          <tbody id="dailyBody"><tr><td colspan="3" class="empty">加载中...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 上传 -->
+    <div id="page-upload" class="panel-hide">
+      <div class="page-header"><h1>📤 上传APK</h1><span class="bread">上传 / 新文件</span></div>
+      <div class="card">
+        <h3>📦 选择APK文件</h3>
+        <p style="color:var(--muted);font-size:.82rem;margin-bottom:14px;padding:8px 14px;background:rgba(240,136,62,.06);border-radius:6px;border-left:3px solid #f0883e">⚠️ 上传文件较大，预计需要 <strong>30秒</strong> 左右，请耐心等待不要关闭页面</p>
+        <div class="form-row">
+          <input type="file" id="fileInput" accept=".apk,application/vnd.android.package-archive">
+          <button class="btn btn-p" id="uploadBtn">开始上传</button>
+        </div>
+        <div id="uploadMsg"></div>
+      </div>
+    </div>
+
+    <!-- 像素管理 -->
+    <div id="page-pixels" class="panel-hide">
+      <div class="page-header"><h1>📡 Facebook 像素管理</h1><span class="bread">设置 / 像素ID</span></div>
+      <div class="card">
+        <h3>📡 新增像素ID</h3>
+        <div class="form-row">
+          <input type="text" id="newPixelId" placeholder="输入像素ID，如 1608526056916691" style="flex:1;min-width:200px;padding:10px 14px;border-radius:8px;border:1px solid var(--border);background:#0d0f16;color:var(--text);font-size:.88rem">
+          <button class="btn btn-p" id="pixelsAddBtn">新增</button>
+        </div>
+        <div id="pixelsAddMsg"></div>
+      </div>
+      <div class="card">
+        <h3>📋 像素列表 <span style="font-weight:400;font-size:.8rem;color:var(--muted)" id="pixelsCount"></span></h3>
+        <table>
+          <thead><tr><th style="width:60px">序号</th><th>像素ID</th><th style="width:160px">操作</th></tr></thead>
+          <tbody id="pixelsListBody"><tr><td colspan="3" class="empty">加载中...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 上传记录 -->
+    <div id="page-history" class="panel-hide">
+      <div class="page-header"><h1>📋 上传记录</h1><span class="bread">记录 / 全部</span></div>
+      <div class="card">
+        <table>
+          <thead><tr><th>文件名</th><th>时间</th><th>URL</th><th>状态</th></tr></thead>
+          <tbody id="historyBody"><tr><td colspan="4" class="empty">加载中...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ========== 统一状态 ==========
+var AUTH_TOKEN = sessionStorage.getItem('ad_token') || '';
+
+// ========== 登录 ==========
+document.getElementById('loginBtn').addEventListener('click', login);
+document.getElementById('passInput').addEventListener('keydown', function(e){ if(e.key==='Enter')login(); });
+
+async function login(){
+  var u = document.getElementById('userInput').value;
+  var p = document.getElementById('passInput').value;
+  var el = document.getElementById('loginMsg');
+  if(!u||!p){ el.innerHTML='<div class="msg err">请输入用户名和密码</div>'; return; }
+  el.innerHTML='<div class="msg ok">登录中...</div>';
+  try{
+    var r = await fetch('/api/admin/login', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({user:u,pass:p})
+    });
+    var d = await r.json();
+    if(r.ok && d.ok){
+      AUTH_TOKEN = d.token;
+      sessionStorage.setItem('ad_token', AUTH_TOKEN);
+      document.getElementById('loginPage').classList.add('panel-hide');
+      document.getElementById('adminPage').classList.remove('panel-hide');
+      loadDashboard();
+    }else{
+      el.innerHTML='<div class="msg err">'+(d.error||'登录失败')+'</div>';
+    }
+  }catch(e){
+    el.innerHTML='<div class="msg err">网络错误：'+e.message+'</div>';
+  }
+}
+
+// ========== 退出 ==========
+document.getElementById('logoutLink').addEventListener('click', function(){
+  sessionStorage.removeItem('ad_token');
+  AUTH_TOKEN = '';
+  document.getElementById('adminPage').classList.add('panel-hide');
+  document.getElementById('loginPage').classList.remove('panel-hide');
+  document.getElementById('userInput').value = '';
+  document.getElementById('passInput').value = '';
+  document.getElementById('loginMsg').innerHTML = '';
+});
+
+// ========== 页面切换 ==========
+document.querySelectorAll('.sidebar-nav a').forEach(function(a){
+  a.addEventListener('click', function(e){
+    e.preventDefault();
+    var p = this.getAttribute('data-page');
+    document.querySelectorAll('.sidebar-nav a').forEach(function(x){x.classList.remove('active')});
+    this.classList.add('active');
+    document.querySelectorAll('#adminPage [id^="page-"]').forEach(function(x){x.classList.add('panel-hide')});
+    var target = document.getElementById('page-'+p);
+    if(target)target.classList.remove('panel-hide');
+    if(p==='dashboard') loadDashboard();
+    if(p==='history') loadHistory();
+  });
+});
+
+// ========== 加载仪表盘 ==========
+async function loadDashboard(){
+  if(!AUTH_TOKEN) return;
+  try{
+    var r = await fetch('/api/admin/history',{headers:{'Authorization':'Basic '+AUTH_TOKEN}});
+    var h = await r.json();
+    document.getElementById('statCount').textContent = (Array.isArray(h)?h.length:0)+' 次';
+    if(Array.isArray(h) && h.length>0){
+      document.getElementById('statLatest').textContent = h[0].filename;
+      document.getElementById('statUrl').textContent = h[0].url;
+    }else{
+      document.getElementById('statLatest').textContent = '暂无';
+      document.getElementById('statUrl').textContent = '暂无';
+    }
+  }catch(e){
+    document.getElementById('statCount').textContent = '—';
+  }
+  // 加载下载次数
+  try{
+    var rd = await fetch('/api/admin/download-count',{headers:{'Authorization':'Basic '+AUTH_TOKEN}});
+    var dd = await rd.json();
+    document.getElementById('statDownloads').textContent = (dd.total||0)+' 次';
+    // 渲染每日统计
+    var daily = dd.daily || [];
+    if(daily.length > 0){
+      document.getElementById('dailyCard').style.display = '';
+      var tbody = document.getElementById('dailyBody');
+      tbody.innerHTML = daily.map(function(item){
+        var pct = dd.total > 0 ? (item.count/dd.total*100).toFixed(1) : '0';
+        return '<tr><td>'+item.date+'</td><td><strong>'+item.count+'</strong></td><td>'+pct+'%</td></tr>';
+      }).join('');
+    }
+  }catch(e){
+    document.getElementById('statDownloads').textContent = '—';
+  }
+}
+
+// ========== 上传 ==========
+document.getElementById('uploadBtn').addEventListener('click', upload);
+async function upload(){
+  var file = document.getElementById('fileInput').files[0];
+  var el = document.getElementById('uploadMsg');
+  if(!file){ el.innerHTML='<div class="msg err">请先选择 .apk 文件</div>'; return; }
+  el.innerHTML='<div class="msg ok">正在上传中...</div>';
+  try{
+    var fd = new FormData(); fd.append('apk', file);
+    var r = await fetch('/api/admin/upload', {
+      method:'POST',
+      headers:{'Authorization':'Basic '+AUTH_TOKEN},
+      body:fd
+    });
+    var d = await r.json();
+    if(r.ok){
+      var extra = d.kvOk===false ? '<br><span style="color:#f0883e">⚠️ KV 未绑定，前端获取地址功能暂不可用，请检查 CF Pages → 设置 → Functions → KV 绑定</span>' : '';
+      el.innerHTML='<div class="msg ok">✅ 上传成功 请通过前端访问查看<br><small style="word-break:break-all">'+d.url+'</small>'+extra+'</div>';
+      document.getElementById('fileInput').value='';
+      loadDashboard();
+    }else{
+      el.innerHTML='<div class="msg err">❌ 上传失败：'+(d.error||r.status)+'</div>';
+    }
+  }catch(e){
+    el.innerHTML='<div class="msg err">❌ 网络错误：'+e.message+'</div>';
+  }
+}
+
+// ========== 像素管理 — 列表 + 新增 + 修改 + 删除 ==========
+var _pixelIds = [];
+
+async function loadPixels(){
+  if(!AUTH_TOKEN) return;
+  try{
+    var r = await fetch('/api/admin/pixels',{headers:{'Authorization':'Basic '+AUTH_TOKEN}});
+    var d = await r.json();
+    _pixelIds = d.ids||[];
+    renderPixels();
+  }catch(e){ _pixelIds = []; renderPixels(); }
+}
+
+function renderPixels(){
+  var tbody = document.getElementById('pixelsListBody');
+  document.getElementById('pixelsCount').textContent = '共 '+_pixelIds.length+' 个';
+  if(!_pixelIds.length){
+    tbody.innerHTML = '<tr><td colspan="3" class="empty">暂无像素ID，请新增</td></tr>';
+    return;
+  }
+  tbody.innerHTML = _pixelIds.map(function(id, i){
+    return '<tr>'+
+      '<td>'+(i+1)+'</td>'+
+      '<td><input type="text" class="pixel-edit-input" value="'+esc(id)+'" data-index="'+i+'" style="width:100%;padding:8px 10px;border-radius:6px;border:1px solid var(--border);background:#0d0f16;color:var(--text);font-size:.86rem;font-family:monospace"></td>'+
+      '<td><button class="btn btn-p" style="padding:6px 14px;font-size:.78rem;margin-right:6px" data-action="save" data-index="'+i+'">保存</button><button class="btn btn-o" style="padding:6px 14px;font-size:.78rem;color:var(--red);border-color:rgba(248,81,73,.20)" data-action="del" data-index="'+i+'">删除</button></td>'+
+      '</tr>';
+  }).join('');
+
+  // 绑定事件
+  tbody.querySelectorAll('[data-action="save"]').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var idx = parseInt(this.getAttribute('data-index'));
+      var input = tbody.querySelector('.pixel-edit-input[data-index="'+idx+'"]');
+      var newId = input.value.trim();
+      if(!/^\d{10,20}$/.test(newId)){ alert('无效的像素ID：'+newId); return; }
+      _pixelIds[idx] = newId;
+      savePixelsToServer();
+    });
+  });
+  tbody.querySelectorAll('[data-action="del"]').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      if(!confirm('确定删除该像素ID？')) return;
+      var idx = parseInt(this.getAttribute('data-index'));
+      _pixelIds.splice(idx, 1);
+      savePixelsToServer();
+    });
+  });
+}
+
+async function savePixelsToServer(){
+  try{
+    var r = await fetch('/api/admin/pixels',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Basic '+AUTH_TOKEN},
+      body:JSON.stringify({ids:_pixelIds})
+    });
+    var d = await r.json();
+    if(r.ok){
+      _pixelIds = d.ids;
+      renderPixels();
+    }else{
+      alert('保存失败：'+(d.error||''));
+    }
+  }catch(e){
+    alert('保存失败：'+e.message);
+  }
+}
+
+// 新增
+document.getElementById('pixelsAddBtn').addEventListener('click', function(){
+  var input = document.getElementById('newPixelId');
+  var id = input.value.trim();
+  var el = document.getElementById('pixelsAddMsg');
+  if(!/^\d{10,20}$/.test(id)){ el.innerHTML='<div class="msg err">无效的像素ID，请输入10-20位纯数字</div>'; return; }
+  if(_pixelIds.indexOf(id)!==-1){ el.innerHTML='<div class="msg err">该像素ID已存在</div>'; return; }
+  _pixelIds.push(id);
+  savePixelsToServer().then(function(){
+    input.value = '';
+    el.innerHTML = '<div class="msg ok">✅ 已添加</div>';
+    setTimeout(function(){ el.innerHTML=''; },2000);
+  });
+});
+
+// 切换到像素页面时加载
+document.querySelectorAll('.sidebar-nav a').forEach(function(a){
+  a.addEventListener('click', function(){
+    if(this.getAttribute('data-page')==='pixels') setTimeout(loadPixels,100);
+  });
+});
+
+// ========== 加载历史 ==========
+async function loadHistory(){
+  var tbody = document.getElementById('historyBody');
+  tbody.innerHTML='<tr><td colspan="4" class="empty">加载中...</td></tr>';
+  if(!AUTH_TOKEN) return;
+  try{
+    var r = await fetch('/api/admin/history',{headers:{'Authorization':'Basic '+AUTH_TOKEN}});
+    var h = await r.json();
+    if(!Array.isArray(h)||!h.length){ tbody.innerHTML='<tr><td colspan="4" class="empty">暂无上传记录</td></tr>'; return; }
+    tbody.innerHTML = h.map(function(item,i){
+      return '<tr>'+
+        '<td><span class="fname">'+esc(item.filename)+'</span></td>'+
+        '<td><span class="ftime">'+fmtTime(item.time)+'</span></td>'+
+        '<td><span class="furl">'+esc(item.url)+'</span></td>'+
+        '<td>'+(i===0?'<span class="badge latest">当前生效</span>':'<span style="color:var(--muted);font-size:.76rem">历史</span>')+'</td>'+
+        '</tr>';
+    }).join('');
+  }catch(e){
+    tbody.innerHTML='<tr><td colspan="4" class="empty">加载失败：'+esc(e.message)+'</td></tr>';
+  }
+}
+
+function esc(s){var d=document.createElement('div');d.textContent=s;return d.innerHTML}
+function fmtTime(t){
+  if(!t)return '—';
+  var d=new Date(t);
+  return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+' '+pad(d.getHours())+':'+pad(d.getMinutes());
+}
+function pad(n){return n<10?'0'+n:''+n}
+
+// ========== 自动恢复登录 ==========
+if(AUTH_TOKEN){
+  document.getElementById('loginPage').classList.add('panel-hide');
+  document.getElementById('adminPage').classList.remove('panel-hide');
+  loadDashboard();
+}
+</script>
+</body>
+</html>
