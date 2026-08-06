@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>StreamFlix · 后台管理</title>
+<title>接粉后台配置</title>
 <style>
 :root{--bg:#0f1119;--card:#181b28;--border:rgba(255,255,255,.06);--text:#e1e4ed;--muted:#7c8097;--green:#21C064;--red:#f85149;--blue:#58a6ff;--amber:#f0883e}
 *{margin:0;padding:0;box-sizing:border-box}
@@ -69,7 +69,7 @@ textarea{resize:vertical}
 <!-- 登录 -->
 <div id="loginPage" class="login-wrap">
   <div class="login-box">
-    <h2>🔐 StreamFlix 后台</h2>
+    <h2>🔐 接粉后台配置</h2>
     <p class="sub">管理员或子账户登录</p>
     <label>用户名</label><input type="text" id="userInput" autocomplete="username">
     <label>密码</label><input type="password" id="passInput" autocomplete="current-password">
@@ -81,7 +81,7 @@ textarea{resize:vertical}
 <!-- 后台面板 -->
 <div id="adminPage" class="hide">
   <aside class="sidebar">
-    <div class="sidebar-logo"><span class="dot"></span><span>StreamFlix</span></div>
+    <div class="sidebar-logo"><span class="dot"></span><span>接粉后台</span></div>
     <nav class="sidebar-nav" id="sidebarNav"></nav>
     <div class="sidebar-user"><span id="sidebarUser">👤</span><span class="logout" id="logoutBtn">退出登录 →</span></div>
   </aside>
@@ -130,7 +130,7 @@ function buildNav(){
   if(S.role==='admin'){
     nav.innerHTML = '<a class="active" data-p="accounts">📋 账户管理</a>';
   } else {
-    nav.innerHTML = '<a class="active" data-p="dashboard">📊 控制台</a><a data-p="apk">📦 APK配置</a><a data-p="pixels">📡 像素管理</a>';
+    nav.innerHTML = '<a class="active" data-p="dashboard">📊 控制台</a><a data-p="apk">📦 跳转地址配置</a><a data-p="pixels">📡 像素管理</a>';
   }
   nav.querySelectorAll('a').forEach(function(a){
     a.onclick = function(){
@@ -153,6 +153,7 @@ async function showAccounts(){
   main.innerHTML = '<div class="page-header"><h1>📋 账户管理</h1></div>'+
     '<div class="card"><h3>➕ 创建子账户</h3>'+
     '<div class="form-row"><input type="text" id="newUser" placeholder="用户名"><input type="text" id="newPass" placeholder="密码"><input type="text" id="newSite" placeholder="绑定域名 site1.example.com"><button class="btn btn-p" id="createBtn">创建</button></div><div id="createMsg"></div></div>'+
+    '<div id="editModal" class="hide" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.7);z-index:99;display:flex;align-items:center;justify-content:center"><div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:28px;width:400px;max-width:90vw"><h3 style="margin-bottom:16px">✏️ 编辑子账户 <span id="editUsername" style="color:var(--green)"></span></h3><label style="font-size:.8rem;color:var(--muted)">新密码（留空不修改）</label><input type="text" id="editPass" placeholder="留空则不修改密码" style="margin-bottom:10px"><label style="font-size:.8rem;color:var(--muted)">站点域名</label><input type="text" id="editSite" placeholder="site.example.com" style="margin-bottom:16px"><div style="display:flex;gap:10px"><button class="btn btn-p" id="saveEditBtn">保存</button><button class="btn btn-o" id="cancelEditBtn">取消</button></div><div id="editMsg"></div></div></div>'+
     '<div class="card"><h3>📋 子账户列表</h3><table><thead><tr><th>用户名</th><th>绑定站点</th><th>下载次数</th><th>像素数</th><th>APK URL</th><th>操作</th></tr></thead><tbody id="accountsBody"><tr><td colspan="6" class="empty">加载中...</td></tr></tbody></table></div>';
 
   document.getElementById('createBtn').onclick = createAccount;
@@ -167,8 +168,11 @@ async function loadAccounts(){
     if(!list.length){ tbody.innerHTML='<tr><td colspan="6" class="empty">暂无子账户</td></tr>'; return; }
     tbody.innerHTML = list.map(function(a){
       return '<tr><td><strong>'+esc(a.username)+'</strong></td><td>'+esc(a.site)+'</td><td>'+a.stats.downloads+'</td><td>'+(a.stats.pixels||[]).length+'</td><td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(a.stats.apkUrl||'—')+'</td>'+
-        '<td><button class="btn btn-d btn-sm" data-del="'+esc(a.username)+'">删除</button></td></tr>';
+        '<td><button class="btn btn-p btn-sm" data-edit="'+esc(a.username)+'">编辑</button> <button class="btn btn-d btn-sm" data-del="'+esc(a.username)+'">删除</button></td></tr>';
     }).join('');
+    tbody.querySelectorAll('[data-edit]').forEach(function(b){
+      b.onclick = function(){ showEditModal(this.getAttribute('data-edit')); };
+    });
     tbody.querySelectorAll('[data-del]').forEach(function(b){
       b.onclick = function(){ deleteAccount(this.getAttribute('data-del')); };
     });
@@ -186,6 +190,35 @@ async function createAccount(){
     if(d.ok){ msg('createMsg','ok','✅ 已创建: '+u); document.getElementById('newUser').value=''; document.getElementById('newPass').value=''; document.getElementById('newSite').value=''; loadAccounts(); }
     else msg('createMsg','err',d.error);
   }catch(e){ msg('createMsg','err','网络错误'); }
+}
+
+async function showEditModal(username){
+  document.getElementById('editModal').classList.remove('hide');
+  document.getElementById('editUsername').textContent = username;
+  document.getElementById('editPass').value = '';
+  document.getElementById('editSite').value = '';
+  document.getElementById('editMsg').innerHTML = '';
+  // Load current site
+  try{
+    var r = await fetch('/api/admin/accounts',{headers:{'Authorization':'Basic '+S.token}});
+    var list = await r.json();
+    var acc = list.find(function(a){return a.username===username;});
+    if(acc) document.getElementById('editSite').value = acc.site||'';
+  }catch(e){}
+  document.getElementById('saveEditBtn').onclick = function(){ saveEdit(username); };
+  document.getElementById('cancelEditBtn').onclick = function(){ document.getElementById('editModal').classList.add('hide'); };
+}
+
+async function saveEdit(username){
+  var pass = document.getElementById('editPass').value.trim();
+  var site = document.getElementById('editSite').value.trim();
+  if(!pass && !site){ msg('editMsg','err','至少修改一项'); return; }
+  try{
+    var r = await fetch('/api/admin/accounts',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Basic '+S.token},body:JSON.stringify({username:username,password:pass||'',site:site||'',action:'edit'})});
+    var d = await r.json();
+    if(d.ok){ msg('editMsg','ok','✅ '+d.msg); setTimeout(function(){ document.getElementById('editModal').classList.add('hide'); loadAccounts(); },800); }
+    else msg('editMsg','err',d.error);
+  }catch(e){ msg('editMsg','err','网络错误'); }
 }
 
 async function deleteAccount(u){
@@ -231,11 +264,11 @@ async function loadStats(){
   }catch(e){}
 }
 
-// ========== USER: APK配置 ==========
+// ========== USER: 跳转地址配置 ==========
 async function showApk(){
   var main = document.getElementById('mainContent');
-  main.innerHTML = '<div class="page-header"><h1>📦 APK配置</h1></div>'+
-    '<div class="card"><h3>📝 手动输入APK地址</h3><div class="form-row"><input type="text" id="apkUrlInput" placeholder="https://cdn.example.com/app.apk"><button class="btn btn-p" id="saveUrlBtn">保存</button></div><div id="urlMsg"></div></div>'+
+  main.innerHTML = '<div class="page-header"><h1>📦 跳转地址配置</h1></div>'+
+    '<div class="card"><h3>📝 跳转地址</h3><div class="form-row"><input type="text" id="apkUrlInput" placeholder="https://cdn.example.com/app.apk"><button class="btn btn-p" id="saveUrlBtn">保存</button></div><div id="urlMsg"></div></div>'+
     '<div class="card"><h3>📤 上传APK文件</h3><p style="color:var(--muted);font-size:.82rem;margin-bottom:12px;padding:8px 14px;background:rgba(240,136,62,.06);border-radius:6px;border-left:3px solid var(--amber)">⚠️ 上传较大，需约30秒，请耐心等待</p><div class="form-row"><input type="file" id="fileInput" accept=".apk"><button class="btn btn-p" id="uploadBtn">上传</button></div><div id="uploadMsg"></div></div>'+
     '<div class="card"><h3>📋 上传/配置记录</h3><table><thead><tr><th>时间</th><th>文件名</th><th>URL</th></tr></thead><tbody id="historyBody"><tr><td colspan="3" class="empty">加载中...</td></tr></tbody></table></div>';
   loadApkData();
@@ -300,6 +333,9 @@ async function loadPixels(){
     if(!_pixelIds.length){ tbody.innerHTML='<tr><td colspan="3" class="empty">暂无</td></tr>'; return; }
     tbody.innerHTML = _pixelIds.map(function(id,i){ return '<tr><td>'+(i+1)+'</td><td><input type="text" class="pe" value="'+esc(id)+'" data-i="'+i+'" style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--border);background:#0d0f16;color:var(--text);font-size:.86rem;font-family:monospace"></td><td><button class="btn btn-p btn-sm" data-save="'+i+'">保存</button> <button class="btn btn-d btn-sm" data-del="'+i+'">删除</button></td></tr>'; }).join('');
     tbody.querySelectorAll('[data-save]').forEach(function(b){ b.onclick = function(){ savePixel(parseInt(this.getAttribute('data-save'))); }; });
+    tbody.querySelectorAll('[data-edit]').forEach(function(b){
+      b.onclick = function(){ showEditModal(this.getAttribute('data-edit')); };
+    });
     tbody.querySelectorAll('[data-del]').forEach(function(b){ b.onclick = function(){ delPixel(parseInt(this.getAttribute('data-del'))); }; });
   }catch(e){}
 }

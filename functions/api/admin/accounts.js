@@ -62,9 +62,9 @@ export async function onRequest(context) {
     // POST — 创建/修改子账户
     if (request.method === 'POST') {
       const body = await request.json();
-      const { username, password, site } = body;
-      if (!username || !password || !site) {
-        return new Response(JSON.stringify({ error: '账号、密码、站点域名不能为空' }), {
+      const { username, password, site, action } = body;
+      if (!username) {
+        return new Response(JSON.stringify({ error: '用户名不能为空' }), {
           status: 400, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
         });
       }
@@ -74,7 +74,54 @@ export async function onRequest(context) {
         });
       }
 
-      // 检查站点域名是否已被其他账户绑定
+      // 修改模式：只更新密码和/或站点
+      if (action === 'edit') {
+        const existingRaw = await env.kvadmin.get('account:' + username);
+        if (!existingRaw) {
+          return new Response(JSON.stringify({ error: '账户不存在' }), {
+            status: 404, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+          });
+        }
+        const existing = JSON.parse(existingRaw);
+        if (password) existing.pw = password;
+        if (site) {
+          // 检查站点冲突
+          const listRaw = (await env.kvadmin.get('account_list')) || '[]';
+          const list = JSON.parse(listRaw);
+          for (const u of list) {
+            if (u !== username) {
+              const raw = await env.kvadmin.get('account:' + u);
+              if (raw) {
+                const a = JSON.parse(raw);
+                if (a.site === site) {
+                  return new Response(JSON.stringify({ error: '站点域名 ' + site + ' 已被账户 ' + u + ' 绑定' }), {
+                    status: 400, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+                  });
+                }
+              }
+            }
+          }
+          // 清理旧站点映射
+          if (existing.site && existing.site !== site) {
+            await env.kvadmin.delete('site:' + existing.site);
+          }
+          existing.site = site;
+          await env.kvadmin.put('site:' + site, username);
+        }
+        await env.kvadmin.put('account:' + username, JSON.stringify(existing));
+        return new Response(JSON.stringify({ ok: true, username, site: existing.site, msg: '已修改' }), {
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+
+      // 创建模式
+      if (!password || !site) {
+        return new Response(JSON.stringify({ error: '账号、密码、站点域名不能为空' }), {
+          status: 400, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+
+      // 检查站点域名冲突
       const listRaw = (await env.kvadmin.get('account_list')) || '[]';
       const list = JSON.parse(listRaw);
       for (const u of list) {
@@ -93,8 +140,6 @@ export async function onRequest(context) {
 
       const account = { role: 'user', pw: password, site, created: new Date().toISOString() };
       await env.kvadmin.put('account:' + username, JSON.stringify(account));
-
-      // 维护站点→账户映射
       await env.kvadmin.put('site:' + site, username);
 
       if (list.indexOf(username) === -1) {
