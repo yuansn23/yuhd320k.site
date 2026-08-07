@@ -270,7 +270,7 @@ async function showApk(){
     '<div class="card"><h3>⚙️ 配置方式</h3>'+
     '<div style="display:flex;gap:20px;margin-bottom:16px">'+
     '<label style="display:flex;align-items:center;gap:6px;cursor:pointer;color:var(--text);font-weight:600"><input type="radio" name="apkMode" value="url" checked onchange="toggleApkMode()"> 普通跳转地址</label>'+
-    '<label style="display:flex;align-items:center;gap:6px;cursor:pointer;color:var(--text);font-weight:600"><input type="radio" name="apkMode" value="upload" onchange="toggleApkMode()"> 上传APK文件</label>'+
+    '<label style="display:flex;align-items:center;gap:6px;cursor:pointer;color:var(--text);font-weight:600"><input type="radio" name="apkMode" value="upload" onchange="toggleApkMode()"> 上传APK文件仅apk文件，非免杀)</label>'+
     '</div>'+
     '<div id="modeUrl"><div class="form-row"><input type="text" id="apkUrlInput" placeholder="https://cdn.example.com/app.apk"><button class="btn btn-p" id="saveUrlBtn">保存</button></div><div id="urlMsg"></div></div>'+
     '<div id="modeUpload" class="hide"><p style="color:var(--muted);font-size:.82rem;margin-bottom:12px;padding:8px 14px;background:rgba(240,136,62,.06);border-radius:6px;border-left:3px solid var(--amber)">⚠️ 上传较大，需约30秒。如上传错误请重新上传即可</p><div class="form-row"><input type="file" id="fileInput" accept=".apk"><button class="btn btn-p" id="uploadBtn">上传</button></div><div id="uploadMsg"></div></div>'+
