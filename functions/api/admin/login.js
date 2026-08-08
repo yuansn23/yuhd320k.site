@@ -26,8 +26,29 @@ export async function onRequest(context) {
     // 1. 从 D1 查找账户
     var account = await env.DB.prepare('SELECT * FROM accounts WHERE username = ?1').bind(user).first();
 
-    // 2. D1 中没有 → 如果是管理员，用环境变量验证并自动写入 D1
+    // 2. D1 中没有 → 检查 KV（迁移过渡期回退）
     if (!account) {
+      try {
+        const kvRaw = await env.kvadmin.get('account:' + user);
+        if (kvRaw) {
+          const kvAccount = JSON.parse(kvRaw);
+          if (pass === kvAccount.pw) {
+            // KV 中找到，自动迁移到 D1
+            await env.DB.prepare('INSERT OR IGNORE INTO accounts (username, password, role, site, created) VALUES (?1, ?2, ?3, ?4, ?5)')
+              .bind(user, kvAccount.pw, kvAccount.role || 'user', kvAccount.site || '', kvAccount.created || new Date().toISOString()).run();
+            if (kvAccount.site) {
+              await env.DB.prepare('INSERT OR IGNORE INTO site_mappings (site, username) VALUES (?1, ?2)')
+                .bind(kvAccount.site, user).run();
+            }
+            const token = btoa(user + ':' + (kvAccount.role || 'user') + ':' + kvAccount.pw);
+            return new Response(JSON.stringify({ ok: true, token, role: kvAccount.role || 'user', user, site: kvAccount.site || '' }), {
+              headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+            });
+          }
+        }
+      } catch (kvErr) { /* KV 不可用跳过 */ }
+
+      // 3. D1 + KV 都没有 → 环境变量回退（管理员）
       const adminUser = env.ADMIN_USER || 'htes';
       const adminPass = env.ADMIN_PASS || 'D2378ac';
       if (user === adminUser && pass === adminPass) {

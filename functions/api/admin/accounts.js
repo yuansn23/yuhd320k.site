@@ -40,7 +40,7 @@ export async function onRequest(context) {
 
     // ── GET — 列出所有子账户 ──
     if (request.method === 'GET') {
-      // 并行：D1 统计 + D1 账户列表
+      // 1. D1 账户列表 + 统计数据
       const [acctsResult, statsResult] = await Promise.all([
         env.DB.prepare('SELECT username, password, role, site, created FROM accounts WHERE role = ?1 ORDER BY created DESC').bind('user').all(),
         env.DB.prepare('SELECT username, COALESCE(SUM(count), 0) AS total FROM download_counts GROUP BY username').all()
@@ -55,21 +55,65 @@ export async function onRequest(context) {
         }
       }
 
-      // 并行读取每个子账户的 KV 配置（APK URL + 像素 ID）
+      // D1 中已有的用户名集合
+      var d1Users = {};
+      var accts = acctsResult && acctsResult.results ? acctsResult.results : [];
+      for (var ai = 0; ai < accts.length; ai++) {
+        d1Users[accts[ai].username] = true;
+      }
+
+      // 2. KV 回退：查找尚未迁移的旧账户
+      var kvAccounts = [];
+      try {
+        const kvListRaw = await env.kvadmin.get('account_list');
+        if (kvListRaw) {
+          var kvList = JSON.parse(kvListRaw);
+          for (var ki = 0; ki < kvList.length; ki++) {
+            var uname = kvList[ki];
+            if (!d1Users[uname]) {
+              var kvRaw = await env.kvadmin.get('account:' + uname);
+              if (kvRaw) {
+                var ka = JSON.parse(kvRaw);
+                if (ka.role === 'user') {
+                  kvAccounts.push({
+                    username: uname,
+                    pw: ka.pw || '',
+                    site: ka.site || '',
+                    created: ka.created || '',
+                    role: ka.role || 'user'
+                  });
+                  // 自动迁移到 D1
+                  try {
+                    await env.DB.prepare('INSERT OR IGNORE INTO accounts (username, password, role, site, created) VALUES (?1, ?2, ?3, ?4, ?5)')
+                      .bind(uname, ka.pw || '', ka.role || 'user', ka.site || '', ka.created || new Date().toISOString()).run();
+                    if (ka.site) {
+                      await env.DB.prepare('INSERT OR IGNORE INTO site_mappings (site, username) VALUES (?1, ?2)')
+                        .bind(ka.site, uname).run();
+                    }
+                  } catch (migErr) { /* 迁移失败不阻塞列表 */ }
+                }
+              }
+            }
+          }
+        }
+      } catch (kvErr) { /* KV 不可用时跳过 */ }
+
+      // 合并 D1 + KV 账户
+      var allAccts = accts.concat(kvAccounts);
+
+      // 3. 并行读取每个账户的 KV 配置（APK URL + 像素 ID）
       var accounts = [];
       var kvTasks = [];
-      var accts = acctsResult && acctsResult.results ? acctsResult.results : [];
-
-      for (var ai = 0; ai < accts.length; ai++) {
+      for (var q = 0; q < allAccts.length; q++) {
         (function(a){
           kvTasks.push((async function(){
             var apkUrl = await env.kvadmin.get(a.username + ':apk_url');
             var pixelsRaw = await env.kvadmin.get(a.username + ':pixel_ids');
             accounts.push({
               username: a.username,
-              pw: a.password || '',
+              pw: a.password || a.pw || '',
               site: a.site || '',
-              created: a.created,
+              created: a.created || '',
               stats: {
                 downloads: downloadMap[a.username] || 0,
                 apkUrl: apkUrl || '',
@@ -77,7 +121,7 @@ export async function onRequest(context) {
               }
             });
           })());
-        })(accts[ai]);
+        })(allAccts[q]);
       }
       await Promise.all(kvTasks);
 
