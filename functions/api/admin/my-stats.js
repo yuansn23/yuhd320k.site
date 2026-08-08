@@ -32,49 +32,58 @@ export async function onRequest(context) {
     var total = 0;
     var daily = [];
 
-    // 1. 先查 D1
+    // 1. 并行：D1 每日数据 + KV 旧每日数据
     const past30 = new Date();
     past30.setDate(past30.getDate() - 30);
     const dateFrom = past30.toISOString().slice(0, 10);
 
-    const totalResult = await env.DB.prepare('SELECT COALESCE(SUM(count), 0) AS total FROM download_counts WHERE username = ?1').bind(me.user).first();
-    total = totalResult ? totalResult.total : 0;
+    // 构建 KV 每日 key 列表（最近 30 天）
+    var now = new Date();
+    var dayKV = [];
+    for (var i = 29; i >= 0; i--) {
+      var d = new Date(now);
+      d.setDate(d.getDate() - i);
+      dayKV.push({ key: me.user + ':download_' + d.toISOString().slice(0, 10), date: d.toISOString().slice(0, 10) });
+    }
 
-    // 2. D1 没有数据 → KV 回退
-    if (total === 0) {
-      var kvTotal = parseInt((await env.kvadmin.get(me.user + ':download_count')) || '0');
-      if (kvTotal > 0) {
-        total = kvTotal;
-        // 读取旧 KV 每日数据并迁移到 D1
-        var now = new Date();
-        var dayKeys = [];
-        for (var i = 29; i >= 0; i--) {
-          var d = new Date(now);
-          d.setDate(d.getDate() - i);
-          dayKeys.push({ key: me.user + ':download_' + d.toISOString().slice(0, 10), date: d.toISOString().slice(0, 10) });
-        }
-        var dayResults = await Promise.all(dayKeys.map(function(dk){ return env.kvadmin.get(dk.key); }));
+    const [d1Result, kvResults] = await Promise.all([
+      env.DB.prepare('SELECT date, count FROM download_counts WHERE username = ?1 AND date >= ?2').bind(me.user, dateFrom).all(),
+      Promise.all(dayKV.map(function(dk){ return env.kvadmin.get(dk.key); }))
+    ]);
 
-        // 批量写入 D1
-        var inserts = [];
-        for (var j = 0; j < dayResults.length; j++) {
-          var count = parseInt(dayResults[j] || '0');
-          if (count > 0) {
-            daily.push({ date: dayKeys[j].date, count: count });
-            inserts.push(
-              env.DB.prepare('INSERT OR IGNORE INTO download_counts (username, date, count) VALUES (?1, ?2, ?3)')
-                .bind(me.user, dayKeys[j].date, count)
-            );
-          }
-        }
-        if (inserts.length > 0) {
-          try { await env.DB.batch(inserts); } catch (e) {}
-        }
+    // 2. 构建 D1 已有日期集合 + D1 每日数据
+    var d1Map = {};
+    if (d1Result && d1Result.results) {
+      for (var r = 0; r < d1Result.results.length; r++) {
+        var row = d1Result.results[r];
+        d1Map[row.date] = row.count;
+        total += row.count;
       }
-    } else {
-      // D1 有数据，直接读
-      var dailyResult = await env.DB.prepare('SELECT date, count FROM download_counts WHERE username = ?1 AND date >= ?2 ORDER BY date DESC').bind(me.user, dateFrom).all();
-      daily = (dailyResult && dailyResult.results) ? dailyResult.results.map(function(r){ return { date: r.date, count: r.count }; }) : [];
+    }
+
+    // 3. 合并 KV 数据：D1 没有的日期用 KV 补上，并自动迁移到 D1
+    var inserts = [];
+    for (var j = 0; j < dayKV.length; j++) {
+      var kvCount = parseInt(kvResults[j] || '0');
+      if (kvCount > 0 && !d1Map[dayKV[j].date]) {
+        // KV 有但 D1 没有 → 迁移
+        d1Map[dayKV[j].date] = kvCount;
+        total += kvCount;
+        inserts.push(
+          env.DB.prepare('INSERT OR IGNORE INTO download_counts (username, date, count) VALUES (?1, ?2, ?3)')
+            .bind(me.user, dayKV[j].date, kvCount)
+        );
+      }
+    }
+    // 非阻塞迁移
+    if (inserts.length > 0) {
+      context.waitUntil(env.DB.batch(inserts).catch(function(){}));
+    }
+
+    // 4. 输出合并后的每日数据（按日期倒序）
+    var dates = Object.keys(d1Map).sort().reverse();
+    for (var k = 0; k < dates.length; k++) {
+      daily.push({ date: dates[k], count: d1Map[dates[k]] });
     }
 
     // 并行读取 KV 配置数据

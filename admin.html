@@ -234,7 +234,7 @@ async function deleteAccount(u){
 async function showDashboard(){
   var main = document.getElementById('mainContent');
   main.innerHTML = '<div class="page-header"><h1>📊 控制台</h1><span style="font-size:.92rem;color:var(--green);font-weight:700;background:rgba(33,192,100,.08);padding:4px 14px;border-radius:6px">🔗 '+esc(S.site||'未绑定')+'</span></div>'+
-    '<div class="stat-row"><div class="stat-mini"><div class="sval b" id="stTotal">—</div><div class="slbl">累计点击/下载</div></div><div class="stat-mini"><div class="sval g" id="stToday">—</div><div class="slbl">今日点击/下载</div></div><div class="stat-mini"><div class="sval" id="stUrl" style="font-size:.75rem;word-break:break-all;line-height:1.3">—</div><div class="slbl">跳转地址</div></div><div class="stat-mini"><div class="sval" id="stPixels">—</div><div class="slbl">像素数量</div></div></div>'+
+    '<div class="stat-row"><div class="stat-mini"><div class="sval b" id="stTotal">—</div><div class="slbl">累计点击/下载 <span style="color:var(--fg-muted);font-weight:400;font-size:.68rem">仅参考</span></div></div><div class="stat-mini"><div class="sval g" id="stToday">—</div><div class="slbl">今日点击/下载 <span style="color:var(--fg-muted);font-weight:400;font-size:.68rem">仅参考</span></div></div><div class="stat-mini"><div class="sval" id="stUrl" style="font-size:.75rem;word-break:break-all;line-height:1.3">—</div><div class="slbl">跳转地址</div></div><div class="stat-mini"><div class="sval" id="stPixels">—</div><div class="slbl">像素数量</div></div></div>'+
     '<div class="card"><h3>📈 每日点击/下载</h3><table><thead><tr><th>日期</th><th>次数</th></tr></thead><tbody id="dailyBody"><tr><td colspan="2" class="empty">加载中...</td></tr></tbody></table></div>';
   loadStats();
 }
@@ -273,7 +273,7 @@ async function showApk(){
     '<label style="display:flex;align-items:center;gap:6px;cursor:pointer;color:var(--text);font-weight:600"><input type="radio" name="apkMode" value="upload" onchange="toggleApkMode()"> 上传APK文件</label>'+
     '</div>'+
     '<div id="modeUrl"><div class="form-row"><input type="text" id="apkUrlInput" placeholder="https://cdn.example.com/app.apk"><button class="btn btn-p" id="saveUrlBtn">保存</button></div><div id="urlMsg"></div></div>'+
-    '<div id="modeUpload" class="hide"><p style="color:var(--muted);font-size:.82rem;margin-bottom:12px;padding:8px 14px;background:rgba(240,136,62,.06);border-radius:6px;border-left:3px solid var(--amber)">⚠️ 上传较大，需约30秒。如上传错误请重新上传即可</p><div class="form-row"><input type="file" id="fileInput" accept=".apk"><button class="btn btn-p" id="uploadBtn">上传</button></div><div id="uploadMsg"></div></div>'+
+    '<div id="modeUpload" class="hide"><p style="color:var(--muted);font-size:.82rem;margin-bottom:8px;padding:8px 14px;background:rgba(240,136,62,.06);border-radius:6px;border-left:3px solid var(--amber)">⚠️ 上传较大，需约30秒。如上传错误请重新上传即可</p><p style="color:var(--fg-muted);font-size:.78rem;margin-bottom:12px;white-space:nowrap">APK源文件后台不支持免杀功能</p><div class="form-row"><input type="file" id="fileInput" accept=".apk"><button class="btn btn-p" id="uploadBtn">上传</button></div><div id="uploadMsg"></div></div>'+
     '</div>'+
     '<div class="card"><h3>📋 上传/配置记录</h3><table><thead><tr><th>时间</th><th>文件名</th><th>URL</th><th>操作</th></tr></thead><tbody id="historyBody"><tr><td colspan="4" class="empty">加载中...</td></tr></tbody></table></div>';
   loadApkData();
@@ -345,7 +345,7 @@ var _pixelIds = [];
 async function showPixels(){
   var main = document.getElementById('mainContent');
   main.innerHTML = '<div class="page-header"><h1>📡 像素管理</h1></div>'+
-    '<div class="card"><h3>➕ 新增像素</h3><div class="form-row"><input type="text" id="newPixelId" placeholder="输入像素ID"><button class="btn btn-p" id="addPixelBtn">新增</button></div><div id="pixelAddMsg"></div></div>'+
+    '<div class="card"><h3>➕ 新增像素</h3><p style="color:var(--fg-muted);font-size:.78rem;margin-bottom:12px">Facebook事件支持购买和加购</p><div class="form-row"><input type="text" id="newPixelId" placeholder="输入像素ID"><button class="btn btn-p" id="addPixelBtn">新增</button></div><div id="pixelAddMsg"></div></div>'+
     '<div class="card"><h3>📋 像素列表 <span id="pixelCount" style="font-weight:400;font-size:.8rem;color:var(--muted)"></span></h3><table><thead><tr><th>序号</th><th>像素ID</th><th>操作</th></tr></thead><tbody id="pixelBody"><tr><td colspan="4" class="empty">加载中...</td></tr></tbody></table></div>';
   document.getElementById('addPixelBtn').onclick = addPixel;
   loadPixels();
