@@ -46,7 +46,7 @@ export async function onRequest(context) {
         env.DB.prepare('SELECT username, COALESCE(SUM(count), 0) AS total FROM download_counts GROUP BY username').all()
       ]);
 
-      // 构建下载量映射
+      // 构建下载量映射（D1 优先）
       var downloadMap = {};
       if (statsResult && statsResult.results) {
         for (var si = 0; si < statsResult.results.length; si++) {
@@ -60,6 +60,13 @@ export async function onRequest(context) {
       var accts = acctsResult && acctsResult.results ? acctsResult.results : [];
       for (var ai = 0; ai < accts.length; ai++) {
         d1Users[accts[ai].username] = true;
+        // 下载量 KV 回退：D1 显示 0 但从 KV 可能有数据
+        if (!downloadMap[accts[ai].username]) {
+          try {
+            var kvDl = parseInt((await env.kvadmin.get(accts[ai].username + ':download_count')) || '0');
+            if (kvDl > 0) downloadMap[accts[ai].username] = kvDl;
+          } catch (e) {}
+        }
       }
 
       // 2. KV 回退：查找尚未迁移的旧账户

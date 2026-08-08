@@ -5,9 +5,15 @@ async function getMyUser(request, env) {
     const decoded = atob(auth.replace('Basic ', ''));
     const parts = decoded.split(':');
     const user = parts[0], role = parts[1];
-    const account = await env.DB.prepare('SELECT password, site FROM accounts WHERE username = ?1').bind(user).first();
+    // D1 优先
+    var account = await env.DB.prepare('SELECT password, site FROM accounts WHERE username = ?1').bind(user).first();
+    // KV 回退
+    if (!account) {
+      var kvRaw = await env.kvadmin.get('account:' + user);
+      if (kvRaw) { account = JSON.parse(kvRaw); account.password = account.pw; }
+    }
     if (!account) return null;
-    if (auth !== 'Basic ' + btoa(user + ':' + role + ':' + account.password)) return null;
+    if (auth !== 'Basic ' + btoa(user + ':' + role + ':' + (account.password || account.pw))) return null;
     return { user, role, site: account.site || '' };
   } catch (e) { return null; }
 }
