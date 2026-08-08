@@ -45,8 +45,16 @@ export async function onRequest(context) {
         if (raw) {
           const a = JSON.parse(raw);
           if (a.role === 'user') {
+            // 优先从合并后的 stats key 读取下载数（v2），回退到旧 key
+            var statsDownload = 0;
+            const statsRaw = await env.kvadmin.get(username + ':stats');
+            if (statsRaw) {
+              statsDownload = JSON.parse(statsRaw).total || 0;
+            } else {
+              statsDownload = parseInt((await env.kvadmin.get(username + ':download_count')) || '0');
+            }
             const stats = {
-              downloads: parseInt((await env.kvadmin.get(username + ':download_count')) || '0'),
+              downloads: statsDownload,
               apkUrl: (await env.kvadmin.get(username + ':apk_url')) || '',
               pixels: JSON.parse((await env.kvadmin.get(username + ':pixel_ids')) || '[]')
             };

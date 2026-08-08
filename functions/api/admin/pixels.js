@@ -23,7 +23,7 @@ export async function onRequest(context) {
     if (request.method === 'GET') {
       const raw = (await env.kvadmin.get('fb_pixel_ids')) || '[]';
       return new Response(JSON.stringify({ ids: JSON.parse(raw) }), {
-        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'public, max-age=30' }
       });
     }
 

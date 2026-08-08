@@ -14,11 +14,11 @@ export async function onRequest(context) {
     const prefix = username ? username + ':' : '';
     const raw = (await env.kvadmin.get(prefix + 'pixel_ids')) || '[]';
     return new Response(JSON.stringify({ ids: JSON.parse(raw), _site: site, _user: username || '' }), {
-      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'public, max-age=60' }
     });
   } catch (e) {
     return new Response(JSON.stringify({ ids: [] }), {
-      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'public, max-age=60' }
     });
   }
 }
