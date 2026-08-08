@@ -283,7 +283,7 @@ async function showApk(){
 
 async function loadApkData(){
   try{
-    var r = await fetch('/api/admin/my-stats',{headers:{'Authorization':'Basic '+S.token}});
+    var r = await fetch('/api/admin/my-stats?_='+Date.now(),{headers:{'Authorization':'Basic '+S.token}});
     var d = await r.json();
     document.getElementById('apkUrlInput').value = d.apkUrl||'';
     var tbody = document.getElementById('historyBody');
@@ -298,7 +298,7 @@ async function deleteHistory(i){
   if(!confirm('删除该记录？')) return;
   try{
     // Get current history, remove item, save back
-    var r = await fetch('/api/admin/my-stats',{headers:{'Authorization':'Basic '+S.token}});
+    var r = await fetch('/api/admin/my-stats?_='+Date.now(),{headers:{'Authorization':'Basic '+S.token}});
     var d = await r.json();
     var h = d.history||[];
     h.splice(i,1);
@@ -353,7 +353,7 @@ async function showPixels(){
 
 async function loadPixels(){
   try{
-    var r = await fetch('/api/admin/my-pixels',{headers:{'Authorization':'Basic '+S.token}});
+    var r = await fetch('/api/admin/my-pixels?_='+Date.now(),{headers:{'Authorization':'Basic '+S.token}});
     var d = await r.json();
     _pixelIds = d.ids||[];
     document.getElementById('pixelCount').textContent = '共 '+_pixelIds.length+' 个';
@@ -393,13 +393,18 @@ async function addPixel(){
   msg('pixelAddMsg','ok','✅ 已添加');
 }
 
-async function savePixelsToServer(){
-  try{
-    var r = await fetch('/api/admin/my-pixels',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Basic '+S.token},body:JSON.stringify({ids:_pixelIds})});
-    var d = await r.json();
-    if(d.ok){ _pixelIds = d.ids; loadPixels(); alert("✅ 保存成功"); }
-    else alert(d.error);
-  }catch(e){ alert('网络错误'); }
+// 序列化保存队列，防止并发覆盖
+var _saveQueue = Promise.resolve();
+function savePixelsToServer(){
+  _saveQueue = _saveQueue.then(function(){
+    return fetch('/api/admin/my-pixels',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Basic '+S.token},body:JSON.stringify({ids:_pixelIds})})
+    .then(function(r){return r.json()})
+    .then(function(d){
+      if(d.ok){ _pixelIds = d.ids; loadPixels(); }
+      else alert(d.error);
+    });
+  }).catch(function(){ alert('网络错误'); });
+  return _saveQueue;
 }
 
 // ========== UTILS ==========
