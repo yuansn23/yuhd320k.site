@@ -74,11 +74,15 @@ export async function onRequest(context) {
       const ids = Array.isArray(body.ids) ? body.ids.filter(function(id){ return /^\d{10,20}$/.test(id); }) : [];
       var idsJson = JSON.stringify(ids);
 
-      // 写入 D1
-      await env.DB.prepare('UPDATE accounts SET pixel_ids = ?1 WHERE username = ?2').bind(idsJson, me.user).run();
-
-      // KV 也试着写（通常今天会失败，但不影响主流程）
-      try { await env.kvadmin.put(prefix + 'pixel_ids', idsJson); } catch (e) {}
+      // 写入：D1 优先，失败则走 KV（兼容未执行 ALTER TABLE 的情况）
+      var d1Ok = false;
+      try {
+        await env.DB.prepare('UPDATE accounts SET pixel_ids = ?1 WHERE username = ?2').bind(idsJson, me.user).run();
+        d1Ok = true;
+      } catch (e) {}
+      if (!d1Ok) {
+        await env.kvadmin.put(prefix + 'pixel_ids', idsJson);
+      }
 
       return new Response(JSON.stringify({ ok: true, ids: ids, count: ids.length }), {
         headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
