@@ -5,10 +5,9 @@ async function getMyUser(request, env) {
     const decoded = atob(auth.replace('Basic ', ''));
     const parts = decoded.split(':');
     const user = parts[0], role = parts[1];
-    const raw = await env.kvadmin.get('account:' + user);
-    if (!raw) return null;
-    const account = JSON.parse(raw);
-    if (auth !== 'Basic ' + btoa(user + ':' + role + ':' + account.pw)) return null;
+    const account = await env.DB.prepare('SELECT password, site FROM accounts WHERE username = ?1').bind(user).first();
+    if (!account) return null;
+    if (auth !== 'Basic ' + btoa(user + ':' + role + ':' + account.password)) return null;
     return { user, role, site: account.site || '' };
   } catch (e) { return null; }
 }

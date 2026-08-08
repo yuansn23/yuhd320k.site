@@ -1,4 +1,5 @@
 // POST /api/admin/login — 管理员+子账户统一登录
+// v3: 账户数据从 D1 读取，env 变量作为管理员回退
 export async function onRequest(context) {
   const { request, env } = context;
   try {
@@ -22,13 +23,19 @@ export async function onRequest(context) {
       });
     }
 
-    // 1. 先从 KV 查找已创建的账户
-    const raw = (await env.kvadmin.get('account:' + user)) || '';
-    if (raw) {
-      const account = JSON.parse(raw);
-      if (pass === account.pw) {
-        const token = btoa(user + ':' + account.role + ':' + account.pw);
-        return new Response(JSON.stringify({ ok: true, token, role: account.role, user, site: account.site || '' }), {
+    // 1. 从 D1 查找账户
+    var account = await env.DB.prepare('SELECT * FROM accounts WHERE username = ?1').bind(user).first();
+
+    // 2. D1 中没有 → 如果是管理员，用环境变量验证并自动写入 D1
+    if (!account) {
+      const adminUser = env.ADMIN_USER || 'htes';
+      const adminPass = env.ADMIN_PASS || 'D2378ac';
+      if (user === adminUser && pass === adminPass) {
+        // 管理员首次登录，写入 D1
+        await env.DB.prepare('INSERT OR IGNORE INTO accounts (username, password, role, site, created) VALUES (?1, ?2, ?3, ?4, ?5)')
+          .bind(user, pass, 'admin', '', new Date().toISOString()).run();
+        const token = btoa(user + ':admin:' + pass);
+        return new Response(JSON.stringify({ ok: true, token, role: 'admin', user, site: '' }), {
           headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
         });
       }
@@ -37,20 +44,16 @@ export async function onRequest(context) {
       });
     }
 
-    // 2. 检查是否是初始管理员（环境变量）
-    const adminUser = env.ADMIN_USER || 'htes';
-    const adminPass = env.ADMIN_PASS || 'D2378ac';
-    if (user === adminUser && pass === adminPass) {
-      const account = { role: 'admin', pw: adminPass, created: new Date().toISOString() };
-      await env.kvadmin.put('account:' + user, JSON.stringify(account));
-      const token = btoa(user + ':admin:' + adminPass);
-      return new Response(JSON.stringify({ ok: true, token, role: 'admin', user, site: '' }), {
-        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+    // 3. D1 中找到 → 验证密码
+    if (pass !== account.password) {
+      return new Response(JSON.stringify({ error: '用户名或密码错误' }), {
+        status: 401, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
       });
     }
 
-    return new Response(JSON.stringify({ error: '用户名或密码错误' }), {
-      status: 401, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+    const token = btoa(user + ':' + account.role + ':' + account.password);
+    return new Response(JSON.stringify({ ok: true, token, role: account.role, user, site: account.site || '' }), {
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
     });
   } catch (e) {
     return new Response(JSON.stringify({ error: e.message }), {

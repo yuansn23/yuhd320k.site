@@ -1,4 +1,7 @@
 // GET/POST/DELETE /api/admin/accounts — 管理员管理子账户
+// v3: 账户数据从 D1 读写，告别 KV 写入限制
+
+// 从 Authorization header 解析用户身份
 function getAuthUser(request) {
   const auth = request.headers.get('Authorization') || '';
   try {
@@ -8,14 +11,14 @@ function getAuthUser(request) {
   } catch (e) { return null; }
 }
 
+// 验证管理员权限（D1 查询）
 async function checkAdmin(request, env) {
   const u = getAuthUser(request);
   if (!u || u.role !== 'admin') return false;
-  const raw = await env.kvadmin.get('account:' + u.user);
-  if (!raw) return false;
-  const account = JSON.parse(raw);
+  const account = await env.DB.prepare('SELECT password FROM accounts WHERE username = ?1 AND role = ?2').bind(u.user, 'admin').first();
+  if (!account) return false;
   const auth = request.headers.get('Authorization') || '';
-  return auth === 'Basic ' + btoa(u.user + ':admin:' + account.pw);
+  return auth === 'Basic ' + btoa(u.user + ':admin:' + account.password);
 }
 
 export async function onRequest(context) {
@@ -35,39 +38,55 @@ export async function onRequest(context) {
       });
     }
 
-    // GET — 列出所有子账户
+    // ── GET — 列出所有子账户 ──
     if (request.method === 'GET') {
-      const listRaw = (await env.kvadmin.get('account_list')) || '[]';
-      const list = JSON.parse(listRaw);
-      const accounts = [];
-      for (const username of list) {
-        const raw = await env.kvadmin.get('account:' + username);
-        if (raw) {
-          const a = JSON.parse(raw);
-          if (a.role === 'user') {
-            // 优先从合并后的 stats key 读取下载数（v2），回退到旧 key
-            var statsDownload = 0;
-            const statsRaw = await env.kvadmin.get(username + ':stats');
-            if (statsRaw) {
-              statsDownload = JSON.parse(statsRaw).total || 0;
-            } else {
-              statsDownload = parseInt((await env.kvadmin.get(username + ':download_count')) || '0');
-            }
-            const stats = {
-              downloads: statsDownload,
-              apkUrl: (await env.kvadmin.get(username + ':apk_url')) || '',
-              pixels: JSON.parse((await env.kvadmin.get(username + ':pixel_ids')) || '[]')
-            };
-            accounts.push({ username, pw: a.pw || '', site: a.site || '', created: a.created, stats });
-          }
+      // 并行：D1 统计 + D1 账户列表
+      const [acctsResult, statsResult] = await Promise.all([
+        env.DB.prepare('SELECT username, password, role, site, created FROM accounts WHERE role = ?1 ORDER BY created DESC').bind('user').all(),
+        env.DB.prepare('SELECT username, COALESCE(SUM(count), 0) AS total FROM download_counts GROUP BY username').all()
+      ]);
+
+      // 构建下载量映射
+      var downloadMap = {};
+      if (statsResult && statsResult.results) {
+        for (var si = 0; si < statsResult.results.length; si++) {
+          var row = statsResult.results[si];
+          downloadMap[row.username] = row.total;
         }
       }
+
+      // 并行读取每个子账户的 KV 配置（APK URL + 像素 ID）
+      var accounts = [];
+      var kvTasks = [];
+      var accts = acctsResult && acctsResult.results ? acctsResult.results : [];
+
+      for (var ai = 0; ai < accts.length; ai++) {
+        (function(a){
+          kvTasks.push((async function(){
+            var apkUrl = await env.kvadmin.get(a.username + ':apk_url');
+            var pixelsRaw = await env.kvadmin.get(a.username + ':pixel_ids');
+            accounts.push({
+              username: a.username,
+              pw: a.password || '',
+              site: a.site || '',
+              created: a.created,
+              stats: {
+                downloads: downloadMap[a.username] || 0,
+                apkUrl: apkUrl || '',
+                pixels: JSON.parse(pixelsRaw || '[]')
+              }
+            });
+          })());
+        })(accts[ai]);
+      }
+      await Promise.all(kvTasks);
+
       return new Response(JSON.stringify(accounts), {
         headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
       });
     }
 
-    // POST — 创建/修改子账户
+    // ── POST — 创建/修改子账户 ──
     if (request.method === 'POST') {
       const body = await request.json();
       const { username, password, site, action } = body;
@@ -82,85 +101,67 @@ export async function onRequest(context) {
         });
       }
 
-      // 修改模式：只更新密码和/或站点
+      // -- 修改模式 --
       if (action === 'edit') {
-        const existingRaw = await env.kvadmin.get('account:' + username);
-        if (!existingRaw) {
+        const existing = await env.DB.prepare('SELECT * FROM accounts WHERE username = ?1').bind(username).first();
+        if (!existing) {
           return new Response(JSON.stringify({ error: '账户不存在' }), {
             status: 404, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
           });
         }
-        const existing = JSON.parse(existingRaw);
-        if (password) existing.pw = password;
-        if (site) {
-          // 检查站点冲突
-          const listRaw = (await env.kvadmin.get('account_list')) || '[]';
-          const list = JSON.parse(listRaw);
-          for (const u of list) {
-            if (u !== username) {
-              const raw = await env.kvadmin.get('account:' + u);
-              if (raw) {
-                const a = JSON.parse(raw);
-                if (a.site === site) {
-                  return new Response(JSON.stringify({ error: '站点域名 ' + site + ' 已被账户 ' + u + ' 绑定' }), {
-                    status: 400, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-                  });
-                }
-              }
-            }
+
+        var newPass = password || existing.password;
+        var newSite = site || existing.site;
+
+        // 检查站点冲突
+        if (site && site !== existing.site) {
+          const conflict = await env.DB.prepare('SELECT username FROM site_mappings WHERE site = ?1 AND username != ?2').bind(site, username).first();
+          if (conflict) {
+            return new Response(JSON.stringify({ error: '站点域名 ' + site + ' 已被账户 ' + conflict.username + ' 绑定' }), {
+              status: 400, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+            });
           }
-          // 清理旧站点映射
-          if (existing.site && existing.site !== site) {
-            await env.kvadmin.delete('site:' + existing.site);
-          }
-          existing.site = site;
-          await env.kvadmin.put('site:' + site, username);
+          // 更新站点映射
+          await env.DB.prepare('DELETE FROM site_mappings WHERE username = ?1').bind(username).run();
+          await env.DB.prepare('INSERT INTO site_mappings (site, username) VALUES (?1, ?2)').bind(site, username).run();
         }
-        await env.kvadmin.put('account:' + username, JSON.stringify(existing));
-        return new Response(JSON.stringify({ ok: true, username, site: existing.site, msg: '已修改' }), {
+
+        await env.DB.prepare('UPDATE accounts SET password = ?1, site = ?2 WHERE username = ?3').bind(newPass, newSite, username).run();
+
+        return new Response(JSON.stringify({ ok: true, username, site: newSite, msg: '已修改' }), {
           headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
         });
       }
 
-      // 创建模式
+      // -- 创建模式 --
       if (!password || !site) {
         return new Response(JSON.stringify({ error: '账号、密码、站点域名不能为空' }), {
           status: 400, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
         });
       }
 
-      // 检查站点域名冲突
-      const listRaw = (await env.kvadmin.get('account_list')) || '[]';
-      const list = JSON.parse(listRaw);
-      for (const u of list) {
-        if (u !== username) {
-          const raw = await env.kvadmin.get('account:' + u);
-          if (raw) {
-            const a = JSON.parse(raw);
-            if (a.site === site) {
-              return new Response(JSON.stringify({ error: '站点域名 ' + site + ' 已被账户 ' + u + ' 绑定' }), {
-                status: 400, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-              });
-            }
-          }
-        }
+      // 检查站点冲突
+      const conflict = await env.DB.prepare('SELECT username FROM site_mappings WHERE site = ?1').bind(site).first();
+      if (conflict) {
+        return new Response(JSON.stringify({ error: '站点域名 ' + site + ' 已被账户 ' + conflict.username + ' 绑定' }), {
+          status: 400, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
       }
 
-      const account = { role: 'user', pw: password, site, created: new Date().toISOString() };
-      await env.kvadmin.put('account:' + username, JSON.stringify(account));
-      await env.kvadmin.put('site:' + site, username);
-
-      if (list.indexOf(username) === -1) {
-        list.push(username);
-        await env.kvadmin.put('account_list', JSON.stringify(list));
-      }
+      // 写入 D1
+      await env.DB.batch([
+        env.DB.prepare('INSERT INTO accounts (username, password, role, site, created) VALUES (?1, ?2, ?3, ?4, ?5)')
+          .bind(username, password, 'user', site, new Date().toISOString()),
+        env.DB.prepare('INSERT INTO site_mappings (site, username) VALUES (?1, ?2)')
+          .bind(site, username)
+      ]);
 
       return new Response(JSON.stringify({ ok: true, username, site }), {
         headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
       });
     }
 
-    // DELETE — 删除子账户
+    // ── DELETE — 删除子账户 ──
     if (request.method === 'DELETE') {
       const url = new URL(request.url);
       const username = url.searchParams.get('username');
@@ -169,15 +170,12 @@ export async function onRequest(context) {
           status: 400, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
         });
       }
-      const raw = await env.kvadmin.get('account:' + username);
-      if (raw) {
-        const a = JSON.parse(raw);
-        await env.kvadmin.delete('site:' + a.site);
-      }
-      await env.kvadmin.delete('account:' + username);
-      const listRaw = (await env.kvadmin.get('account_list')) || '[]';
-      const list = JSON.parse(listRaw).filter(function(u) { return u !== username; });
-      await env.kvadmin.put('account_list', JSON.stringify(list));
+
+      await env.DB.batch([
+        env.DB.prepare('DELETE FROM accounts WHERE username = ?1').bind(username),
+        env.DB.prepare('DELETE FROM site_mappings WHERE username = ?1').bind(username)
+      ]);
+
       return new Response(JSON.stringify({ ok: true }), {
         headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
       });
