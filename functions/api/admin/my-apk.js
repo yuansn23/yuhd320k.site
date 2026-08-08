@@ -1,13 +1,12 @@
 // GET/POST /api/admin/my-apk — 子账户管理自己的APK（手动URL或上传）
+// v3: APK 配置存储 D1 优先，KV 回退 + 自动迁移
 async function getMyUser(request, env) {
   const auth = request.headers.get('Authorization') || '';
   try {
     const decoded = atob(auth.replace('Basic ', ''));
     const parts = decoded.split(':');
     const user = parts[0], role = parts[1];
-    // D1 优先
     var account = await env.DB.prepare('SELECT password, site FROM accounts WHERE username = ?1').bind(user).first();
-    // KV 回退
     if (!account) {
       var kvRaw = await env.kvadmin.get('account:' + user);
       if (kvRaw) { account = JSON.parse(kvRaw); account.password = account.pw; }
@@ -16,6 +15,45 @@ async function getMyUser(request, env) {
     if (auth !== 'Basic ' + btoa(user + ':' + role + ':' + (account.password || account.pw))) return null;
     return { user, role, site: account.site || '' };
   } catch (e) { return null; }
+}
+
+// 读 apk_url + apk_history（D1 优先，KV 回退）
+async function loadConfig(env, user) {
+  var config = { apkUrl: '', history: [] };
+  try {
+    var row = await env.DB.prepare('SELECT apk_url, apk_history FROM accounts WHERE username = ?1').bind(user).first();
+    if (row) {
+      config.apkUrl = row.apk_url || '';
+      if (row.apk_history) {
+        try { config.history = JSON.parse(row.apk_history); } catch (e) {}
+      }
+    }
+  } catch (e) {}
+
+  // KV 回退
+  if (!config.apkUrl && !config.history.length) {
+    try {
+      var kvUrl = await env.kvadmin.get(user + ':apk_url');
+      var kvHist = await env.kvadmin.get(user + ':apk_history');
+      if (kvUrl) config.apkUrl = kvUrl;
+      if (kvHist) config.history = JSON.parse(kvHist);
+      // 自动迁移
+      if (kvUrl || kvHist) {
+        env.DB.prepare('UPDATE accounts SET apk_url = ?1, apk_history = ?2 WHERE username = ?3')
+          .bind(kvUrl || '', kvHist || '[]', user).run().catch(function(){});
+      }
+    } catch (e) {}
+  }
+  return config;
+}
+
+// 保存配置到 D1（KV 也尝试写，失败忽略）
+async function saveConfig(env, user, apkUrl, history) {
+  await env.DB.prepare('UPDATE accounts SET apk_url = ?1, apk_history = ?2 WHERE username = ?3')
+    .bind(apkUrl, JSON.stringify(history), user).run();
+  // KV 尝试写入（非阻塞，失败不影响）
+  try { await env.kvadmin.put(user + ':apk_url', apkUrl); } catch (e) {}
+  try { await env.kvadmin.put(user + ':apk_history', JSON.stringify(history)); } catch (e) {}
 }
 
 export async function onRequest(context) {
@@ -35,23 +73,24 @@ export async function onRequest(context) {
         status: 401, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
       });
     }
-    const prefix = me.user + ':';
 
-    // GET — 返回当前APK URL
+    // ── GET ──
     if (request.method === 'GET') {
-      const url = (await env.kvadmin.get(prefix + 'apk_url')) || '';
-      return new Response(JSON.stringify({ url }), {
+      var config = await loadConfig(env, me.user);
+      return new Response(JSON.stringify({ url: config.apkUrl }), {
         headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
       });
     }
 
-    // POST — 手动设置URL 或 上传文件
+    // ── POST ──
     if (request.method === 'POST') {
       const ct = request.headers.get('Content-Type') || '';
       var apkUrl = '';
+      var config = await loadConfig(env, me.user);
+      var history = config.history;
 
       if (ct.includes('multipart/form-data')) {
-        // 文件上传
+        // 文件上传 → R2
         const fd = await request.formData();
         const file = fd.get('apk');
         if (file && file.name) {
@@ -61,35 +100,27 @@ export async function onRequest(context) {
             httpMetadata: { contentType: 'application/vnd.android.package-archive' }
           });
           apkUrl = 'https://' + (new URL(request.url).hostname) + '/api/dl?key=' + encodeURIComponent(key);
-          // 记录历史
-          const raw = (await env.kvadmin.get(prefix + 'apk_history')) || '[]';
-          const history = JSON.parse(raw);
           history.unshift({ url: apkUrl, filename: file.name, time: new Date().toISOString() });
           if (history.length > 50) history.length = 50;
-          await env.kvadmin.put(prefix + 'apk_history', JSON.stringify(history));
         }
       } else {
-        // 手动输入URL 或 删除历史记录
         const body = await request.json();
-        // 如果传了 history，直接覆盖历史
         if (body.history) {
-          await env.kvadmin.put(prefix + 'apk_history', JSON.stringify(body.history));
+          // 仅更新历史（删除记录等场景）
+          await saveConfig(env, me.user, config.apkUrl, body.history);
           return new Response(JSON.stringify({ ok: true, msg: '历史已更新' }), {
             headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
           });
         }
         apkUrl = (body.url || '').trim();
         if (apkUrl) {
-          const raw = (await env.kvadmin.get(prefix + 'apk_history')) || '[]';
-          const history = JSON.parse(raw);
           history.unshift({ url: apkUrl, filename: '(手动输入)', time: new Date().toISOString() });
           if (history.length > 50) history.length = 50;
-          await env.kvadmin.put(prefix + 'apk_history', JSON.stringify(history));
         }
       }
 
       if (apkUrl) {
-        await env.kvadmin.put(prefix + 'apk_url', apkUrl);
+        await saveConfig(env, me.user, apkUrl, history);
         return new Response(JSON.stringify({ ok: true, url: apkUrl }), {
           headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
         });

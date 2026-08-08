@@ -40,11 +40,17 @@ export async function onRequest(context) {
 
     // ── GET — 列出所有子账户 ──
     if (request.method === 'GET') {
-      // 1. D1 账户列表 + 统计数据
-      const [acctsResult, statsResult] = await Promise.all([
-        env.DB.prepare('SELECT username, password, role, site, created FROM accounts WHERE role = ?1 ORDER BY created DESC').bind('user').all(),
-        env.DB.prepare('SELECT username, COALESCE(SUM(count), 0) AS total FROM download_counts GROUP BY username').all()
-      ]);
+      // 1. D1 账户列表 + 统计数据（尝试读新字段，列不存在则回退）
+      var acctsResult = null;
+      var useD1Columns = true;
+      try {
+        acctsResult = await env.DB.prepare('SELECT username, password, role, site, created, pixel_ids, apk_url FROM accounts WHERE role = ?1 ORDER BY created DESC').bind('user').all();
+      } catch (e) {
+        // 新列（pixel_ids, apk_url）还没建，回退
+        useD1Columns = false;
+        acctsResult = await env.DB.prepare('SELECT username, password, role, site, created FROM accounts WHERE role = ?1 ORDER BY created DESC').bind('user').all();
+      }
+      const statsResult = await env.DB.prepare('SELECT username, COALESCE(SUM(count), 0) AS total FROM download_counts GROUP BY username').all();
 
       // 构建下载量映射（D1 优先）
       var downloadMap = {};
@@ -108,14 +114,35 @@ export async function onRequest(context) {
       // 合并 D1 + KV 账户
       var allAccts = accts.concat(kvAccounts);
 
-      // 3. 并行读取每个账户的 KV 配置（APK URL + 像素 ID）
+      // 3. 并行读取每个账户的配置（D1 优先，KV 回退）
       var accounts = [];
       var kvTasks = [];
       for (var q = 0; q < allAccts.length; q++) {
         (function(a){
           kvTasks.push((async function(){
-            var apkUrl = await env.kvadmin.get(a.username + ':apk_url');
-            var pixelsRaw = await env.kvadmin.get(a.username + ':pixel_ids');
+            var apkUrl = '';
+            var pixels = [];
+            // D1 新列可用则直接用
+            if (useD1Columns) {
+              apkUrl = a.apk_url || '';
+              try { pixels = JSON.parse(a.pixel_ids || '[]'); } catch (e) {}
+            }
+            // KV 回退
+            if (!apkUrl && !pixels.length) {
+              try {
+                var kvUrl = await env.kvadmin.get(a.username + ':apk_url');
+                var kvPixels = await env.kvadmin.get(a.username + ':pixel_ids');
+                if (kvUrl) apkUrl = kvUrl;
+                if (kvPixels) pixels = JSON.parse(kvPixels);
+                // 自动迁移到 D1
+                if ((kvUrl || kvPixels) && useD1Columns) {
+                  try {
+                    await env.DB.prepare('UPDATE accounts SET apk_url = ?1, pixel_ids = ?2 WHERE username = ?3')
+                      .bind(kvUrl || '', kvPixels || '[]', a.username).run();
+                  } catch (e) {}
+                }
+              } catch (e) {}
+            }
             accounts.push({
               username: a.username,
               pw: a.password || a.pw || '',
@@ -123,8 +150,8 @@ export async function onRequest(context) {
               created: a.created || '',
               stats: {
                 downloads: downloadMap[a.username] || 0,
-                apkUrl: apkUrl || '',
-                pixels: JSON.parse(pixelsRaw || '[]')
+                apkUrl: apkUrl,
+                pixels: pixels
               }
             });
           })());

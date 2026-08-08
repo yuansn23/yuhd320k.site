@@ -86,14 +86,36 @@ export async function onRequest(context) {
       daily.push({ date: dates[k], count: d1Map[dates[k]] });
     }
 
-    // 并行读取 KV 配置数据
-    const [apkUrl, historyRaw] = await Promise.all([
-      env.kvadmin.get(me.user + ':apk_url'),
-      env.kvadmin.get(me.user + ':apk_history')
-    ]);
-    const history = JSON.parse(historyRaw || '[]');
+    // 并行读取配置（D1 优先，KV 回退）
+    var apkUrl = '';
+    var history = [];
+    try {
+      var cfg = await env.DB.prepare('SELECT apk_url, apk_history FROM accounts WHERE username = ?1').bind(me.user).first();
+      if (cfg) {
+        apkUrl = cfg.apk_url || '';
+        if (cfg.apk_history) { try { history = JSON.parse(cfg.apk_history); } catch (e) {} }
+      }
+    } catch (e) {}
+    // KV 回退
+    if (!apkUrl && !history.length) {
+      try {
+        var [kvUrl, kvHist] = await Promise.all([
+          env.kvadmin.get(me.user + ':apk_url'),
+          env.kvadmin.get(me.user + ':apk_history')
+        ]);
+        if (kvUrl) apkUrl = kvUrl;
+        if (kvHist) history = JSON.parse(kvHist);
+        // 自动迁移
+        if (kvUrl || kvHist) {
+          context.waitUntil(
+            env.DB.prepare('UPDATE accounts SET apk_url = ?1, apk_history = ?2 WHERE username = ?3')
+              .bind(kvUrl || '', kvHist || '[]', me.user).run().catch(function(){})
+          );
+        }
+      } catch (e) {}
+    }
 
-    return new Response(JSON.stringify({ total, apkUrl: apkUrl || '', history, daily, site: me.site }), {
+    return new Response(JSON.stringify({ total, apkUrl: apkUrl, history: history, daily, site: me.site }), {
       headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'private, max-age=15' }
     });
   } catch (e) {
