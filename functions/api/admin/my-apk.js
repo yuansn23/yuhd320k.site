@@ -51,7 +51,7 @@ async function loadConfig(env, user) {
 async function saveConfig(env, user, apkUrl, history) {
   var d1Ok = false;
   try {
-    await env.DB.prepare('UPDATE accounts SET apk_url = ?1, apk_history = ?2 WHERE username = ?3')
+    await env.DB.prepare('UPDATE accounts SET apk_url = ?1, apk_history = ?2, config_version = config_version + 1 WHERE username = ?3')
       .bind(apkUrl, JSON.stringify(history), user).run();
     d1Ok = true;
   } catch (e) { /* D1 列不存在时回退 KV */ }
@@ -128,6 +128,11 @@ export async function onRequest(context) {
 
       if (apkUrl) {
         await saveConfig(env, me.user, apkUrl, history);
+        // 清 CDN 缓存，立即生效
+        if (me.site && env.CF_API_TOKEN && env.CF_ZONE_ID) {
+          var purgeUrl = new URL(request.url).origin + '/api/apk-url?site=' + encodeURIComponent(me.site);
+          context.waitUntil(purgeCDN(env, purgeUrl));
+        }
         return new Response(JSON.stringify({ ok: true, url: apkUrl }), {
           headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
         });
@@ -145,4 +150,18 @@ export async function onRequest(context) {
       status: 500, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
     });
   }
+}
+
+// Cloudflare CDN 缓存清除
+async function purgeCDN(env, url) {
+  try {
+    await fetch('https://api.cloudflare.com/client/v4/zones/' + env.CF_ZONE_ID + '/purge_cache', {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + env.CF_API_TOKEN,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ files: [url] })
+    });
+  } catch (e) { /* 失败不影响主流程 */ }
 }

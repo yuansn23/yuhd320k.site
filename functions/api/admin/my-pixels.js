@@ -74,14 +74,20 @@ export async function onRequest(context) {
       const ids = Array.isArray(body.ids) ? body.ids.filter(function(id){ return /^\d{10,20}$/.test(id); }) : [];
       var idsJson = JSON.stringify(ids);
 
-      // 写入：D1 优先，失败则走 KV（兼容未执行 ALTER TABLE 的情况）
+      // 写入 D1 + 递增版本号
       var d1Ok = false;
       try {
-        await env.DB.prepare('UPDATE accounts SET pixel_ids = ?1 WHERE username = ?2').bind(idsJson, me.user).run();
+        await env.DB.prepare('UPDATE accounts SET pixel_ids = ?1, config_version = config_version + 1 WHERE username = ?2').bind(idsJson, me.user).run();
         d1Ok = true;
       } catch (e) {}
       if (!d1Ok) {
         await env.kvadmin.put(prefix + 'pixel_ids', idsJson);
+      }
+
+      // 清 CDN 缓存，立即生效
+      if (me.site && env.CF_API_TOKEN && env.CF_ZONE_ID) {
+        var purgeUrl = new URL(request.url).origin + '/api/pixels?site=' + encodeURIComponent(me.site);
+        context.waitUntil(purgeCDN(env, purgeUrl));
       }
 
       return new Response(JSON.stringify({ ok: true, ids: ids, count: ids.length }), {
@@ -97,4 +103,18 @@ export async function onRequest(context) {
       status: 500, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
     });
   }
+}
+
+// Cloudflare CDN 缓存清除
+async function purgeCDN(env, url) {
+  try {
+    await fetch('https://api.cloudflare.com/client/v4/zones/' + env.CF_ZONE_ID + '/purge_cache', {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + env.CF_API_TOKEN,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ files: [url] })
+    });
+  } catch (e) { /* 清缓存失败不影响主流程 */ }
 }

@@ -1,5 +1,5 @@
 // GET /api/apk-url?site=k924uu.site — 返回对应站点的APK地址
-// v3: 全部 D1 读写（apk_url 从 accounts 表，计数器到 download_counts）
+// v4: 返回版本号，前端 localStorage 缓存减少请求
 export async function onRequest(context) {
   const { request, env } = context;
   try {
@@ -14,26 +14,29 @@ export async function onRequest(context) {
     const siteRow = await env.DB.prepare('SELECT username FROM site_mappings WHERE site = ?1').bind(site).first();
     const username = siteRow ? siteRow.username : '';
 
-    // APK URL：D1 优先，KV 回退
     var apkUrl = '';
-    try {
-      var row = await env.DB.prepare('SELECT apk_url FROM accounts WHERE username = ?1').bind(username || '').first();
-      if (row && row.apk_url) apkUrl = row.apk_url;
-    } catch (e) {}
-    if (!apkUrl) {
+    var version = 0;
+
+    if (username) {
       try {
-        const prefix = username ? username + ':' : '';
-        apkUrl = (await env.kvadmin.get(prefix + 'apk_url')) || '';
-        // 自动迁移
-        if (apkUrl && username) {
-          context.waitUntil(
-            env.DB.prepare('UPDATE accounts SET apk_url = ?1 WHERE username = ?2').bind(apkUrl, username).run().catch(function(){})
-          );
+        var row = await env.DB.prepare('SELECT apk_url, config_version FROM accounts WHERE username = ?1').bind(username).first();
+        if (row) {
+          version = row.config_version || 0;
+          apkUrl = row.apk_url || '';
         }
       } catch (e) {}
     }
 
-    // 计数器写入 D1（非阻塞，无限额）
+    // KV 回退
+    if (!apkUrl) {
+      try {
+        const prefix = username ? username + ':' : '';
+        apkUrl = (await env.kvadmin.get(prefix + 'apk_url')) || '';
+        if (apkUrl) version = 1;
+      } catch (e) {}
+    }
+
+    // 计数器写入 D1（非阻塞）
     if (username) {
       const today = new Date().toISOString().slice(0, 10);
       context.waitUntil(
@@ -43,8 +46,8 @@ export async function onRequest(context) {
       );
     }
 
-    return new Response(JSON.stringify({ url: apkUrl, _site: site, _user: username || '' }), {
-      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'public, max-age=30' }
+    return new Response(JSON.stringify({ url: apkUrl, version: version, _site: site }), {
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'public, max-age=300' }
     });
   } catch (e) {
     return new Response(JSON.stringify({ url: '' }), {

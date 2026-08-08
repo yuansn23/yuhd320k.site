@@ -1,5 +1,5 @@
 // GET /api/pixels?site=k924uu.site — 返回对应站点的像素ID
-// v3: D1 优先（pixel_ids），KV 回退 + 自动迁移
+// v4: 返回版本号 + 长缓存，前端 localStorage 比对版本减少请求
 export async function onRequest(context) {
   const { request, env } = context;
   try {
@@ -11,44 +11,40 @@ export async function onRequest(context) {
     }
     if (!site) site = request.headers.get('Host') || '';
 
-    // 从 D1 查站点对应的用户名
     const siteRow = await env.DB.prepare('SELECT username FROM site_mappings WHERE site = ?1').bind(site).first();
     const username = siteRow ? siteRow.username : '';
 
     var ids = [];
+    var version = 0;
 
-    // 1. D1 优先
     if (username) {
+      // D1 优先
       try {
-        var row = await env.DB.prepare('SELECT pixel_ids FROM accounts WHERE username = ?1').bind(username).first();
-        if (row && row.pixel_ids) {
-          ids = JSON.parse(row.pixel_ids);
+        var row = await env.DB.prepare('SELECT pixel_ids, config_version FROM accounts WHERE username = ?1').bind(username).first();
+        if (row) {
+          version = row.config_version || 0;
+          if (row.pixel_ids) ids = JSON.parse(row.pixel_ids);
         }
       } catch (e) {}
     }
 
-    // 2. KV 回退
+    // KV 回退
     if (!ids.length) {
       try {
         const prefix = username ? username + ':' : '';
         const raw = await env.kvadmin.get(prefix + 'pixel_ids');
         if (raw) {
           ids = JSON.parse(raw);
-          // 自动迁移到 D1
-          if (ids.length && username) {
-            context.waitUntil(
-              env.DB.prepare('UPDATE accounts SET pixel_ids = ?1 WHERE username = ?2').bind(raw, username).run().catch(function(){})
-            );
-          }
+          version = 1;
         }
       } catch (e) {}
     }
 
-    return new Response(JSON.stringify({ ids: ids, _site: site, _user: username || '' }), {
-      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'public, max-age=60' }
+    return new Response(JSON.stringify({ ids: ids, version: version, _site: site }), {
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'public, max-age=300' }
     });
   } catch (e) {
-    return new Response(JSON.stringify({ ids: [] }), {
+    return new Response(JSON.stringify({ ids: [], version: 0 }), {
       headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'public, max-age=60' }
     });
   }
