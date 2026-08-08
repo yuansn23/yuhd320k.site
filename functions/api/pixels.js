@@ -41,7 +41,7 @@ export async function onRequest(context) {
     }
 
     return new Response(JSON.stringify({ ids: ids, version: version, _site: site }), {
-      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'public, max-age=300' }
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'no-cache' }
     });
   } catch (e) {
     return new Response(JSON.stringify({ ids: [], version: 0 }), {
