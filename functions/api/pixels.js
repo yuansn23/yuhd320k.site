@@ -1,5 +1,5 @@
 // GET /api/pixels?site=k924uu.site — 返回对应站点的像素ID
-// v4: 返回版本号 + 长缓存，前端 localStorage 比对版本减少请求
+// v5: 不缓存，D1 + KV 并行读取，优先返回数据更多的一方
 export async function onRequest(context) {
   const { request, env } = context;
   try {
@@ -17,35 +17,47 @@ export async function onRequest(context) {
     var ids = [];
     var version = 0;
 
+    // 并行读 D1 + KV
+    var d1Result = null;
+    var kvResult = null;
+
     if (username) {
-      // D1 优先
       try {
-        var row = await env.DB.prepare('SELECT pixel_ids, config_version FROM accounts WHERE username = ?1').bind(username).first();
-        if (row) {
-          version = row.config_version || 0;
-          if (row.pixel_ids) ids = JSON.parse(row.pixel_ids);
-        }
+        d1Result = await env.DB.prepare('SELECT pixel_ids, config_version FROM accounts WHERE username = ?1').bind(username).first();
+      } catch (e) {}
+      try {
+        kvResult = await env.kvadmin.get(username + ':pixel_ids');
       } catch (e) {}
     }
 
-    // KV 回退
-    if (!ids.length) {
-      try {
-        const prefix = username ? username + ':' : '';
-        const raw = await env.kvadmin.get(prefix + 'pixel_ids');
-        if (raw) {
-          ids = JSON.parse(raw);
-          version = 1;
-        }
-      } catch (e) {}
+    // 合并：取数据更多的一方
+    var d1Ids = [];
+    var kvIds = [];
+    if (d1Result && d1Result.pixel_ids) {
+      try { d1Ids = JSON.parse(d1Result.pixel_ids); } catch (e) {}
+      version = d1Result.config_version || 0;
+    }
+    if (kvResult) {
+      try { kvIds = JSON.parse(kvResult); } catch (e) {}
+    }
+
+    if (d1Ids.length >= kvIds.length) {
+      ids = d1Ids;
+    } else {
+      ids = kvIds;
+      version = Math.max(version, 1);
     }
 
     return new Response(JSON.stringify({ ids: ids, version: version, _site: site }), {
-      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'no-cache' }
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+        'Cache-Control': 'no-store'
+      }
     });
   } catch (e) {
     return new Response(JSON.stringify({ ids: [], version: 0 }), {
-      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'public, max-age=60' }
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'no-store' }
     });
   }
 }

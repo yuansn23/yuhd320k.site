@@ -74,14 +74,15 @@ export async function onRequest(context) {
       const ids = Array.isArray(body.ids) ? body.ids.filter(function(id){ return /^\d{10,20}$/.test(id); }) : [];
       var idsJson = JSON.stringify(ids);
 
-      // 写入 D1 + 递增版本号
-      var d1Ok = false;
+      // 写入 D1：先尝试完整写入（含版本号），列不存在时回退
       try {
         await env.DB.prepare('UPDATE accounts SET pixel_ids = ?1, config_version = config_version + 1 WHERE username = ?2').bind(idsJson, me.user).run();
-        d1Ok = true;
-      } catch (e) {}
-      if (!d1Ok) {
-        await env.kvadmin.put(prefix + 'pixel_ids', idsJson);
+      } catch (e1) {
+        try {
+          await env.DB.prepare('UPDATE accounts SET pixel_ids = ?1 WHERE username = ?2').bind(idsJson, me.user).run();
+        } catch (e2) {
+          await env.kvadmin.put(prefix + 'pixel_ids', idsJson);
+        }
       }
 
       // 清 CDN 缓存，立即生效

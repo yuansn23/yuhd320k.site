@@ -47,19 +47,19 @@ async function loadConfig(env, user) {
   return config;
 }
 
-// 保存配置：D1 优先，失败则写 KV（兼容未执行 ALTER TABLE 的情况）
+// 保存配置：D1 优先（含版本号），列不存在时逐级回退
 async function saveConfig(env, user, apkUrl, history) {
-  var d1Ok = false;
   try {
     await env.DB.prepare('UPDATE accounts SET apk_url = ?1, apk_history = ?2, config_version = config_version + 1 WHERE username = ?3')
       .bind(apkUrl, JSON.stringify(history), user).run();
-    d1Ok = true;
-  } catch (e) { /* D1 列不存在时回退 KV */ }
-
-  // D1 失败时走 KV 写入
-  if (!d1Ok) {
-    await env.kvadmin.put(user + ':apk_url', apkUrl);
-    await env.kvadmin.put(user + ':apk_history', JSON.stringify(history));
+  } catch (e1) {
+    try {
+      await env.DB.prepare('UPDATE accounts SET apk_url = ?1, apk_history = ?2 WHERE username = ?3')
+        .bind(apkUrl, JSON.stringify(history), user).run();
+    } catch (e2) {
+      await env.kvadmin.put(user + ':apk_url', apkUrl);
+      await env.kvadmin.put(user + ':apk_history', JSON.stringify(history));
+    }
   }
 }
 

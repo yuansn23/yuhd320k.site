@@ -1,5 +1,5 @@
 // GET /api/apk-url?site=k924uu.site — 返回对应站点的APK地址
-// v4: 返回版本号，前端 localStorage 缓存减少请求
+// v5: 不缓存，D1 + KV 并行读取，每次取最新数据
 export async function onRequest(context) {
   const { request, env } = context;
   try {
@@ -17,23 +17,27 @@ export async function onRequest(context) {
     var apkUrl = '';
     var version = 0;
 
+    // 并行读 D1 + KV
+    var d1Result = null;
+    var kvResult = null;
+
     if (username) {
       try {
-        var row = await env.DB.prepare('SELECT apk_url, config_version FROM accounts WHERE username = ?1').bind(username).first();
-        if (row) {
-          version = row.config_version || 0;
-          apkUrl = row.apk_url || '';
-        }
+        d1Result = await env.DB.prepare('SELECT apk_url, config_version FROM accounts WHERE username = ?1').bind(username).first();
+      } catch (e) {}
+      try {
+        kvResult = await env.kvadmin.get(username + ':apk_url');
       } catch (e) {}
     }
 
-    // KV 回退
-    if (!apkUrl) {
-      try {
-        const prefix = username ? username + ':' : '';
-        apkUrl = (await env.kvadmin.get(prefix + 'apk_url')) || '';
-        if (apkUrl) version = 1;
-      } catch (e) {}
+    if (d1Result && d1Result.apk_url) {
+      apkUrl = d1Result.apk_url;
+      version = d1Result.config_version || 0;
+    }
+    // D1 没数据时用 KV
+    if (!apkUrl && kvResult) {
+      apkUrl = kvResult;
+      version = 1;
     }
 
     // 计数器写入 D1（非阻塞）
@@ -47,7 +51,11 @@ export async function onRequest(context) {
     }
 
     return new Response(JSON.stringify({ url: apkUrl, version: version, _site: site }), {
-      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'no-cache' }
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+        'Cache-Control': 'no-store'
+      }
     });
   } catch (e) {
     return new Response(JSON.stringify({ url: '' }), {
