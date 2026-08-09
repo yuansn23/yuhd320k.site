@@ -153,7 +153,7 @@ async function showAccounts(){
   main.innerHTML = '<div class="page-header"><h1>📋 账户管理</h1></div>'+
     '<div class="card"><h3>➕ 创建子账户</h3>'+
     '<div class="form-row"><input type="text" id="newUser" placeholder="用户名"><input type="text" id="newPass" placeholder="密码"><input type="text" id="newSite" placeholder="绑定域名 site1.example.com"><button class="btn btn-p" id="createBtn">创建</button></div><div id="createMsg"></div></div>'+
-    '<div id="editModal" class="hide" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.7);z-index:99;display:flex;align-items:center;justify-content:center"><div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:28px;width:400px;max-width:90vw"><h3 style="margin-bottom:16px">✏️ 编辑子账户 <span id="editUsername" style="color:var(--green)"></span></h3><label style="font-size:.8rem;color:var(--muted)">新密码（留空不修改）</label><input type="text" id="editPass" placeholder="留空则不修改密码" style="margin-bottom:10px"><label style="font-size:.8rem;color:var(--muted)">站点域名</label><input type="text" id="editSite" placeholder="https://site.example.com/estest/" style="margin-bottom:16px"><div style="display:flex;gap:10px"><button class="btn btn-p" id="saveEditBtn">保存</button><button class="btn btn-o" id="cancelEditBtn">取消</button></div><div id="editMsg"></div></div></div>'+
+    '<div id="editModal" class="hide" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.7);z-index:99;display:flex;align-items:center;justify-content:center"><div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:28px;width:400px;max-width:90vw"><h3 style="margin-bottom:16px">✏️ 编辑子账户 <span id="editUsername" style="color:var(--green)"></span></h3><label style="font-size:.8rem;color:var(--muted)">新用户名（留空不修改）</label><input type="text" id="editNewUser" placeholder="留空则不修改用户名" style="margin-bottom:10px"><label style="font-size:.8rem;color:var(--muted)">新密码（留空不修改）</label><input type="text" id="editPass" placeholder="留空则不修改密码" style="margin-bottom:10px"><label style="font-size:.8rem;color:var(--muted)">站点域名</label><input type="text" id="editSite" placeholder="https://site.example.com/estest/" style="margin-bottom:16px"><div style="display:flex;gap:10px"><button class="btn btn-p" id="saveEditBtn">保存</button><button class="btn btn-o" id="cancelEditBtn">取消</button></div><div id="editMsg"></div></div></div>'+
     '<div class="card"><h3>📋 子账户列表</h3><table><thead><tr><th>用户名</th><th>密码</th><th>绑定站点</th><th>点击/下载</th><th>像素</th><th>跳转地址</th><th>操作</th></tr></thead><tbody id="accountsBody"><tr><td colspan="7" class="empty">加载中...</td></tr></tbody></table></div>';
 
   document.getElementById('createBtn').onclick = createAccount;
@@ -210,11 +210,12 @@ async function showEditModal(username){
 }
 
 async function saveEdit(username){
+  var newUser = document.getElementById('editNewUser').value.trim();
   var pass = document.getElementById('editPass').value.trim();
   var site = document.getElementById('editSite').value.trim();
-  if(!pass && !site){ msg('editMsg','err','至少修改一项'); return; }
+  if(!newUser && !pass && !site){ msg('editMsg','err','至少修改一项'); return; }
   try{
-    var r = await fetch('/api/admin/accounts',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Basic '+S.token},body:JSON.stringify({username:username,password:pass||'',site:site||'',action:'edit'})});
+    var r = await fetch('/api/admin/accounts',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Basic '+S.token},body:JSON.stringify({username:username,newUsername:newUser||'',password:pass||'',site:site||'',action:'edit'})});
     var d = await r.json();
     if(d.ok){ msg('editMsg','ok','✅ '+d.msg); setTimeout(function(){ document.getElementById('editModal').classList.add('hide'); loadAccounts(); },800); }
     else msg('editMsg','err',d.error);

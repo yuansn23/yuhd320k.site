@@ -167,7 +167,7 @@ export async function onRequest(context) {
     // ── POST — 创建/修改子账户 ──
     if (request.method === 'POST') {
       const body = await request.json();
-      const { username, password, site, action } = body;
+      const { username, newUsername, password, site, action } = body;
       if (!username) {
         return new Response(JSON.stringify({ error: '用户名不能为空' }), {
           status: 400, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
@@ -188,25 +188,49 @@ export async function onRequest(context) {
           });
         }
 
+        var finalUsername = username;
         var newPass = password || existing.password;
         var newSite = site || existing.site;
 
+        // 修改用户名：D1 不支持直接 UPDATE 主键，需删旧插新 + 更新关联表
+        if (newUsername && newUsername !== username) {
+          if (newUsername === 'admin') {
+            return new Response(JSON.stringify({ error: '不能使用admin作为子账户名' }), {
+              status: 400, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+            });
+          }
+          const dup = await env.DB.prepare('SELECT username FROM accounts WHERE username = ?1').bind(newUsername).first();
+          if (dup) {
+            return new Response(JSON.stringify({ error: '用户名 ' + newUsername + ' 已存在' }), {
+              status: 400, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+            });
+          }
+          // 插入新行
+          await env.DB.prepare('INSERT INTO accounts (username, password, role, site, created, pixel_ids, apk_url, apk_history, config_version) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)')
+            .bind(newUsername, existing.password, existing.role, existing.site, existing.created, existing.pixel_ids || '[]', existing.apk_url || '', existing.apk_history || '[]', existing.config_version || 0).run();
+          // 更新关联表
+          await env.DB.prepare('UPDATE site_mappings SET username = ?1 WHERE username = ?2').bind(newUsername, username).run();
+          await env.DB.prepare('UPDATE download_counts SET username = ?1 WHERE username = ?2').bind(newUsername, username).run();
+          // 删除旧行
+          await env.DB.prepare('DELETE FROM accounts WHERE username = ?1').bind(username).run();
+          finalUsername = newUsername;
+        }
+
         // 检查站点冲突
         if (site && site !== existing.site) {
-          const conflict = await env.DB.prepare('SELECT username FROM site_mappings WHERE site = ?1 AND username != ?2').bind(site, username).first();
+          const conflict = await env.DB.prepare('SELECT username FROM site_mappings WHERE site = ?1 AND username != ?2').bind(site, finalUsername).first();
           if (conflict) {
             return new Response(JSON.stringify({ error: '站点域名 ' + site + ' 已被账户 ' + conflict.username + ' 绑定' }), {
               status: 400, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
             });
           }
-          // 更新站点映射
-          await env.DB.prepare('DELETE FROM site_mappings WHERE username = ?1').bind(username).run();
-          await env.DB.prepare('INSERT INTO site_mappings (site, username) VALUES (?1, ?2)').bind(site, username).run();
+          await env.DB.prepare('DELETE FROM site_mappings WHERE username = ?1').bind(finalUsername).run();
+          await env.DB.prepare('INSERT INTO site_mappings (site, username) VALUES (?1, ?2)').bind(site, finalUsername).run();
         }
 
-        await env.DB.prepare('UPDATE accounts SET password = ?1, site = ?2 WHERE username = ?3').bind(newPass, newSite, username).run();
+        await env.DB.prepare('UPDATE accounts SET password = ?1, site = ?2 WHERE username = ?3').bind(newPass, newSite, finalUsername).run();
 
-        return new Response(JSON.stringify({ ok: true, username, site: newSite, msg: '已修改' }), {
+        return new Response(JSON.stringify({ ok: true, username: finalUsername, site: newSite, msg: '已修改' }), {
           headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
         });
       }
