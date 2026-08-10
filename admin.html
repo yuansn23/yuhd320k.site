@@ -320,36 +320,31 @@ async function loadStats(){
 
 // ========== USER: 我的落地页 ==========
 async function showLanding(){
-  var siteInfo = await loadSiteSelector();
   var main = document.getElementById('mainContent');
   main.innerHTML = '<div class="page-header"><h1>🌐 我的落地页</h1></div>'+
-    '<div class="card"><h3>📍 选择落地页</h3><div style="margin-bottom:12px">'+siteInfo.html+'</div></div>'+
-    '<div class="card"><h3>📋 落地页信息</h3><table><tbody id="landingBody"><tr><td colspan="2" class="empty">加载中...</td></tr></tbody></table></div>';
-  document.getElementById('siteSelector').onchange = function(){
-    _currentSite = this.value;
-    sessionStorage.setItem('st_current_site', _currentSite);
-    loadLanding();
-  };
+    '<div class="card"><h3>📋 落地页列表</h3><table><thead><tr><th>#</th><th>落地页URL</th><th>像素ID</th><th>跳转地址</th></tr></thead><tbody id="landingBody"><tr><td colspan="4" class="empty">加载中...</td></tr></tbody></table></div>';
   loadLanding();
 }
 
 async function loadLanding(){
   var tbody = document.getElementById('landingBody');
   try{
-    var p1 = fetch('/api/admin/my-pixels?site='+encodeURIComponent(_currentSite)+'&_='+Date.now(),{headers:{'Authorization':'Basic '+S.token}}).then(function(r){return r.json()});
-    var p2 = fetch('/api/admin/my-stats?site='+encodeURIComponent(_currentSite)+'&_='+Date.now(),{headers:{'Authorization':'Basic '+S.token}}).then(function(r){return r.json()});
-    var results = await Promise.all([p1, p2]);
-    var pixels = results[0]; var stats = results[1];
-
-    var pixelIds = (pixels.ids||[]).join(', ') || '未配置';
-    var apkUrl = stats.apkUrl || '未配置';
-
-    tbody.innerHTML =
-      '<tr><td style="width:100px;color:var(--muted);font-weight:600">落地页URL</td><td style="word-break:break-all;font-family:monospace">'+esc(_currentSite||'未绑定')+'</td></tr>'+
-      '<tr><td style="color:var(--muted);font-weight:600">网站像素ID</td><td style="word-break:break-all;font-family:monospace">'+esc(pixelIds)+'</td></tr>'+
-      '<tr><td style="color:var(--muted);font-weight:600">跳转地址</td><td style="word-break:break-all;font-family:monospace">'+esc(apkUrl)+'</td></tr>';
+    var r = await fetch('/api/admin/my-stats?_='+Date.now(),{headers:{'Authorization':'Basic '+S.token}});
+    var d = await r.json();
+    var sites = d.sites||[];
+    if(!sites.length && d.site) sites = [{site:d.site, pixelCount:0, apkUrl:d.apkUrl||''}];
+    if(!sites.length){ tbody.innerHTML='<tr><td colspan="4" class="empty">暂无落地页，请联系管理员配置</td></tr>'; return; }
+    // 查每个站点的像素
+    var pixelPromises = sites.map(function(s){
+      return fetch('/api/admin/my-pixels?site='+encodeURIComponent(s.site)+'&_='+Date.now(),{headers:{'Authorization':'Basic '+S.token}}).then(function(r){return r.json()});
+    });
+    var pixelResults = await Promise.all(pixelPromises);
+    tbody.innerHTML = sites.map(function(s,i){
+      var ids = (pixelResults[i]&&pixelResults[i].ids) ? pixelResults[i].ids.join(', ') : '未配置';
+      return '<tr><td>'+(i+1)+'</td><td style="word-break:break-all;font-family:monospace">'+esc(s.site)+'</td><td style="word-break:break-all;font-family:monospace">'+esc(ids)+'</td><td style="word-break:break-all;font-family:monospace;max-width:300px">'+esc(s.apkUrl||'未配置')+'</td></tr>';
+    }).join('');
   }catch(e){
-    tbody.innerHTML='<tr><td colspan="2" class="empty">加载失败: '+esc(e.message)+'</td></tr>';
+    tbody.innerHTML='<tr><td colspan="4" class="empty">加载失败: '+esc(e.message)+'</td></tr>';
   }
 }
 
