@@ -387,13 +387,13 @@ async function showVisits(){
   var siteInfo = await loadSiteSelector();
   var main = document.getElementById('mainContent');
   main.innerHTML = '<div class="page-header"><h1>📈 流量访问</h1></div>'+
-    '<div class="card"><h3>📍 选择落地页</h3><div style="margin-bottom:12px">'+siteInfo.html+'</div></div>'+
+    '<div class="card"><h3>📍 筛选条件</h3><div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px"><span style="color:var(--muted);font-size:.8rem">落地页:</span>'+siteInfo.html+'<span style="color:var(--muted);font-size:.8rem;margin-left:8px">日期:</span><input type="date" id="visitDateStart" style="width:auto;padding:6px 10px;font-size:.8rem"><span style="font-size:.8rem">至</span><input type="date" id="visitDateEnd" style="width:auto;padding:6px 10px;font-size:.8rem"><button class="btn btn-p btn-sm" id="visitFilterBtn">查询</button></div></div>'+
     '<div class="card"><h3>📋 访问记录 <span id="visitCount" style="font-weight:400;font-size:.8rem;color:var(--muted)"></span></h3><table><thead><tr><th>访问时间</th><th>落地页</th><th>IP地址</th><th>设备</th><th>语言</th></tr></thead><tbody id="visitBody"><tr><td colspan="5" class="empty">加载中...</td></tr></tbody></table></div>';
   document.getElementById('siteSelector').onchange = function(){
     _currentSite = this.value;
     sessionStorage.setItem('st_current_site', _currentSite);
-    loadVisits();
   };
+  document.getElementById('visitFilterBtn').onclick = loadVisits;
   loadVisits();
 }
 
@@ -402,6 +402,10 @@ async function loadVisits(){
   try{
     var url = '/api/admin/my-visit-logs?limit=200';
     if(_currentSite) url += '&site='+encodeURIComponent(_currentSite);
+    var ds = document.getElementById('visitDateStart').value;
+    var de = document.getElementById('visitDateEnd').value;
+    if(ds) url += '&start='+encodeURIComponent(ds);
+    if(de) url += '&end='+encodeURIComponent(de);
     var r = await fetch(url,{headers:{'Authorization':'Basic '+S.token}});
     var d = await r.json();
     var logs = d.logs||[];
