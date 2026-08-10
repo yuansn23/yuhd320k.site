@@ -1,5 +1,5 @@
-// GET/POST /api/admin/my-apk — 子账户管理自己的APK（手动URL或上传）
-// v3: APK 配置存储 D1 优先，KV 回退 + 自动迁移
+// GET/POST /api/admin/my-apk?site=xxx — 子账户APK管理（支持多落地页）
+// v6: 按站点读写 account_sites 表
 async function getMyUser(request, env) {
   const auth = request.headers.get('Authorization') || '';
   try {
@@ -15,52 +15,6 @@ async function getMyUser(request, env) {
     if (auth !== 'Basic ' + btoa(user + ':' + role + ':' + (account.password || account.pw))) return null;
     return { user, role, site: account.site || '' };
   } catch (e) { return null; }
-}
-
-// 读 apk_url + apk_history（D1 优先，KV 回退）
-async function loadConfig(env, user) {
-  var config = { apkUrl: '', history: [] };
-  try {
-    var row = await env.DB.prepare('SELECT apk_url, apk_history FROM accounts WHERE username = ?1').bind(user).first();
-    if (row) {
-      config.apkUrl = row.apk_url || '';
-      if (row.apk_history) {
-        try { config.history = JSON.parse(row.apk_history); } catch (e) {}
-      }
-    }
-  } catch (e) {}
-
-  // KV 回退
-  if (!config.apkUrl && !config.history.length) {
-    try {
-      var kvUrl = await env.kvadmin.get(user + ':apk_url');
-      var kvHist = await env.kvadmin.get(user + ':apk_history');
-      if (kvUrl) config.apkUrl = kvUrl;
-      if (kvHist) config.history = JSON.parse(kvHist);
-      // 自动迁移
-      if (kvUrl || kvHist) {
-        env.DB.prepare('UPDATE accounts SET apk_url = ?1, apk_history = ?2 WHERE username = ?3')
-          .bind(kvUrl || '', kvHist || '[]', user).run().catch(function(){});
-      }
-    } catch (e) {}
-  }
-  return config;
-}
-
-// 保存配置：D1 优先（含版本号），列不存在时逐级回退
-async function saveConfig(env, user, apkUrl, history) {
-  try {
-    await env.DB.prepare('UPDATE accounts SET apk_url = ?1, apk_history = ?2, config_version = config_version + 1 WHERE username = ?3')
-      .bind(apkUrl, JSON.stringify(history), user).run();
-  } catch (e1) {
-    try {
-      await env.DB.prepare('UPDATE accounts SET apk_url = ?1, apk_history = ?2 WHERE username = ?3')
-        .bind(apkUrl, JSON.stringify(history), user).run();
-    } catch (e2) {
-      await env.kvadmin.put(user + ':apk_url', apkUrl);
-      await env.kvadmin.put(user + ':apk_history', JSON.stringify(history));
-    }
-  }
 }
 
 export async function onRequest(context) {
@@ -81,10 +35,25 @@ export async function onRequest(context) {
       });
     }
 
+    var qSite = '';
+
     // ── GET ──
     if (request.method === 'GET') {
-      var config = await loadConfig(env, me.user);
-      return new Response(JSON.stringify({ url: config.apkUrl }), {
+      qSite = (new URL(request.url)).searchParams.get('site') || me.site || '';
+      var apkUrl = '';
+      if (qSite) {
+        try {
+          var row = await env.DB.prepare('SELECT apk_url, apk_history FROM account_sites WHERE site = ?1 AND username = ?2').bind(qSite, me.user).first();
+          if (row && row.apk_url) apkUrl = row.apk_url;
+        } catch (e) {}
+      }
+      if (!apkUrl) {
+        try { var acc = await env.DB.prepare('SELECT apk_url FROM accounts WHERE username = ?1').bind(me.user).first(); if (acc && acc.apk_url) apkUrl = acc.apk_url; } catch (e) {}
+      }
+      if (!apkUrl) {
+        try { apkUrl = (await env.kvadmin.get(me.user + ':apk_url')) || ''; } catch (e) {}
+      }
+      return new Response(JSON.stringify({ url: apkUrl }), {
         headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
       });
     }
@@ -93,46 +62,73 @@ export async function onRequest(context) {
     if (request.method === 'POST') {
       const ct = request.headers.get('Content-Type') || '';
       var apkUrl = '';
-      var config = await loadConfig(env, me.user);
-      var history = config.history;
 
-      if (ct.includes('multipart/form-data')) {
-        // 文件上传 → R2
-        const fd = await request.formData();
-        const file = fd.get('apk');
-        if (file && file.name) {
-          const ext = file.name.split('.').pop() || 'apk';
-          const key = 'apk/app-' + Date.now() + '.' + ext;
-          await env.r2admin.put(key, file.stream(), {
-            httpMetadata: { contentType: 'application/vnd.android.package-archive' }
-          });
-          apkUrl = 'https://' + (new URL(request.url).hostname) + '/api/dl?key=' + encodeURIComponent(key);
-          history.unshift({ url: apkUrl, filename: file.name, time: new Date().toISOString() });
-          if (history.length > 50) history.length = 50;
+      // 按站点读历史
+      if (ct.includes('application/json')) {
+        var bodyText = await request.text();
+        var body = JSON.parse(bodyText);
+        qSite = body.site || me.site || '';
+        // 先读该站点的历史
+        var history = [];
+        try {
+          var hs = await env.DB.prepare('SELECT apk_history FROM account_sites WHERE site = ?1 AND username = ?2').bind(qSite, me.user).first();
+          if (hs && hs.apk_history) history = JSON.parse(hs.apk_history);
+        } catch (e) {}
+        if (!history.length) {
+          try { var ah = await env.DB.prepare('SELECT apk_history FROM accounts WHERE username = ?1').bind(me.user).first(); if (ah && ah.apk_history) history = JSON.parse(ah.apk_history); } catch (e) {}
         }
-      } else {
-        const body = await request.json();
+
         if (body.history) {
-          // 仅更新历史（删除记录等场景）
-          await saveConfig(env, me.user, config.apkUrl, body.history);
+          // 仅更新历史
+          try {
+            await env.DB.prepare('INSERT INTO account_sites (site, username, pixel_ids, apk_url, apk_history) VALUES (?1, ?2, ?3, ?4, ?5) ON CONFLICT(site) DO UPDATE SET apk_history = ?5')
+              .bind(qSite, me.user, '[]', '', JSON.stringify(body.history)).run();
+          } catch (e) {
+            try { await env.DB.prepare('UPDATE account_sites SET apk_history = ?1 WHERE site = ?2 AND username = ?3').bind(JSON.stringify(body.history), qSite, me.user).run(); } catch (e2) {}
+          }
+          try { await env.DB.prepare('UPDATE accounts SET apk_history = ?1 WHERE username = ?2').bind(JSON.stringify(body.history), me.user).run(); } catch (e) {}
           return new Response(JSON.stringify({ ok: true, msg: '历史已更新' }), {
             headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
           });
         }
+
         apkUrl = (body.url || '').trim();
         if (apkUrl) {
           history.unshift({ url: apkUrl, filename: '(手动输入)', time: new Date().toISOString() });
           if (history.length > 50) history.length = 50;
         }
+      } else if (ct.includes('multipart/form-data')) {
+        var fd = await request.formData();
+        var file = fd.get('apk');
+        qSite = (fd.get('site') || me.site || '').toString();
+        if (file && file.name) {
+          var ext = file.name.split('.').pop() || 'apk';
+          var key = 'apk/app-' + Date.now() + '.' + ext;
+          await env.r2admin.put(key, file.stream(), {
+            httpMetadata: { contentType: 'application/vnd.android.package-archive' }
+          });
+          apkUrl = 'https://' + (new URL(request.url).hostname) + '/api/dl?key=' + encodeURIComponent(key);
+          // 读历史
+          var hist = [];
+          try {
+            var hs2 = await env.DB.prepare('SELECT apk_history FROM account_sites WHERE site = ?1 AND username = ?2').bind(qSite, me.user).first();
+            if (hs2 && hs2.apk_history) hist = JSON.parse(hs2.apk_history);
+          } catch (e) {}
+          hist.unshift({ url: apkUrl, filename: file.name, time: new Date().toISOString() });
+          if (hist.length > 50) hist.length = 50;
+        }
       }
 
-      if (apkUrl) {
-        await saveConfig(env, me.user, apkUrl, history);
-        // 清 CDN 缓存，立即生效
-        if (me.site && env.CF_API_TOKEN && env.CF_ZONE_ID) {
-          var purgeUrl = new URL(request.url).origin + '/api/apk-url?site=' + encodeURIComponent(me.site);
-          context.waitUntil(purgeCDN(env, purgeUrl));
+      if (apkUrl && qSite) {
+        var histJson = JSON.stringify(history || []);
+        try {
+          await env.DB.prepare('INSERT INTO account_sites (site, username, pixel_ids, apk_url, apk_history) VALUES (?1, ?2, ?3, ?4, ?5) ON CONFLICT(site) DO UPDATE SET apk_url = ?4, apk_history = ?5')
+            .bind(qSite, me.user, '[]', apkUrl, histJson).run();
+        } catch (e) {
+          try { await env.DB.prepare('UPDATE account_sites SET apk_url = ?1, apk_history = ?2 WHERE site = ?3 AND username = ?4').bind(apkUrl, histJson, qSite, me.user).run(); } catch (e2) {}
         }
+        // 同步 accounts
+        try { await env.DB.prepare('UPDATE accounts SET apk_url = ?1, apk_history = ?2, config_version = config_version + 1 WHERE username = ?3').bind(apkUrl, histJson, me.user).run(); } catch (e) {}
         return new Response(JSON.stringify({ ok: true, url: apkUrl }), {
           headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
         });
@@ -150,18 +146,4 @@ export async function onRequest(context) {
       status: 500, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
     });
   }
-}
-
-// Cloudflare CDN 缓存清除
-async function purgeCDN(env, url) {
-  try {
-    await fetch('https://api.cloudflare.com/client/v4/zones/' + env.CF_ZONE_ID + '/purge_cache', {
-      method: 'POST',
-      headers: {
-        'Authorization': 'Bearer ' + env.CF_API_TOKEN,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ files: [url] })
-    });
-  } catch (e) { /* 失败不影响主流程 */ }
 }

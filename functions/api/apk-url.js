@@ -17,13 +17,16 @@ export async function onRequest(context) {
     var apkUrl = '';
     var version = 0;
 
-    // 并行读 D1 + KV
+    // 并行读 D1(account_sites → accounts) + KV
     var d1Result = null;
     var kvResult = null;
 
     if (username) {
       try {
-        d1Result = await env.DB.prepare('SELECT apk_url, config_version FROM accounts WHERE username = ?1').bind(username).first();
+        d1Result = await env.DB.prepare('SELECT apk_url FROM account_sites WHERE site = ?1 AND username = ?2').bind(site, username).first();
+        if (!d1Result || !d1Result.apk_url) {
+          d1Result = await env.DB.prepare('SELECT apk_url, config_version FROM accounts WHERE username = ?1').bind(username).first();
+        }
       } catch (e) {}
       try {
         kvResult = await env.kvadmin.get(username + ':apk_url');

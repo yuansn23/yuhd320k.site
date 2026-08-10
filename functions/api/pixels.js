@@ -17,13 +17,18 @@ export async function onRequest(context) {
     var ids = [];
     var version = 0;
 
-    // 并行读 D1 + KV
+    // 并行读 D1(account_sites → accounts) + KV
     var d1Result = null;
     var kvResult = null;
 
     if (username) {
       try {
-        d1Result = await env.DB.prepare('SELECT pixel_ids, config_version FROM accounts WHERE username = ?1').bind(username).first();
+        // 优先从 account_sites 按站点读
+        d1Result = await env.DB.prepare('SELECT pixel_ids FROM account_sites WHERE site = ?1 AND username = ?2').bind(site, username).first();
+        if (!d1Result || !d1Result.pixel_ids || d1Result.pixel_ids === '[]') {
+          // 回退 accounts 表
+          d1Result = await env.DB.prepare('SELECT pixel_ids, config_version FROM accounts WHERE username = ?1').bind(username).first();
+        }
       } catch (e) {}
       try {
         kvResult = await env.kvadmin.get(username + ':pixel_ids');

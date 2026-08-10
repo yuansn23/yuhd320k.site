@@ -115,7 +115,18 @@ export async function onRequest(context) {
       } catch (e) {}
     }
 
-    return new Response(JSON.stringify({ total, apkUrl: apkUrl, history: history, daily, site: me.site }), {
+    // 获取所有站点列表
+    var sites = [];
+    try {
+      var sr = await env.DB.prepare('SELECT site, pixel_ids, apk_url FROM account_sites WHERE username = ?1').bind(me.user).all();
+      if (sr && sr.results) sites = sr.results.map(function(r){ return { site: r.site, pixelCount: JSON.parse(r.pixel_ids||'[]').length, apkUrl: r.apk_url || '' }; });
+    } catch (e) {}
+    // 如果 account_sites 为空，用 accounts.site 兜底
+    if (!sites.length && me.site) {
+      sites = [{ site: me.site, pixelCount: 0, apkUrl: apkUrl }];
+    }
+
+    return new Response(JSON.stringify({ total, apkUrl: apkUrl, history: history, daily, site: me.site, sites: sites }), {
       headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'private, max-age=15' }
     });
   } catch (e) {

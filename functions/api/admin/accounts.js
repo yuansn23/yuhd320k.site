@@ -151,13 +151,31 @@ export async function onRequest(context) {
               stats: {
                 downloads: downloadMap[a.username] || 0,
                 apkUrl: apkUrl,
-                pixels: pixels
+                pixels: pixels,
+                sites: []
               }
             });
           })());
         })(allAccts[q]);
       }
       await Promise.all(kvTasks);
+
+      // 4. 查询所有站点的 account_sites 数据
+      try {
+        var allSites = await env.DB.prepare('SELECT site, username, pixel_ids, apk_url FROM account_sites').all();
+        if (allSites && allSites.results) {
+          for (var si2 = 0; si2 < accounts.length; si2++) {
+            var un = accounts[si2].username;
+            accounts[si2].stats.sites = allSites.results
+              .filter(function(s){ return s.username === un; })
+              .map(function(s){ return { site: s.site, pixelCount: JSON.parse(s.pixel_ids||'[]').length, apkUrl: s.apk_url || '' }; });
+            // 兜底：account_sites 为空时用主站点
+            if (!accounts[si2].stats.sites.length && accounts[si2].site) {
+              accounts[si2].stats.sites = [{ site: accounts[si2].site, pixelCount: accounts[si2].stats.pixels.length, apkUrl: accounts[si2].stats.apkUrl }];
+            }
+          }
+        }
+      } catch (e) {}
 
       return new Response(JSON.stringify(accounts), {
         headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
@@ -230,6 +248,22 @@ export async function onRequest(context) {
 
         await env.DB.prepare('UPDATE accounts SET password = ?1, site = ?2 WHERE username = ?3').bind(newPass, newSite, finalUsername).run();
 
+        // 同步多站点（sites 数组）
+        if (body.sites && Array.isArray(body.sites)) {
+          var newSites = body.sites.filter(function(s){ return s && s.trim(); }).map(function(s){ return s.trim(); });
+          // 清空旧站点
+          await env.DB.prepare('DELETE FROM account_sites WHERE username = ?1').bind(finalUsername).run();
+          await env.DB.prepare('DELETE FROM site_mappings WHERE username = ?1').bind(finalUsername).run();
+          // 添加新站点
+          for (var si = 0; si < newSites.length; si++) {
+            var ns = newSites[si];
+            try {
+              await env.DB.prepare('INSERT OR IGNORE INTO account_sites (site, username, pixel_ids, apk_url, apk_history) VALUES (?1, ?2, ?3, ?4, ?5)').bind(ns, finalUsername, '[]', '', '[]').run();
+              await env.DB.prepare('INSERT OR IGNORE INTO site_mappings (site, username) VALUES (?1, ?2)').bind(ns, finalUsername).run();
+            } catch (e) {}
+          }
+        }
+
         return new Response(JSON.stringify({ ok: true, username: finalUsername, site: newSite, msg: '已修改' }), {
           headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
         });
@@ -257,6 +291,19 @@ export async function onRequest(context) {
         env.DB.prepare('INSERT INTO site_mappings (site, username) VALUES (?1, ?2)')
           .bind(site, username)
       ]);
+
+      // 多站点
+      if (body.sites && Array.isArray(body.sites)) {
+        var cSites = body.sites.filter(function(s){ return s && s.trim(); }).map(function(s){ return s.trim(); });
+        for (var ci = 0; ci < cSites.length; ci++) {
+          try {
+            if (cSites[ci] !== site) {
+              await env.DB.prepare('INSERT OR IGNORE INTO site_mappings (site, username) VALUES (?1, ?2)').bind(cSites[ci], username).run();
+            }
+            await env.DB.prepare('INSERT OR IGNORE INTO account_sites (site, username, pixel_ids, apk_url, apk_history) VALUES (?1, ?2, ?3, ?4, ?5)').bind(cSites[ci], username, '[]', '', '[]').run();
+          } catch (e) {}
+        }
+      }
 
       return new Response(JSON.stringify({ ok: true, username, site }), {
         headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
