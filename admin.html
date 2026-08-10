@@ -168,7 +168,10 @@ async function loadAccounts(){
     var list = await r.json();
     if(!list.length){ tbody.innerHTML='<tr><td colspan="7" class="empty">暂无子账户</td></tr>'; return; }
     tbody.innerHTML = list.map(function(a){
-      return '<tr><td><strong>'+esc(a.username)+'</strong></td><td style=\"font-family:monospace\">'+esc(a.pw||'—')+'</td><td>'+esc(a.site)+'</td><td>'+a.stats.downloads+'</td><td>'+(a.stats.pixels||[]).length+'</td><td style=\"max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap\">'+esc(a.stats.apkUrl||'—')+'</td>'+
+      var siteList = (a.stats.sites||[]).map(function(s){return s.site;});
+      if(!siteList.length && a.site) siteList = [a.site];
+      var sitesHtml = siteList.length ? siteList.map(function(s){return '<span style="display:inline-block;background:rgba(255,255,255,.04);padding:2px 8px;border-radius:4px;font-size:.72rem;margin:2px 4px 2px 0;word-break:break-all">'+esc(s)+'</span>';}).join('') : esc(a.site||'—');
+      return '<tr><td><strong>'+esc(a.username)+'</strong></td><td style=\"font-family:monospace\">'+esc(a.pw||'—')+'</td><td style=\"max-width:260px\">'+sitesHtml+'</td><td>'+a.stats.downloads+'</td><td>'+(a.stats.pixels||[]).length+'</td><td style=\"max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap\">'+esc(a.stats.apkUrl||'—')+'</td>'+
         '<td><button class=\"btn btn-p btn-sm\" data-edit=\"'+esc(a.username)+'\">编辑</button> <button class=\"btn btn-d btn-sm\" data-del=\"'+esc(a.username)+'\">删除</button></td></tr>';
     }).join('');
     tbody.querySelectorAll('[data-edit]').forEach(function(b){
