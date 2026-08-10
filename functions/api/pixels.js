@@ -64,13 +64,12 @@ export async function onRequest(context) {
       else if (/iPod/i.test(ua)) { terminal = 'iOS'; phoneModel = 'iPod'; }
       else if (/Android/i.test(ua)) {
         terminal = '安卓';
-        // 尝试多种 Android UA 格式提取型号
+        // 尝试多种 Android UA 格式提取型号（支持连字符）
         var patterns = [
-          /Android\s+\d+[^;)]*;\s*([A-Za-z0-9]+)\s+Build/,
-          /Android\s+\d+[^;)]*;\s*([A-Za-z0-9]+)\)/,
-          /Android\s+\d+\;\s*([A-Za-z0-9]+)\s/,
-          /Android\s*\([^)]*;\s*(\w[\w-]+)\s*;/,
-          /\b([A-Z]{2,4}\d{2,5}[A-Za-z]?|[A-Za-z][A-Za-z0-9]{3,10})\b[\s;)]/
+          /Android\s+\d+[^;)]*;\s*([\w-]+)\s+Build/,
+          /Android\s+\d+[^;)]*;\s*([\w-]+)\)/,
+          /Android\s+\d+\;\s*([\w-]+)\s/,
+          /Android\s*\([^)]*;\s*([\w-]+)\s*;/
         ];
         for (var pi = 0; pi < patterns.length && !phoneModel; pi++) {
           var pm = ua.match(patterns[pi]);
@@ -98,10 +97,20 @@ export async function onRequest(context) {
       else if (/Telegram/i.test(ua)) media = 'Telegram';
       else if (/WhatsApp/i.test(ua)) media = 'WhatsApp';
       else if (/Line/i.test(ua)) media = 'Line';
-      context.waitUntil(
-        env.DB.prepare('INSERT INTO visit_logs (username, site, visit_time, ip, device, user_agent, lang, media, terminal_type, phone_model) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)')
-          .bind(username, site, new Date().toISOString(), ip, device, ua.substring(0, 500), lang.substring(0, 50), media, terminal, phoneModel).run().catch(function(){})
-      );
+      context.waitUntil((async function(){
+        try {
+          await env.DB.prepare('INSERT INTO visit_logs (username, site, visit_time, ip, device, user_agent, lang, media, terminal_type, phone_model) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)')
+            .bind(username, site, new Date().toISOString(), ip, device, ua.substring(0, 500), lang.substring(0, 50), media, terminal, phoneModel).run();
+        } catch(e) {
+          try {
+            await env.DB.prepare('INSERT INTO visit_logs (username, site, visit_time, ip, device, user_agent, lang, media) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)')
+              .bind(username, site, new Date().toISOString(), ip, device, ua.substring(0, 500), lang.substring(0, 50), media).run();
+          } catch(e2) {
+            await env.DB.prepare('INSERT INTO visit_logs (username, site, visit_time, ip, device, user_agent) VALUES (?1, ?2, ?3, ?4, ?5, ?6)')
+              .bind(username, site, new Date().toISOString(), ip, device, ua.substring(0, 500)).run().catch(function(){});
+          }
+        }
+      })());
     }
 
     return new Response(JSON.stringify({ ids: ids, version: version, _site: site }), {
