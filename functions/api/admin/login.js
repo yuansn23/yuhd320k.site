@@ -77,6 +77,17 @@ export async function onRequest(context) {
       });
     }
 
+    // 记录登录日志（子账户）
+    if (account.role === 'user') {
+      var ip = request.headers.get('CF-Connecting-IP') || request.headers.get('X-Forwarded-For') || '';
+      var ua = request.headers.get('User-Agent') || '';
+      var device = /Mobile|Android|iPhone|iPad|iPod/i.test(ua) ? '手机' : '电脑';
+      context.waitUntil(
+        env.DB.prepare('INSERT INTO login_logs (username, login_time, ip, device, user_agent) VALUES (?1, ?2, ?3, ?4, ?5)')
+          .bind(user, new Date().toISOString(), ip, device, ua.substring(0, 500)).run().catch(function(){})
+      );
+    }
+
     const token = btoa(user + ':' + account.role + ':' + account.password);
     return new Response(JSON.stringify({ ok: true, token, role: account.role, user, site: account.site || '' }), {
       headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
