@@ -19,7 +19,10 @@ export async function onRequest(context) {
       if (allMaps && allMaps.results) {
         for (var mi = 0; mi < allMaps.results.length && !siteRow; mi++) {
           var mapped = allMaps.results[mi];
-          try { if (new URL(mapped.site).hostname === site) siteRow = mapped; } catch(e) {}
+          // 直接相等 OR 互为 hostname（处理纯域名 vs 完整URL 的差异）
+          if (mapped.site === site || mapped.site === rawSite) { siteRow = mapped; break; }
+          try { if (new URL(mapped.site).hostname === site) { siteRow = mapped; break; } } catch(e) {}
+          try { if (new URL('https://' + mapped.site).hostname === site) { siteRow = mapped; break; } } catch(e) {}
         }
       }
     }
@@ -80,7 +83,7 @@ export async function onRequest(context) {
       );
     }
 
-    return new Response(JSON.stringify({ url: apkUrl, version: version, _site: site }), {
+    return new Response(JSON.stringify({ url: apkUrl, version: version, _site: site, _dbg: { rawSite: rawSite, site: site, foundMapping: !!siteRow, username: username, matchedSite: matchedSite, matchedHost: typeof matchedHost !== 'undefined' ? matchedHost : '', fromD1: !!d1Result, fromKV: !!kvResult } }), {
       headers: {
         'Content-Type': 'application/json',
         'Access-Control-Allow-Origin': '*',
