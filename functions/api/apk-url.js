@@ -13,16 +13,26 @@ export async function onRequest(context) {
     var site = rawSite;
     try { site = new URL(rawSite).hostname; } catch (e) {}
 
-    var siteRow = await env.DB.prepare('SELECT site, username FROM site_mappings WHERE site = ?1 OR site = ?2').bind(site, rawSite).first();
+    // 精确匹配优先：先查 rawSite（完整URL），再查 site（域名），避免同域名串用户
+    var siteRow = await env.DB.prepare('SELECT site, username FROM site_mappings WHERE site = ?1').bind(rawSite).first();
+    if (!siteRow) {
+      siteRow = await env.DB.prepare('SELECT site, username FROM site_mappings WHERE site = ?1').bind(site).first();
+    }
     if (!siteRow) {
       var allMaps = await env.DB.prepare('SELECT site, username FROM site_mappings').all();
       if (allMaps && allMaps.results) {
+        // 第一轮：精确匹配 rawSite 或 site
         for (var mi = 0; mi < allMaps.results.length && !siteRow; mi++) {
           var mapped = allMaps.results[mi];
-          // 直接相等 OR 互为 hostname（处理纯域名 vs 完整URL 的差异）
-          if (mapped.site === site || mapped.site === rawSite) { siteRow = mapped; break; }
-          try { if (new URL(mapped.site).hostname === site) { siteRow = mapped; break; } } catch(e) {}
-          try { if (new URL('https://' + mapped.site).hostname === site) { siteRow = mapped; break; } } catch(e) {}
+          if (mapped.site === rawSite || mapped.site === site) { siteRow = mapped; break; }
+        }
+        // 第二轮：hostname 匹配（仅当精确匹配都没命中）
+        if (!siteRow) {
+          for (var mi = 0; mi < allMaps.results.length && !siteRow; mi++) {
+            var mapped = allMaps.results[mi];
+            try { if (new URL(mapped.site).hostname === site) { siteRow = mapped; break; } } catch(e) {}
+            try { if (new URL('https://' + mapped.site).hostname === site) { siteRow = mapped; break; } } catch(e) {}
+          }
         }
       }
     }
@@ -43,11 +53,12 @@ export async function onRequest(context) {
       try { rawHost = new URL(rawSite).hostname; } catch (e) {}
 
       // 多轮尝试 account_sites（每轮独立 try，不因缺列互相影响）
+      // 优先级：实际请求URL → 域名 → site_mappings（越具体越优先，避免串数据）
       var d1Row = null;
-      var candidates = [matchedSite];
-      if (matchedHost !== matchedSite) candidates.push(matchedHost);
-      if (rawSite !== matchedSite && rawSite !== matchedHost) candidates.push(rawSite);
-      if (rawHost !== rawSite && rawHost !== matchedSite && rawHost !== matchedHost) candidates.push(rawHost);
+      var candidates = [rawSite];
+      if (rawHost !== rawSite) candidates.push(rawHost);
+      if (matchedSite !== rawSite && matchedSite !== rawHost) candidates.push(matchedSite);
+      if (matchedHost !== matchedSite && matchedHost !== rawSite && matchedHost !== rawHost) candidates.push(matchedHost);
       for (var ci = 0; ci < candidates.length && (!d1Row || !d1Row.apk_url); ci++) {
         try { d1Row = await env.DB.prepare('SELECT apk_url FROM account_sites WHERE site = ?1 AND username = ?2').bind(candidates[ci], username).first(); } catch (e) {}
       }
