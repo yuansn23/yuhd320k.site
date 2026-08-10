@@ -64,9 +64,10 @@ export async function onRequest(context) {
       else if (/iPod/i.test(ua)) { terminal = 'iOS'; phoneModel = 'iPod'; }
       else if (/Android/i.test(ua)) {
         terminal = '安卓';
-        // 标准格式: Android VERSION; MODEL Build/
+        // 标准格式: Android VERSION; MODEL Build/ 或 Build-anything
         var stdModel = ua.match(/Android\s+\d+[^;]*;\s*([A-Za-z][\w-]{2,20})\s+Build/);
-        if (stdModel && !/^\d+$/.test(stdModel[1])) phoneModel = stdModel[1];
+        if (!stdModel) stdModel = ua.match(/Android\s+\d+[^;]*;\s*([A-Za-z][\w-]{2,20})/);
+        if (stdModel && !/^\d+$/.test(stdModel[1]) && !/^(wv|Mobile|Chrome|Safari|AppleWebKit|KHTML|Gecko|Version)$/i.test(stdModel[1])) phoneModel = stdModel[1];
         // Instagram 内嵌格式: Android (dpi; wxh; maker; MODEL; ...)
         if (!phoneModel) {
           var igMatch = ua.match(/Android\s*\([^)]+\)/);
