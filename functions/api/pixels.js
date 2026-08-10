@@ -5,27 +5,12 @@ export async function onRequest(context) {
   try {
     const url = new URL(request.url);
     var rawSite = url.searchParams.get('site') || '';
-    if (!rawSite) {
-      const referer = request.headers.get('Referer') || '';
-      try { rawSite = new URL(referer).hostname; } catch (e) {}
-    }
-    if (!rawSite) rawSite = request.headers.get('Host') || '';
-    // 统一提取为域名
+    if (!rawSite) { rawSite = request.headers.get('Host') || ''; }
+    // 标准化为域名
     var site = rawSite;
     try { site = new URL(rawSite).hostname; } catch (e) {}
 
-    // 查 site_mappings（先精确匹配域名，再精确匹配原始URL）
-    var siteRow = await env.DB.prepare('SELECT username FROM site_mappings WHERE site = ?1 OR site = ?2').bind(site, rawSite).first();
-    // 如果还没匹配到，遍历所有映射按域名比
-    if (!siteRow) {
-      var allMaps = await env.DB.prepare('SELECT site, username FROM site_mappings').all();
-      if (allMaps && allMaps.results) {
-        for (var mi = 0; mi < allMaps.results.length && !siteRow; mi++) {
-          var mapped = allMaps.results[mi];
-          try { if (new URL(mapped.site).hostname === site) siteRow = mapped; } catch(e) {}
-        }
-      }
-    }
+    var siteRow = await env.DB.prepare('SELECT site, username FROM site_mappings WHERE site = ?1').bind(site).first();
     const username = siteRow ? siteRow.username : '';
     var matchedSite = siteRow ? siteRow.site : site; // 用匹配到的站点点值
 

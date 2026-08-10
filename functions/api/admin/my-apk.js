@@ -81,7 +81,7 @@ export async function onRequest(context) {
         if (body.history) {
           // 仅更新历史
           try {
-            await env.DB.prepare('INSERT INTO account_sites (site, username, pixel_ids, apk_url, apk_history) VALUES (?1, ?2, ?3, ?4, ?5) ON CONFLICT(site) DO UPDATE SET apk_history = ?5')
+            await env.DB.prepare('INSERT INTO account_sites (site, username, pixel_ids, apk_url, apk_history) VALUES (?1, ?2, ?3, ?4, ?5) ON CONFLICT(site, username) DO UPDATE SET apk_history = ?5')
               .bind(qSite, me.user, '[]', '', JSON.stringify(body.history)).run();
           } catch (e) {
             try { await env.DB.prepare('UPDATE account_sites SET apk_history = ?1 WHERE site = ?2 AND username = ?3').bind(JSON.stringify(body.history), qSite, me.user).run(); } catch (e2) {}
@@ -121,7 +121,7 @@ export async function onRequest(context) {
       if (apkUrl && qSite) {
         var histJson = JSON.stringify(history || []);
         try {
-          await env.DB.prepare('INSERT INTO account_sites (site, username, pixel_ids, apk_url, apk_history) VALUES (?1, ?2, ?3, ?4, ?5) ON CONFLICT(site) DO UPDATE SET apk_url = ?4, apk_history = ?5')
+          await env.DB.prepare('INSERT INTO account_sites (site, username, pixel_ids, apk_url, apk_history) VALUES (?1, ?2, ?3, ?4, ?5) ON CONFLICT(site, username) DO UPDATE SET apk_url = ?4, apk_history = ?5')
             .bind(qSite, me.user, '[]', apkUrl, histJson).run();
         } catch (e) {
           try { await env.DB.prepare('UPDATE account_sites SET apk_url = ?1, apk_history = ?2 WHERE site = ?3 AND username = ?4').bind(apkUrl, histJson, qSite, me.user).run(); } catch (e2) {}

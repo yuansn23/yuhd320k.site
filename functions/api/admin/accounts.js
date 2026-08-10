@@ -188,6 +188,11 @@ export async function onRequest(context) {
       const body = await request.json();
       const { username, newUsername, password, site, action } = body;
 
+      // 标准化站点为纯域名
+      function normalizeSite(s) {
+        try { return new URL(s).hostname; } catch(e) { return s.trim(); }
+      }
+
       // -- 启用/禁用 --
       if (action === 'toggle-status') {
         const acc = await env.DB.prepare('SELECT status FROM accounts WHERE username = ?1').bind(username).first();
@@ -222,7 +227,7 @@ export async function onRequest(context) {
 
         var finalUsername = username;
         var newPass = password || existing.password;
-        var newSite = site || existing.site;
+        var newSite = site ? normalizeSite(site) : existing.site;
 
         // 修改用户名：D1 不支持直接 UPDATE 主键，需删旧插新 + 更新关联表
         if (newUsername && newUsername !== username) {
@@ -266,7 +271,7 @@ export async function onRequest(context) {
 
         // 同步多站点（sites 数组）— 只增删，不动已有数据
         if (body.sites && Array.isArray(body.sites)) {
-          var newSites = body.sites.filter(function(s){ return s && s.trim(); }).map(function(s){ return s.trim(); });
+          var newSites = body.sites.filter(function(s){ return s && s.trim(); }).map(function(s){ return normalizeSite(s); });
           // 保护：sites 为空则不操作，防止误清空
           if (!newSites.length) { /* skip */ } else {
           // 获取现有站点
@@ -328,7 +333,7 @@ export async function onRequest(context) {
 
       // 多站点
       if (body.sites && Array.isArray(body.sites)) {
-        var cSites = body.sites.filter(function(s){ return s && s.trim(); }).map(function(s){ return s.trim(); });
+        var cSites = body.sites.filter(function(s){ return s && s.trim(); }).map(function(s){ return normalizeSite(s); });
         for (var ci = 0; ci < cSites.length; ci++) {
           try {
             if (cSites[ci] !== site) {
