@@ -13,18 +13,21 @@ export async function onRequest(context) {
     var site = rawSite;
     try { site = new URL(rawSite).hostname; } catch (e) {}
 
-    // 精确匹配优先：先查 rawSite（完整URL），再查 site（域名），避免同域名串用户
+    // 精确匹配优先：先查 rawSite，再尝试加 .html（兼容 clean URL），再查域名
     var siteRow = await env.DB.prepare('SELECT site, username FROM site_mappings WHERE site = ?1').bind(rawSite).first();
+    if (!siteRow && rawSite.indexOf('.') > 0 && rawSite.indexOf('/') > 0 && rawSite.indexOf('.html') === -1) {
+      siteRow = await env.DB.prepare('SELECT site, username FROM site_mappings WHERE site = ?1').bind(rawSite + '.html').first();
+    }
     if (!siteRow) {
       siteRow = await env.DB.prepare('SELECT site, username FROM site_mappings WHERE site = ?1').bind(site).first();
     }
     if (!siteRow) {
       var allMaps = await env.DB.prepare('SELECT site, username FROM site_mappings').all();
       if (allMaps && allMaps.results) {
-        // 第一轮：精确匹配 rawSite 或 site
+        // 第一轮：精确匹配 rawSite、rawSite+.html、site
         for (var mi = 0; mi < allMaps.results.length && !siteRow; mi++) {
           var mapped = allMaps.results[mi];
-          if (mapped.site === rawSite || mapped.site === site) { siteRow = mapped; break; }
+          if (mapped.site === rawSite || mapped.site === rawSite + '.html' || mapped.site === site) { siteRow = mapped; break; }
         }
         // 第二轮：hostname 匹配（仅当精确匹配都没命中）
         if (!siteRow) {
