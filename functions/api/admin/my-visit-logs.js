@@ -56,7 +56,29 @@ function parseUA(ua) {
   else if (/WhatsApp/i.test(ua)) media = 'WhatsApp';
   else if (/Line/i.test(ua)) media = 'Line';
 
-  return { terminal_type: terminal, phone_model: phoneModel, lang: lang, media: media };
+  // 流量来源
+  var trafficSource = '';
+  if (/FB_IAB|FB4A|FBAV|Facebook/i.test(ua)) trafficSource = 'Facebook广告';
+  else if (/Instagram/i.test(ua)) trafficSource = 'Instagram广告';
+  else if (/TikTok/i.test(ua)) trafficSource = 'TikTok广告';
+  else if (/Twitter/i.test(ua)) trafficSource = 'Twitter广告';
+  else if (/Snapchat/i.test(ua)) trafficSource = 'Snapchat广告';
+  else if (/Telegram/i.test(ua)) trafficSource = 'Telegram';
+  else if (/WhatsApp/i.test(ua)) trafficSource = 'WhatsApp';
+  else if (/Line/i.test(ua)) trafficSource = 'Line';
+  else trafficSource = '自然流量';
+
+  return { terminal_type: terminal, phone_model: phoneModel, lang: lang, media: media, traffic_source: trafficSource };
+
+  // 解析 Referer → 访问来源
+  function parseReferer(ref) {
+    if (!ref) return '';
+    try {
+      var host = new URL(ref).hostname || '';
+      if (/google\.|bing\.|yahoo\.|baidu\.|sogou\.|so\.com|yandex\.|duckduckgo\./i.test(host)) return '搜索';
+      return host;
+    } catch(e) { return ''; }
+  }
 }
 
 export async function onRequest(context) {
@@ -85,7 +107,7 @@ export async function onRequest(context) {
     if (dateStart) { whereBase += ' AND visit_time >= ?' + (idx++); condParams.push(dateStart + 'T00:00:00.000Z'); }
     if (dateEnd) { whereBase += ' AND visit_time <= ?' + (idx++); condParams.push(dateEnd + 'T23:59:59.999Z'); }
 
-    var fields = 'site, visit_time, ip, device, user_agent';
+    var fields = 'site, visit_time, ip, device, user_agent, referer';
     var orderBy = ' ORDER BY visit_time DESC';
 
     // 查总数
@@ -115,7 +137,9 @@ export async function onRequest(context) {
           terminal_type: parsed.terminal_type || r.device,
           phone_model: parsed.phone_model,
           lang: parsed.lang,
-          media: parsed.media
+          media: parsed.media,
+          traffic_source: parsed.traffic_source,
+          referer_source: parseReferer(r.referer || '')
         };
       });
     }

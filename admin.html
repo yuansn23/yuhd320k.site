@@ -158,7 +158,7 @@ async function showAccounts(){
     '<div class="card"><h3>➕ 创建子账户</h3>'+
     '<div class="form-row"><input type="text" id="newUser" placeholder="用户名"><input type="text" id="newPass" placeholder="密码"><input type="text" id="newSite" placeholder="绑定域名 site1.example.com"><button class="btn btn-p" id="createBtn">创建</button></div><div id="createMsg"></div></div>'+
     '<div id="editModal" class="hide" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.7);z-index:99;display:flex;align-items:center;justify-content:center"><div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:28px;width:480px;max-width:95vw;max-height:90vh;overflow-y:auto"><h3 style="margin-bottom:16px">✏️ 编辑子账户 <span id="editUsername" style="color:var(--green)"></span></h3><label style="font-size:.8rem;color:var(--muted)">新用户名（留空不修改）</label><input type="text" id="editNewUser" placeholder="留空则不修改用户名" style="margin-bottom:8px"><label style="font-size:.8rem;color:var(--muted)">新密码（留空不修改）</label><input type="text" id="editPass" placeholder="留空则不修改密码" style="margin-bottom:8px"><label style="font-size:.8rem;color:var(--muted)">主站点域名</label><input type="text" id="editSite" placeholder="https://site.example.com/estest/" style="margin-bottom:12px"><label style="font-size:.8rem;color:var(--muted);display:flex;align-items:center;gap:8px">🌐 额外落地页 <button class="btn btn-p btn-sm" id="addSiteBtn" style="font-size:.68rem;padding:4px 10px">+ 添加</button></label><div id="editSitesList" style="margin-bottom:12px"></div><div class="form-row" id="addSiteRow" style="display:none"><input type="text" id="newSiteInput" placeholder="输入落地页域名 site.example.com"><button class="btn btn-p btn-sm" id="confirmAddSiteBtn">确定</button></div><div style="display:flex;gap:10px"><button class="btn btn-p" id="saveEditBtn">保存</button><button class="btn btn-o" id="cancelEditBtn">取消</button></div><div id="editMsg"></div></div></div>'+
-    '<div class="card"><h3>📋 子账户列表</h3><table><thead><tr><th>用户名</th><th>密码</th><th>绑定站点</th><th>点击/下载</th><th>像素</th><th>跳转地址</th><th>操作</th></tr></thead><tbody id="accountsBody"><tr><td colspan="7" class="empty">加载中...</td></tr></tbody></table></div>';
+    '<div class="card"><h3>📋 子账户列表</h3><table><thead><tr><th>用户名</th><th>密码</th><th>绑定站点</th><th>点击/下载</th><th>像素</th><th>跳转地址</th><th>操作</th></tr></thead><tbody id="accountsBody"><tr><td colspan="9" class="empty">加载中...</td></tr></tbody></table></div>';
 
   document.getElementById('createBtn').onclick = createAccount;
   loadAccounts();
@@ -385,7 +385,7 @@ async function showVisits(){
   var main = document.getElementById('mainContent');
   main.innerHTML = '<div class="page-header"><h1>📈 流量访问</h1></div>'+
     '<div class="card"><h3>📍 筛选条件</h3><div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px"><span style="color:var(--muted);font-size:.8rem">落地页:</span>'+siteInfo.html+'<span style="color:var(--muted);font-size:.8rem;margin-left:8px">日期:</span><input type="date" id="visitDateStart" style="width:170px;min-height:42px;padding:10px 14px;font-size:.9rem;border-radius:8px;border:1px solid var(--border);background:#0d0f16;color:var(--text);cursor:pointer"><span style="font-size:.86rem;margin:0 4px">至</span><input type="date" id="visitDateEnd" style="width:170px;min-height:42px;padding:10px 14px;font-size:.9rem;border-radius:8px;border:1px solid var(--border);background:#0d0f16;color:var(--text);cursor:pointer"><button class="btn btn-p btn-sm" id="visitFilterBtn">查询</button></div></div>'+
-    '<div class="card"><h3>📋 访问记录 <span id="visitCount" style="font-weight:400;font-size:.8rem;color:var(--muted)"></span></h3><table><thead><tr><th>访问时间</th><th>落地页</th><th>IP地址</th><th>终端类型</th><th>型号</th><th>语言</th><th>流量媒体</th></tr></thead><tbody id="visitBody"><tr><td colspan="7" class="empty">加载中...</td></tr></tbody></table></div>';
+    '<div class="card"><h3>📋 访问记录 <span id="visitCount" style="font-weight:400;font-size:.8rem;color:var(--muted)"></span></h3><table><thead><tr><th>访问时间</th><th>落地页</th><th>IP地址</th><th>终端类型</th><th>型号</th><th>语言</th><th>流量媒体</th><th>流量来源</th><th>访问来源</th></tr></thead><tbody id="visitBody"><tr><td colspan="9" class="empty">加载中...</td></tr></tbody></table></div>';
   document.getElementById('siteSelector').onchange = function(){
     _currentSite = this.value;
     sessionStorage.setItem('st_current_site', _currentSite);
@@ -410,18 +410,18 @@ async function loadVisits(){
     var total = d.total||0;
     var totalPages = Math.max(1, Math.ceil(total / 50));
     document.getElementById('visitCount').textContent = '共 '+total+' 条，第 '+_visitPage+'/'+totalPages+' 页';
-    if(!logs.length){ tbody.innerHTML='<tr><td colspan="7" class="empty">暂无访问记录</td></tr>'; return; }
+    if(!logs.length){ tbody.innerHTML='<tr><td colspan="9" class="empty">暂无访问记录</td></tr>'; return; }
     var html = logs.map(function(l){
       var dt = new Date(l.visit_time);
       var tz = dt.getTime() + 8*3600000;
       var d8 = new Date(tz);
       var ts = d8.getUTCFullYear()+'-'+pad(d8.getUTCMonth()+1)+'-'+pad(d8.getUTCDate())+' '+pad(d8.getUTCHours())+':'+pad(d8.getUTCMinutes())+':'+pad(d8.getUTCSeconds());
-      return '<tr><td>'+ts+'</td><td style="font-family:monospace;word-break:break-all;max-width:300px">'+esc(l.site)+'</td><td style="font-family:monospace">'+esc(l.ip)+'</td><td>'+esc(l.terminal_type||l.device)+'</td><td>'+esc(l.phone_model||'—')+'</td><td>'+esc(l.lang||'—')+'</td><td>'+esc(l.media||'—')+'</td></tr>';
+      return '<tr><td>'+ts+'</td><td style="font-family:monospace;word-break:break-all;max-width:300px">'+esc(l.site)+'</td><td style="font-family:monospace">'+esc(l.ip)+'</td><td>'+esc(l.terminal_type||l.device)+'</td><td>'+esc(l.phone_model||'—')+'</td><td>'+esc(l.lang||'—')+'</td><td>'+esc(l.media||'—')+'</td><td>'+esc(l.traffic_source||'—')+'</td><td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+esc(l.referer_source||'—')+'">'+esc(l.referer_source||'—')+'</td></tr>';
     }).join('');
     // 翻页按钮
     var prevDisabled = _visitPage <= 1 ? ' disabled style="opacity:.4;cursor:not-allowed"' : '';
     var nextDisabled = _visitPage >= totalPages ? ' disabled style="opacity:.4;cursor:not-allowed"' : '';
-    html += '<tr><td colspan="7" style="text-align:center;padding:16px"><button class="btn btn-o btn-sm"'+prevDisabled+' id="visitPrev">◀ 上一页</button> <span style="margin:0 12px;color:var(--fg-muted);font-size:.82rem">'+_visitPage+' / '+totalPages+'</span> <button class="btn btn-o btn-sm"'+nextDisabled+' id="visitNext">下一页 ▶</button></td></tr>';
+    html += '<tr><td colspan="9" style="text-align:center;padding:16px"><button class="btn btn-o btn-sm"'+prevDisabled+' id="visitPrev">◀ 上一页</button> <span style="margin:0 12px;color:var(--fg-muted);font-size:.82rem">'+_visitPage+' / '+totalPages+'</span> <button class="btn btn-o btn-sm"'+nextDisabled+' id="visitNext">下一页 ▶</button></td></tr>';
     tbody.innerHTML = html;
     // 绑定翻页事件
     var pb = document.getElementById('visitPrev');
