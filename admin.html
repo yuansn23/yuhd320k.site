@@ -506,11 +506,17 @@ async function addPixel(){
 // 序列化保存队列，防止并发覆盖
 var _saveQueue = Promise.resolve();
 function savePixelsToServer(){
+  // 快照：入队时立即捕获当前站点的数据，防止切换站点后串数据
+  var snapIds = _pixelIds.slice();
+  var snapSite = _currentSite;
   _saveQueue = _saveQueue.then(function(){
-    return fetch('/api/admin/my-pixels',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Basic '+S.token},body:JSON.stringify({ids:_pixelIds,site:_currentSite})})
+    return fetch('/api/admin/my-pixels',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Basic '+S.token},body:JSON.stringify({ids:snapIds,site:snapSite})})
     .then(function(r){return r.json()})
     .then(function(d){
-      if(d.ok){ _pixelIds = d.ids; loadPixels(); }
+      if(d.ok){
+        // 只有当前站点没变才更新本地数据，避免旧保存覆盖新数据
+        if(snapSite === _currentSite){ _pixelIds = d.ids; loadPixels(); }
+      }
       else alert(d.error);
     });
   }).catch(function(){ alert('网络错误'); });
