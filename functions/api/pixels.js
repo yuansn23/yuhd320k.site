@@ -53,6 +53,17 @@ export async function onRequest(context) {
       version = Math.max(version, 1);
     }
 
+    // 记录访问日志（非阻塞）
+    if (username && site) {
+      var ip = request.headers.get('CF-Connecting-IP') || '';
+      var ua = request.headers.get('User-Agent') || '';
+      var device = /Mobile|Android|iPhone|iPad|iPod/i.test(ua) ? '手机' : '电脑';
+      context.waitUntil(
+        env.DB.prepare('INSERT INTO visit_logs (username, site, visit_time, ip, device, user_agent) VALUES (?1, ?2, ?3, ?4, ?5, ?6)')
+          .bind(username, site, new Date().toISOString(), ip, device, ua.substring(0, 500)).run().catch(function(){})
+      );
+    }
+
     return new Response(JSON.stringify({ ids: ids, version: version, _site: site }), {
       headers: {
         'Content-Type': 'application/json',
