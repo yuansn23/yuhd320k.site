@@ -667,7 +667,15 @@ function savePixelsToServer(onSuccess){
     .then(function(r){return r.json()})
     .then(function(d){
       if(d.ok){
-        if(snapSite === _currentSite){ _pixelIds = d.ids; loadPixels(); }
+        // 合并：快照之后本地新增的 ID 不丢，服务器确认的 ID 做主
+        if(snapSite === _currentSite){
+          var localAdded = [];
+          for(var li=0; li<_pixelIds.length; li++){
+            if(snapIds.indexOf(_pixelIds[li])===-1) localAdded.push(_pixelIds[li]);
+          }
+          _pixelIds = d.ids.concat(localAdded);
+          loadPixels();
+        }
         if(onSuccess) onSuccess();
       }
       else alert(d.error);
