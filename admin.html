@@ -279,9 +279,10 @@ async function saveEdit(username){
   }
   if(!newUser && !pass && !site && !_editSites.length){ msg('editMsg','err','至少修改一项'); return; }
   try{
-    var r = await fetch('/api/admin/accounts',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Basic '+S.token},body:JSON.stringify({username:username,newUsername:newUser||'',password:pass||'',site:site||'',sites:allSites,action:'edit'})});
+    var body = {username:username,newUsername:newUser||'',password:pass||'',site:site||'',sites:allSites,action:'edit'};
+    var r = await fetch('/api/admin/accounts',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Basic '+S.token},body:JSON.stringify(body)});
     var d = await r.json();
-    if(d.ok){ msg('editMsg','ok','✅ '+d.msg); setTimeout(function(){ document.getElementById('editModal').classList.add('hide'); loadAccounts(); },800); }
+    if(d.ok){ msg('editMsg','ok','✅ '+d.msg+' (共'+allSites.length+'个站点)'); setTimeout(function(){ document.getElementById('editModal').classList.add('hide'); loadAccounts(); },800); }
     else msg('editMsg','err',d.error);
   }catch(e){ msg('editMsg','err','网络错误'); }
 }

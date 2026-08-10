@@ -295,7 +295,10 @@ export async function onRequest(context) {
           } // end if newSites.length
         }
 
-        return new Response(JSON.stringify({ ok: true, username: finalUsername, site: newSite, msg: '已修改' }), {
+        // 统计实际站点数
+        var finalCount = 0;
+        try { var fc = await env.DB.prepare('SELECT COUNT(*) AS cnt FROM account_sites WHERE username = ?1').bind(finalUsername).first(); finalCount = fc ? fc.cnt : 0; } catch(e) {}
+        return new Response(JSON.stringify({ ok: true, username: finalUsername, site: newSite, msg: '已修改，共'+finalCount+'个站点' }), {
           headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
         });
       }
