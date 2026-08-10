@@ -358,7 +358,11 @@ async function loadLoginLogs(){
     if(!logs.length){ tbody.innerHTML='<tr><td colspan="4" class="empty">暂无登录记录</td></tr>'; return; }
     tbody.innerHTML = logs.map(function(l){
       var deviceIcon = l.device==='手机' ? '📱' : '💻';
-      return '<tr><td><strong>'+esc(l.username)+'</strong></td><td>'+esc(l.login_time)+'</td><td style="font-family:monospace">'+esc(l.ip)+'</td><td>'+deviceIcon+' '+esc(l.device)+'</td></tr>';
+      var dt = new Date(l.login_time);
+      var tz = dt.getTime() + 8*3600000;
+      var d8 = new Date(tz);
+      var timeStr = d8.getUTCFullYear()+'-'+pad(d8.getUTCMonth()+1)+'-'+pad(d8.getUTCDate())+' '+pad(d8.getUTCHours())+':'+pad(d8.getUTCMinutes())+':'+pad(d8.getUTCSeconds());
+      return '<tr><td><strong>'+esc(l.username)+'</strong></td><td>'+timeStr+'</td><td style="font-family:monospace">'+esc(l.ip)+'</td><td>'+deviceIcon+' '+esc(l.device)+'</td></tr>';
     }).join('');
   }catch(e){ tbody.innerHTML='<tr><td colspan="4" class="empty">加载失败: '+esc(e.message)+'</td></tr>'; }
 }
