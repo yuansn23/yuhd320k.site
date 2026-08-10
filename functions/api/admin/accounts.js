@@ -262,19 +262,31 @@ export async function onRequest(context) {
 
         await env.DB.prepare('UPDATE accounts SET password = ?1, site = ?2 WHERE username = ?3').bind(newPass, newSite, finalUsername).run();
 
-        // 同步多站点（sites 数组）
+        // 同步多站点（sites 数组）— 只增删，不动已有数据
         if (body.sites && Array.isArray(body.sites)) {
           var newSites = body.sites.filter(function(s){ return s && s.trim(); }).map(function(s){ return s.trim(); });
-          // 清空旧站点
-          await env.DB.prepare('DELETE FROM account_sites WHERE username = ?1').bind(finalUsername).run();
-          await env.DB.prepare('DELETE FROM site_mappings WHERE username = ?1').bind(finalUsername).run();
-          // 添加新站点
-          for (var si = 0; si < newSites.length; si++) {
-            var ns = newSites[si];
-            try {
-              await env.DB.prepare('INSERT OR IGNORE INTO account_sites (site, username, pixel_ids, apk_url, apk_history) VALUES (?1, ?2, ?3, ?4, ?5)').bind(ns, finalUsername, '[]', '', '[]').run();
-              await env.DB.prepare('INSERT OR IGNORE INTO site_mappings (site, username) VALUES (?1, ?2)').bind(ns, finalUsername).run();
-            } catch (e) {}
+          // 获取现有站点
+          var oldSites = [];
+          try {
+            var osr = await env.DB.prepare('SELECT site FROM account_sites WHERE username = ?1').bind(finalUsername).all();
+            if (osr && osr.results) oldSites = osr.results.map(function(r){ return r.site; });
+          } catch (e) {}
+          // 删除不在新列表中的站点
+          for (var di = 0; di < oldSites.length; di++) {
+            if (newSites.indexOf(oldSites[di]) === -1) {
+              await env.DB.prepare('DELETE FROM account_sites WHERE site = ?1 AND username = ?2').bind(oldSites[di], finalUsername).run();
+              await env.DB.prepare('DELETE FROM site_mappings WHERE site = ?1').bind(oldSites[di]).run();
+            }
+          }
+          // 添加新站点（已有站点不动，保留已配置的数据）
+          for (var ai = 0; ai < newSites.length; ai++) {
+            var ns = newSites[ai];
+            if (oldSites.indexOf(ns) === -1) {
+              try {
+                await env.DB.prepare('INSERT OR IGNORE INTO account_sites (site, username, pixel_ids, apk_url, apk_history) VALUES (?1, ?2, ?3, ?4, ?5)').bind(ns, finalUsername, '[]', '', '[]').run();
+                await env.DB.prepare('INSERT OR IGNORE INTO site_mappings (site, username) VALUES (?1, ?2)').bind(ns, finalUsername).run();
+              } catch (e) {}
+            }
           }
         }
 
