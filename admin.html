@@ -171,8 +171,12 @@ async function loadAccounts(){
       var siteList = (a.stats.sites||[]).map(function(s){return s.site;});
       if(!siteList.length && a.site) siteList = [a.site];
       var sitesHtml = siteList.length ? siteList.map(function(s){return '<span style="display:inline-block;background:rgba(255,255,255,.04);padding:2px 8px;border-radius:4px;font-size:.72rem;margin:2px 4px 2px 0;word-break:break-all">'+esc(s)+'</span>';}).join('') : esc(a.site||'—');
-      return '<tr><td><strong>'+esc(a.username)+'</strong></td><td style=\"font-family:monospace\">'+esc(a.pw||'—')+'</td><td style=\"max-width:260px\">'+sitesHtml+'</td><td>'+a.stats.downloads+'</td><td>'+(a.stats.pixels||[]).length+'</td><td style=\"max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap\">'+esc(a.stats.apkUrl||'—')+'</td>'+
-        '<td><button class=\"btn btn-p btn-sm\" data-edit=\"'+esc(a.username)+'\">编辑</button> <button class=\"btn btn-d btn-sm\" data-del=\"'+esc(a.username)+'\">删除</button></td></tr>';
+      var isDisabled = a.status === 'disabled';
+      var statusBadge = isDisabled ? ' <span class=\"badge red\">已禁用</span>' : ' <span class=\"badge green\">正常</span>';
+      var toggleLabel = isDisabled ? '启用' : '禁用';
+      var toggleCls = isDisabled ? 'btn-p' : 'btn-o';
+      return '<tr style=\"'+(isDisabled?'opacity:.5':'')+'\"><td><strong>'+esc(a.username)+'</strong>'+statusBadge+'</td><td style=\"font-family:monospace\">'+esc(a.pw||'—')+'</td><td style=\"max-width:260px\">'+sitesHtml+'</td><td>'+a.stats.downloads+'</td><td>'+(a.stats.pixels||[]).length+'</td><td style=\"max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap\">'+esc(a.stats.apkUrl||'—')+'</td>'+
+        '<td><button class=\"btn btn-p btn-sm\" data-edit=\"'+esc(a.username)+'\">编辑</button> <button class=\"btn '+toggleCls+' btn-sm\" data-toggle=\"'+esc(a.username)+'\">'+toggleLabel+'</button> <button class=\"btn btn-d btn-sm\" data-del=\"'+esc(a.username)+'\">删除</button></td></tr>';
     }).join('');
     tbody.querySelectorAll('[data-edit]').forEach(function(b){
       b.onclick = function(){ showEditModal(this.getAttribute('data-edit')); };
@@ -180,7 +184,18 @@ async function loadAccounts(){
     tbody.querySelectorAll('[data-del]').forEach(function(b){
       b.onclick = function(){ deleteAccount(this.getAttribute('data-del')); };
     });
+    tbody.querySelectorAll('[data-toggle]').forEach(function(b){
+      b.onclick = function(){ toggleAccount(this.getAttribute('data-toggle')); };
+    });
   }catch(e){ tbody.innerHTML='<tr><td colspan="6" class="empty">加载失败: '+esc(e.message)+'</td></tr>'; }
+}
+
+async function toggleAccount(u){
+  try{
+    var r = await fetch('/api/admin/accounts',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Basic '+S.token},body:JSON.stringify({username:u,action:'toggle-status'})});
+    var d = await r.json();
+    if(d.ok) loadAccounts(); else alert(d.error);
+  }catch(e){ alert('网络错误'); }
 }
 
 async function createAccount(){

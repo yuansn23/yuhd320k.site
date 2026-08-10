@@ -44,11 +44,11 @@ export async function onRequest(context) {
       var acctsResult = null;
       var useD1Columns = true;
       try {
-        acctsResult = await env.DB.prepare('SELECT username, password, role, site, created, pixel_ids, apk_url FROM accounts WHERE role = ?1 ORDER BY created DESC').bind('user').all();
+        acctsResult = await env.DB.prepare('SELECT username, password, role, site, created, pixel_ids, apk_url, status FROM accounts WHERE role = ?1 ORDER BY created DESC').bind('user').all();
       } catch (e) {
         // 新列（pixel_ids, apk_url）还没建，回退
         useD1Columns = false;
-        acctsResult = await env.DB.prepare('SELECT username, password, role, site, created FROM accounts WHERE role = ?1 ORDER BY created DESC').bind('user').all();
+        acctsResult = await env.DB.prepare('SELECT username, password, role, site, created, status FROM accounts WHERE role = ?1 ORDER BY created DESC').bind('user').all();
       }
       const statsResult = await env.DB.prepare('SELECT username, COALESCE(SUM(count), 0) AS total FROM download_counts GROUP BY username').all();
 
@@ -148,6 +148,7 @@ export async function onRequest(context) {
               pw: a.password || a.pw || '',
               site: a.site || '',
               created: a.created || '',
+              status: a.status || 'active',
               stats: {
                 downloads: downloadMap[a.username] || 0,
                 apkUrl: apkUrl,
@@ -186,6 +187,19 @@ export async function onRequest(context) {
     if (request.method === 'POST') {
       const body = await request.json();
       const { username, newUsername, password, site, action } = body;
+
+      // -- 启用/禁用 --
+      if (action === 'toggle-status') {
+        const acc = await env.DB.prepare('SELECT status FROM accounts WHERE username = ?1').bind(username).first();
+        if (!acc) {
+          return new Response(JSON.stringify({ error: '账户不存在' }), { status: 404, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } });
+        }
+        var newStatus = (acc.status === 'disabled') ? 'active' : 'disabled';
+        await env.DB.prepare('UPDATE accounts SET status = ?1 WHERE username = ?2').bind(newStatus, username).run();
+        return new Response(JSON.stringify({ ok: true, status: newStatus, msg: newStatus === 'disabled' ? '已禁用' : '已启用' }), {
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
       if (!username) {
         return new Response(JSON.stringify({ error: '用户名不能为空' }), {
           status: 400, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }

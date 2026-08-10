@@ -65,10 +65,15 @@ export async function onRequest(context) {
       });
     }
 
-    // 3. D1 中找到 → 验证密码
+    // 3. D1 中找到 → 验证密码 + 检查是否被禁用
     if (pass !== account.password) {
       return new Response(JSON.stringify({ error: '用户名或密码错误' }), {
         status: 401, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+      });
+    }
+    if (account.status === 'disabled') {
+      return new Response(JSON.stringify({ error: '该账户已被禁用，请联系管理员' }), {
+        status: 403, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
       });
     }
 
