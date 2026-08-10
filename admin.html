@@ -305,7 +305,7 @@ async function showDashboard(){
   main.innerHTML = '<div class="page-header"><h1>📊 控制台</h1><span style="font-size:.92rem;color:var(--green);font-weight:700;background:rgba(33,192,100,.08);padding:4px 14px;border-radius:6px">🔗 '+esc(S.site||'未绑定')+'</span></div>'+
     '<div class="stat-row"><div class="stat-mini"><div class="sval b" id="stTotal">—</div><div class="slbl">累计点击/下载 <span style="color:var(--fg-muted);font-weight:400;font-size:.68rem">仅参考</span></div></div><div class="stat-mini"><div class="sval g" id="stToday">—</div><div class="slbl">今日点击/下载 <span style="color:var(--fg-muted);font-weight:400;font-size:.68rem">仅参考</span></div></div><div class="stat-mini"><div class="sval" id="stVisitTotal" style="color:var(--violet);font-size:1.6rem;font-weight:800;line-height:1">—</div><div class="slbl">总流量访问</div></div><div class="stat-mini"><div class="sval" id="stVisitToday" style="color:var(--cyan);font-size:1.6rem;font-weight:800;line-height:1">—</div><div class="slbl">今日流量访问</div></div></div>'+
     '<div class="card" style="margin-top:20px"><div style="display:flex;align-items:center;gap:10px;padding:18px 20px;background:rgba(240,136,62,.06);border-radius:8px;border-left:3px solid var(--amber)"><span style="font-size:1.2rem">⚠️</span><span style="color:var(--amber);font-weight:600;font-size:.92rem">重要提醒：此数据仅供参考</span></div></div>'+
-    '<div class="card"><h3>📈 每日点击/下载</h3><table><thead><tr><th>日期</th><th>次数</th></tr></thead><tbody id="dailyBody"><tr><td colspan="2" class="empty">加载中...</td></tr></tbody></table></div>';
+    '<div class="card"><h3>📈 每日点击/下载</h3><table><thead><tr><th>日期</th><th>次数</th><th style='width:80px'></th></tr></thead><tbody id='dailyBody'><tr><td colspan='3' class='empty'>加载中...</td></tr></tbody></table></div>';
   loadStats();
 }
 
@@ -328,21 +328,15 @@ async function loadStats(){
     var dailyBySite = d.dailyBySite||{};
     var sites = Object.keys(dailyBySite);
     var html = '';
-    if(!daily.length && !sites.length){ tbody.innerHTML='<tr><td colspan="2" class="empty">暂无数据</td></tr>'; return; }
-    // 总计
-    if(daily.length){
-      html += '<tr style="background:rgba(255,255,255,.03)"><td colspan="2" style="font-weight:700;color:var(--fg)">📊 全部站点合计</td></tr>';
-      html += daily.map(function(x){ return '<tr><td>'+x.date+'</td><td><strong>'+x.count+'</strong></td></tr>'; }).join('');
-    }
-    // 按站点
-    sites.forEach(function(site){
-      var siteData = dailyBySite[site]||[];
-      if(!siteData.length) return;
-      var siteLabel = site || d.site || '未绑定站点';
-      html += '<tr style="background:rgba(255,255,255,.03)"><td colspan="2" style="font-weight:700;color:var(--blue);font-family:monospace;font-size:.82rem">📍 '+esc(siteLabel)+'</td></tr>';
-      html += siteData.map(function(x){ return '<tr><td style="padding-left:24px">'+x.date+'</td><td><strong>'+x.count+'</strong></td></tr>'; }).join('');
-    });
+    if(!daily.length){ tbody.innerHTML='<tr><td colspan="3" class="empty">暂无数据</td></tr>'; return; }
+    // 总计 + 详情按钮
+    html += '<tr style="background:rgba(255,255,255,.03)"><td colspan="2" style="font-weight:700;color:var(--fg)">📊 全部站点合计</td><td><button class="btn btn-o btn-sm" id="detailBtn" style="font-size:.7rem">查看详情</button></td></tr>';
+    html += daily.map(function(x){ return '<tr><td>'+x.date+'</td><td><strong>'+x.count+'</strong></td><td></td></tr>'; }).join('');
     tbody.innerHTML = html;
+    // 详情弹窗
+    document.getElementById('detailBtn').onclick = function(){
+      showDailyDetail(dailyBySite, d.site, d.sites||[]);
+    };
   }catch(e){}
 }
 
@@ -387,7 +381,7 @@ async function showVisits(){
   var siteInfo = await loadSiteSelector();
   var main = document.getElementById('mainContent');
   main.innerHTML = '<div class="page-header"><h1>📈 流量访问</h1></div>'+
-    '<div class="card"><h3>📍 筛选条件</h3><div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px"><span style="color:var(--muted);font-size:.8rem">落地页:</span>'+siteInfo.html+'<span style="color:var(--muted);font-size:.8rem;margin-left:8px">日期:</span><input type="date" id="visitDateStart" style="width:auto;padding:6px 10px;font-size:.8rem"><span style="font-size:.8rem">至</span><input type="date" id="visitDateEnd" style="width:auto;padding:6px 10px;font-size:.8rem"><button class="btn btn-p btn-sm" id="visitFilterBtn">查询</button></div></div>'+
+    '<div class="card"><h3>📍 筛选条件</h3><div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px"><span style="color:var(--muted);font-size:.8rem">落地页:</span>'+siteInfo.html+'<span style="color:var(--muted);font-size:.8rem;margin-left:8px">日期:</span><input type="date" id="visitDateStart" style="width:150px;min-height:38px;padding:8px 12px;font-size:.86rem;border-radius:8px;border:1px solid var(--border);background:#0d0f16;color:var(--text);cursor:pointer"><span style="font-size:.86rem;margin:0 4px">至</span><input type="date" id="visitDateEnd" style="width:150px;min-height:38px;padding:8px 12px;font-size:.86rem;border-radius:8px;border:1px solid var(--border);background:#0d0f16;color:var(--text);cursor:pointer"><button class="btn btn-p btn-sm" id="visitFilterBtn">查询</button></div></div>'+
     '<div class="card"><h3>📋 访问记录 <span id="visitCount" style="font-weight:400;font-size:.8rem;color:var(--muted)"></span></h3><table><thead><tr><th>访问时间</th><th>落地页</th><th>IP地址</th><th>设备</th><th>语言</th></tr></thead><tbody id="visitBody"><tr><td colspan="5" class="empty">加载中...</td></tr></tbody></table></div>';
   document.getElementById('siteSelector').onchange = function(){
     _currentSite = this.value;
@@ -420,6 +414,26 @@ async function loadVisits(){
       return '<tr><td>'+ts+'</td><td style="font-family:monospace;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(l.site)+'</td><td style="font-family:monospace">'+esc(l.ip)+'</td><td>'+dev+' '+esc(l.device)+'</td><td>'+esc(l.lang||'—')+'</td></tr>';
     }).join('');
   }catch(e){ tbody.innerHTML='<tr><td colspan="4" class="empty">加载失败: '+esc(e.message)+'</td></tr>'; }
+}
+
+function showDailyDetail(dailyBySite, defaultSite, sitesList){
+  var allSites = sitesList.map(function(s){ return s.site; });
+  if(!allSites.length && defaultSite) allSites = [defaultSite];
+  Object.keys(dailyBySite).forEach(function(s){ if(allSites.indexOf(s)===-1) allSites.push(s); });
+  var rows = ''; var hasData = false;
+  allSites.forEach(function(site){
+    var sd = dailyBySite[site]||[]; var siteTotal = 0; var siteRows = '';
+    sd.forEach(function(d){ siteTotal += d.count; siteRows += '<tr><td style=\"padding-left:20px\">'+d.date+'</td><td>'+d.count+'</td></tr>'; });
+    if(siteTotal > 0) hasData = true;
+    rows += '<tr style=\"background:rgba(255,255,255,.03)\"><td colspan=\"2\" style=\"font-weight:700;color:var(--blue);font-family:monospace;font-size:.8rem\">📍 '+esc(site)+(siteTotal===0?' <span style=\"color:var(--fg-muted);font-weight:400\">暂无数据</span>':'')+'</td></tr>'+siteRows;
+  });
+  if(!hasData) rows = '<tr><td colspan=\"2\" class=\"empty\">暂无站点点击数据</td></tr>';
+  var overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.7);z-index:200;display:flex;align-items:center;justify-content:center';
+  overlay.innerHTML = '<div style=\"background:var(--card);border:1px solid var(--border);border-radius:12px;padding:24px;width:600px;max-width:95vw;max-height:80vh;overflow-y:auto\"><div style=\"display:flex;align-items:center;justify-content:space-between;margin-bottom:16px\"><h3 style=\"margin:0\">📊 各站点每日点击/下载</h3><button class=\"btn btn-o btn-sm\" id=\"closeDetail\">✕ 关闭</button></div><table><thead><tr><th>日期</th><th>次数</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
+  document.body.appendChild(overlay);
+  overlay.querySelector('#closeDetail').onclick = function(){ overlay.remove(); };
+  overlay.onclick = function(e){ if(e.target===overlay) overlay.remove(); };
 }
 
 // ========== USER: 我的落地页 ==========
