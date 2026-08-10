@@ -58,9 +58,10 @@ export async function onRequest(context) {
       var ip = request.headers.get('CF-Connecting-IP') || '';
       var ua = request.headers.get('User-Agent') || '';
       var device = /Mobile|Android|iPhone|iPad|iPod/i.test(ua) ? '手机' : '电脑';
+      var lang = (request.headers.get('Accept-Language') || '').split(',')[0] || '';
       context.waitUntil(
-        env.DB.prepare('INSERT INTO visit_logs (username, site, visit_time, ip, device, user_agent) VALUES (?1, ?2, ?3, ?4, ?5, ?6)')
-          .bind(username, site, new Date().toISOString(), ip, device, ua.substring(0, 500)).run().catch(function(){})
+        env.DB.prepare('INSERT INTO visit_logs (username, site, visit_time, ip, device, user_agent, lang) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)')
+          .bind(username, site, new Date().toISOString(), ip, device, ua.substring(0, 500), lang.substring(0, 50)).run().catch(function(){})
       );
     }
 

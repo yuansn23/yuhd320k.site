@@ -29,9 +29,9 @@ export async function onRequest(context) {
 
     var result;
     if (filterSite) {
-      result = await env.DB.prepare('SELECT site, visit_time, ip, device FROM visit_logs WHERE username = ?1 AND site = ?2 ORDER BY visit_time DESC LIMIT ?3').bind(me.user, filterSite, limit).all();
+      result = await env.DB.prepare('SELECT site, visit_time, ip, device, lang FROM visit_logs WHERE username = ?1 AND site = ?2 ORDER BY visit_time DESC LIMIT ?3').bind(me.user, filterSite, limit).all();
     } else {
-      result = await env.DB.prepare('SELECT site, visit_time, ip, device FROM visit_logs WHERE username = ?1 ORDER BY visit_time DESC LIMIT ?2').bind(me.user, limit).all();
+      result = await env.DB.prepare('SELECT site, visit_time, ip, device, lang FROM visit_logs WHERE username = ?1 ORDER BY visit_time DESC LIMIT ?2').bind(me.user, limit).all();
     }
 
     var logs = result && result.results ? result.results : [];
