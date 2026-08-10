@@ -59,21 +59,26 @@ export async function onRequest(context) {
       var ua = request.headers.get('User-Agent') || '';
       // 终端类型 + 型号解析
       var terminal = ''; var phoneModel = '';
-      if (/iPhone/i.test(ua)) { terminal = '苹果手机'; phoneModel = 'iPhone'; }
-      else if (/iPad/i.test(ua)) { terminal = '苹果平板'; phoneModel = 'iPad'; }
-      else if (/iPod/i.test(ua)) { terminal = '苹果播放器'; phoneModel = 'iPod'; }
+      if (/iPhone/i.test(ua)) { terminal = 'iOS'; phoneModel = 'iPhone'; }
+      else if (/iPad/i.test(ua)) { terminal = 'iOS'; phoneModel = 'iPad'; }
+      else if (/iPod/i.test(ua)) { terminal = 'iOS'; phoneModel = 'iPod'; }
       else if (/Android/i.test(ua)) {
-        terminal = '安卓手机';
-        var am = ua.match(/Android\s+\d+[^;)]*;\s*([A-Za-z0-9]+)(?:\s+Build[\/\s]|\))/);
-        if (am) phoneModel = am[1];
-        // Instagram UA 包含更详细信息：Android (36/16; ... ; A401SH; ...)
-        if (!phoneModel) {
-          var im = ua.match(/Android\s*\([^)]*;\s*([A-Za-z0-9]+)\s*;/);
-          if (im) phoneModel = im[1];
+        terminal = '安卓';
+        // 尝试多种 Android UA 格式提取型号
+        var patterns = [
+          /Android\s+\d+[^;)]*;\s*([A-Za-z0-9]+)\s+Build/,
+          /Android\s+\d+[^;)]*;\s*([A-Za-z0-9]+)\)/,
+          /Android\s+\d+\;\s*([A-Za-z0-9]+)\s/,
+          /Android\s*\([^)]*;\s*(\w[\w-]+)\s*;/,
+          /\b([A-Z]{2,4}\d{2,5}[A-Za-z]?|[A-Za-z][A-Za-z0-9]{3,10})\b[\s;)]/
+        ];
+        for (var pi = 0; pi < patterns.length && !phoneModel; pi++) {
+          var pm = ua.match(patterns[pi]);
+          if (pm) phoneModel = pm[1];
         }
       }
       else if (/Windows/i.test(ua)) { terminal = '电脑'; }
-      else if (/Macintosh/i.test(ua)) { terminal = '苹果电脑'; phoneModel = 'Mac'; }
+      else if (/Macintosh/i.test(ua)) { terminal = '电脑'; phoneModel = 'Mac'; }
       else if (/Linux/i.test(ua)) { terminal = '电脑'; }
       else { terminal = '其他'; }
       var device = (/Mobile|Android|iPhone|iPad|iPod/i.test(ua)) ? '手机' : '电脑';

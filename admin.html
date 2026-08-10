@@ -414,7 +414,7 @@ async function loadVisits(){
       var d8 = new Date(tz);
       var ts = d8.getUTCFullYear()+'-'+pad(d8.getUTCMonth()+1)+'-'+pad(d8.getUTCDate())+' '+pad(d8.getUTCHours())+':'+pad(d8.getUTCMinutes())+':'+pad(d8.getUTCSeconds());
       var dev = l.device==='手机' ? '📱' : '💻';
-      return '<tr><td>'+ts+'</td><td style="font-family:monospace;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(l.site)+'</td><td style="font-family:monospace">'+esc(l.ip)+'</td><td>'+esc(l.terminal_type||l.device)+'</td><td>'+esc(l.phone_model||'—')+'</td><td>'+esc(l.lang||'—')+'</td><td>'+esc(l.media||'—')+'</td></tr>';
+      return '<tr><td>'+ts+'</td><td style="font-family:monospace;word-break:break-all;max-width:300px">'+esc(l.site)+'</td><td style="font-family:monospace">'+esc(l.ip)+'</td><td>'+esc(l.terminal_type||l.device)+'</td><td>'+esc(l.phone_model||'—')+'</td><td>'+esc(l.lang||'—')+'</td><td>'+esc(l.media||'—')+'</td></tr>';
     }).join('');
   }catch(e){ tbody.innerHTML='<tr><td colspan="7" class="empty">加载失败: '+esc(e.message)+'</td></tr>'; }
 }
