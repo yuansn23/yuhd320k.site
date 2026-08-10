@@ -323,8 +323,8 @@ async function loadStats(){
     sites.forEach(function(site){
       var siteData = dailyBySite[site]||[];
       if(!siteData.length) return;
-      var siteLabel = site || '默认站点';
-      html += '<tr style="background:rgba(255,255,255,.03)"><td colspan="2" style="font-weight:700;color:var(--blue)">📍 '+esc(siteLabel)+'</td></tr>';
+      var siteLabel = site || d.site || '未绑定站点';
+      html += '<tr style="background:rgba(255,255,255,.03)"><td colspan="2" style="font-weight:700;color:var(--blue);font-family:monospace;font-size:.82rem">📍 '+esc(siteLabel)+'</td></tr>';
       html += siteData.map(function(x){ return '<tr><td style="padding-left:24px">'+x.date+'</td><td><strong>'+x.count+'</strong></td></tr>'; }).join('');
     });
     tbody.innerHTML = html;
