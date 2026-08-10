@@ -376,7 +376,7 @@ async function loadLoginLogs(){
       var timeStr = d8.getUTCFullYear()+'-'+pad(d8.getUTCMonth()+1)+'-'+pad(d8.getUTCDate())+' '+pad(d8.getUTCHours())+':'+pad(d8.getUTCMinutes())+':'+pad(d8.getUTCSeconds());
       return '<tr><td><strong>'+esc(l.username)+'</strong></td><td>'+timeStr+'</td><td style="font-family:monospace">'+esc(l.ip)+'</td><td>'+deviceIcon+' '+esc(l.device)+'</td></tr>';
     }).join('');
-  }catch(e){ tbody.innerHTML='<tr><td colspan="4" class="empty">加载失败: '+esc(e.message)+'</td></tr>'; }
+  }catch(e){ tbody.innerHTML='<tr><td colspan="6" class="empty">加载失败: '+esc(e.message)+'</td></tr>'; }
 }
 
 // ========== USER: 流量访问 ==========
@@ -385,7 +385,7 @@ async function showVisits(){
   var main = document.getElementById('mainContent');
   main.innerHTML = '<div class="page-header"><h1>📈 流量访问</h1></div>'+
     '<div class="card"><h3>📍 筛选条件</h3><div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px"><span style="color:var(--muted);font-size:.8rem">落地页:</span>'+siteInfo.html+'<span style="color:var(--muted);font-size:.8rem;margin-left:8px">日期:</span><input type="date" id="visitDateStart" style="width:170px;min-height:42px;padding:10px 14px;font-size:.9rem;border-radius:8px;border:1px solid var(--border);background:#0d0f16;color:var(--text);cursor:pointer"><span style="font-size:.86rem;margin:0 4px">至</span><input type="date" id="visitDateEnd" style="width:170px;min-height:42px;padding:10px 14px;font-size:.9rem;border-radius:8px;border:1px solid var(--border);background:#0d0f16;color:var(--text);cursor:pointer"><button class="btn btn-p btn-sm" id="visitFilterBtn">查询</button></div></div>'+
-    '<div class="card"><h3>📋 访问记录 <span id="visitCount" style="font-weight:400;font-size:.8rem;color:var(--muted)"></span></h3><table><thead><tr><th>访问时间</th><th>落地页</th><th>IP地址</th><th>设备</th><th>语言</th></tr></thead><tbody id="visitBody"><tr><td colspan="5" class="empty">加载中...</td></tr></tbody></table></div>';
+    '<div class="card"><h3>📋 访问记录 <span id="visitCount" style="font-weight:400;font-size:.8rem;color:var(--muted)"></span></h3><table><thead><tr><th>访问时间</th><th>落地页</th><th>IP地址</th><th>设备</th><th>语言</th><th>流量媒体</th></tr></thead><tbody id="visitBody"><tr><td colspan="6" class="empty">加载中...</td></tr></tbody></table></div>';
   document.getElementById('siteSelector').onchange = function(){
     _currentSite = this.value;
     sessionStorage.setItem('st_current_site', _currentSite);
@@ -414,9 +414,9 @@ async function loadVisits(){
       var d8 = new Date(tz);
       var ts = d8.getUTCFullYear()+'-'+pad(d8.getUTCMonth()+1)+'-'+pad(d8.getUTCDate())+' '+pad(d8.getUTCHours())+':'+pad(d8.getUTCMinutes())+':'+pad(d8.getUTCSeconds());
       var dev = l.device==='手机' ? '📱' : '💻';
-      return '<tr><td>'+ts+'</td><td style="font-family:monospace;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(l.site)+'</td><td style="font-family:monospace">'+esc(l.ip)+'</td><td>'+dev+' '+esc(l.device)+'</td><td>'+esc(l.lang||'—')+'</td></tr>';
+      return '<tr><td>'+ts+'</td><td style="font-family:monospace;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(l.site)+'</td><td style="font-family:monospace">'+esc(l.ip)+'</td><td>'+dev+' '+esc(l.device)+'</td><td>'+esc(l.lang||'—')+'</td><td>'+esc(l.media||'—')+'</td></tr>';
     }).join('');
-  }catch(e){ tbody.innerHTML='<tr><td colspan="4" class="empty">加载失败: '+esc(e.message)+'</td></tr>'; }
+  }catch(e){ tbody.innerHTML='<tr><td colspan="6" class="empty">加载失败: '+esc(e.message)+'</td></tr>'; }
 }
 
 function showDailyDetail(dailyBySite, defaultSite, sitesList, filterDate){
@@ -473,7 +473,7 @@ async function loadLanding(){
       return '<tr><td>'+(i+1)+'</td><td style="word-break:break-all;font-family:monospace">'+esc(s.site)+'</td><td style="word-break:break-all;font-family:monospace">'+esc(ids)+'</td><td style="word-break:break-all;font-family:monospace;max-width:300px">'+esc(s.apkUrl||'未配置')+'</td></tr>';
     }).join('');
   }catch(e){
-    tbody.innerHTML='<tr><td colspan="4" class="empty">加载失败: '+esc(e.message)+'</td></tr>';
+    tbody.innerHTML='<tr><td colspan="6" class="empty">加载失败: '+esc(e.message)+'</td></tr>';
   }
 }
 

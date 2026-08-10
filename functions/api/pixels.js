@@ -58,10 +58,25 @@ export async function onRequest(context) {
       var ip = request.headers.get('CF-Connecting-IP') || '';
       var ua = request.headers.get('User-Agent') || '';
       var device = /Mobile|Android|iPhone|iPad|iPod/i.test(ua) ? '手机' : '电脑';
+      // 语言：优先 Accept-Language，为空时从 UA 解析
       var lang = (request.headers.get('Accept-Language') || '').split(',')[0] || '';
+      if (!lang) {
+        var lm = ua.match(/[a-z]{2}_[A-Z]{2}/);
+        if (lm) { var lp = lm[0].split('_'); lang = lp[0].toLowerCase() + '-' + lp[1].toUpperCase(); }
+      }
+      // 流量媒体来源
+      var media = '';
+      if (/FB_IAB|FB4A|FBAV|Facebook/i.test(ua)) media = 'Facebook';
+      else if (/Instagram/i.test(ua)) media = 'Instagram';
+      else if (/TikTok/i.test(ua)) media = 'TikTok';
+      else if (/Twitter|Twitterrific/i.test(ua)) media = 'Twitter';
+      else if (/Snapchat/i.test(ua)) media = 'Snapchat';
+      else if (/Telegram/i.test(ua)) media = 'Telegram';
+      else if (/WhatsApp/i.test(ua)) media = 'WhatsApp';
+      else if (/Line/i.test(ua)) media = 'Line';
       context.waitUntil(
-        env.DB.prepare('INSERT INTO visit_logs (username, site, visit_time, ip, device, user_agent, lang) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)')
-          .bind(username, site, new Date().toISOString(), ip, device, ua.substring(0, 500), lang.substring(0, 50)).run().catch(function(){})
+        env.DB.prepare('INSERT INTO visit_logs (username, site, visit_time, ip, device, user_agent, lang, media) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)')
+          .bind(username, site, new Date().toISOString(), ip, device, ua.substring(0, 500), lang.substring(0, 50), media).run().catch(function(){})
       );
     }
 
