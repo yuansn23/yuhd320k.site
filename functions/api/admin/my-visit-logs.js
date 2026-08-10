@@ -13,29 +13,50 @@ async function getMyUser(request, env) {
   } catch (e) { return null; }
 }
 
-async function doQuery(env, user, filterSite, dateStart, dateEnd, limit, fields) {
-  if (filterSite && dateStart && dateEnd) {
-    return await env.DB.prepare('SELECT ' + fields + ' FROM visit_logs WHERE username = ?1 AND site = ?2 AND visit_time >= ?3 AND visit_time <= ?4 ORDER BY visit_time DESC LIMIT ?5')
-      .bind(user, filterSite, dateStart + 'T00:00:00.000Z', dateEnd + 'T23:59:59.999Z', limit).all();
-  } else if (filterSite && dateStart) {
-    return await env.DB.prepare('SELECT ' + fields + ' FROM visit_logs WHERE username = ?1 AND site = ?2 AND visit_time >= ?3 ORDER BY visit_time DESC LIMIT ?4')
-      .bind(user, filterSite, dateStart + 'T00:00:00.000Z', limit).all();
-  } else if (filterSite && dateEnd) {
-    return await env.DB.prepare('SELECT ' + fields + ' FROM visit_logs WHERE username = ?1 AND site = ?2 AND visit_time <= ?3 ORDER BY visit_time DESC LIMIT ?4')
-      .bind(user, filterSite, dateEnd + 'T23:59:59.999Z', limit).all();
-  } else if (dateStart && dateEnd) {
-    return await env.DB.prepare('SELECT ' + fields + ' FROM visit_logs WHERE username = ?1 AND visit_time >= ?2 AND visit_time <= ?3 ORDER BY visit_time DESC LIMIT ?4')
-      .bind(user, dateStart + 'T00:00:00.000Z', dateEnd + 'T23:59:59.999Z', limit).all();
-  } else if (dateStart) {
-    return await env.DB.prepare('SELECT ' + fields + ' FROM visit_logs WHERE username = ?1 AND visit_time >= ?2 ORDER BY visit_time DESC LIMIT ?3')
-      .bind(user, dateStart + 'T00:00:00.000Z', limit).all();
-  } else if (filterSite) {
-    return await env.DB.prepare('SELECT ' + fields + ' FROM visit_logs WHERE username = ?1 AND site = ?2 ORDER BY visit_time DESC LIMIT ?3')
-      .bind(user, filterSite, limit).all();
-  } else {
-    return await env.DB.prepare('SELECT ' + fields + ' FROM visit_logs WHERE username = ?1 ORDER BY visit_time DESC LIMIT ?2')
-      .bind(user, limit).all();
+// 从 UA 解析：终端类型、型号、语言、媒体来源
+function parseUA(ua) {
+  var terminal = '', phoneModel = '', lang = '', media = '';
+  if (/iPhone/i.test(ua)) { terminal = 'iOS'; phoneModel = 'iPhone'; }
+  else if (/iPad/i.test(ua)) { terminal = 'iOS'; phoneModel = 'iPad'; }
+  else if (/iPod/i.test(ua)) { terminal = 'iOS'; phoneModel = 'iPod'; }
+  else if (/Android/i.test(ua)) {
+    terminal = '安卓';
+    var stdModel = ua.match(/Android\s+\d+[^;]*;\s*([A-Za-z][\w-]{2,20})\s+Build/);
+    if (!stdModel) stdModel = ua.match(/Android\s+\d+[^;]*;\s*([A-Za-z][\w-]{2,20})/);
+    if (stdModel && !/^\d+$/.test(stdModel[1]) && !/^(wv|Mobile|Chrome|Safari|AppleWebKit|KHTML|Gecko|Version)$/i.test(stdModel[1])) phoneModel = stdModel[1];
+    if (!phoneModel) {
+      var igMatch = ua.match(/Android\s*\([^)]+\)/);
+      if (igMatch) {
+        var igParts = igMatch[0].split(/[;)]/);
+        for (var pi = 0; pi < igParts.length; pi++) {
+          var part = igParts[pi].trim();
+          if (part.length >= 3 && part.length <= 20 && /[A-Za-z]/.test(part) && !/^\d+$/.test(part)
+              && !/^(Android|SHARP|Samsung|qcom|Orga|IABMV|dpi|wv|NV|\d+x\d+)$/i.test(part)) { phoneModel = part; break; }
+        }
+      }
+    }
+    if (!phoneModel) { var fb = ua.match(/;\s*([A-Za-z][\w-]{3,20})\s*\)/); if (fb && !/^\d+$/.test(fb[1])) phoneModel = fb[1]; }
   }
+  else if (/Windows/i.test(ua)) { terminal = '电脑'; }
+  else if (/Macintosh/i.test(ua)) { terminal = '电脑'; phoneModel = 'Mac'; }
+  else if (/Linux/i.test(ua)) { terminal = '电脑'; }
+  else { terminal = '其他'; }
+
+  // 语言
+  var lm = ua.match(/[a-z]{2}_[A-Z]{2}/);
+  if (lm) { var lp = lm[0].split('_'); lang = lp[0].toLowerCase() + '-' + lp[1].toUpperCase(); }
+
+  // 媒体
+  if (/FB_IAB|FB4A|FBAV|Facebook/i.test(ua)) media = 'Facebook';
+  else if (/Instagram/i.test(ua)) media = 'Instagram';
+  else if (/TikTok/i.test(ua)) media = 'TikTok';
+  else if (/Twitter/i.test(ua)) media = 'Twitter';
+  else if (/Snapchat/i.test(ua)) media = 'Snapchat';
+  else if (/Telegram/i.test(ua)) media = 'Telegram';
+  else if (/WhatsApp/i.test(ua)) media = 'WhatsApp';
+  else if (/Line/i.test(ua)) media = 'Line';
+
+  return { terminal_type: terminal, phone_model: phoneModel, lang: lang, media: media };
 }
 
 export async function onRequest(context) {
@@ -54,14 +75,42 @@ export async function onRequest(context) {
     const dateEnd = url.searchParams.get('end') || '';
     const limit = Math.min(parseInt(url.searchParams.get('limit') || '200'), 500);
 
+    // 构建查询
+    var fields = 'site, visit_time, ip, device, user_agent';
     var result;
-    try {
-      result = await doQuery(env, me.user, filterSite, dateStart, dateEnd, limit, 'site, visit_time, ip, device, lang, media, terminal_type, phone_model');
-    } catch(e) {
-      result = await doQuery(env, me.user, filterSite, dateStart, dateEnd, limit, 'site, visit_time, ip, device, lang, media');
+    if (filterSite && dateStart && dateEnd) {
+      result = await env.DB.prepare('SELECT ' + fields + ' FROM visit_logs WHERE username = ?1 AND site = ?2 AND visit_time >= ?3 AND visit_time <= ?4 ORDER BY visit_time DESC LIMIT ?5')
+        .bind(me.user, filterSite, dateStart + 'T00:00:00.000Z', dateEnd + 'T23:59:59.999Z', limit).all();
+    } else if (filterSite && dateStart) {
+      result = await env.DB.prepare('SELECT ' + fields + ' FROM visit_logs WHERE username = ?1 AND site = ?2 AND visit_time >= ?3 ORDER BY visit_time DESC LIMIT ?4')
+        .bind(me.user, filterSite, dateStart + 'T00:00:00.000Z', limit).all();
+    } else if (dateStart && dateEnd) {
+      result = await env.DB.prepare('SELECT ' + fields + ' FROM visit_logs WHERE username = ?1 AND visit_time >= ?2 AND visit_time <= ?3 ORDER BY visit_time DESC LIMIT ?4')
+        .bind(me.user, dateStart + 'T00:00:00.000Z', dateEnd + 'T23:59:59.999Z', limit).all();
+    } else if (dateStart) {
+      result = await env.DB.prepare('SELECT ' + fields + ' FROM visit_logs WHERE username = ?1 AND visit_time >= ?2 ORDER BY visit_time DESC LIMIT ?3')
+        .bind(me.user, dateStart + 'T00:00:00.000Z', limit).all();
+    } else if (filterSite) {
+      result = await env.DB.prepare('SELECT ' + fields + ' FROM visit_logs WHERE username = ?1 AND site = ?2 ORDER BY visit_time DESC LIMIT ?3')
+        .bind(me.user, filterSite, limit).all();
+    } else {
+      result = await env.DB.prepare('SELECT ' + fields + ' FROM visit_logs WHERE username = ?1 ORDER BY visit_time DESC LIMIT ?2')
+        .bind(me.user, limit).all();
     }
 
-    var logs = result && result.results ? result.results : [];
+    var logs = [];
+    if (result && result.results) {
+      logs = result.results.map(function(r){
+        var parsed = parseUA(r.user_agent || '');
+        return {
+          site: r.site, visit_time: r.visit_time, ip: r.ip, device: r.device,
+          terminal_type: parsed.terminal_type || r.device,
+          phone_model: parsed.phone_model,
+          lang: parsed.lang,
+          media: parsed.media
+        };
+      });
+    }
 
     return new Response(JSON.stringify({ logs: logs, total: logs.length }), {
       headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
