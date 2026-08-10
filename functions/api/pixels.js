@@ -39,17 +39,17 @@ export async function onRequest(context) {
         var matchedHost = matchedSite;
         try { matchedHost = new URL(matchedSite).hostname; } catch (e) {}
         // 优先从 account_sites 按站点读（多轮尝试：原值 → hostname → rawSite → rawHost）
-        d1Result = await env.DB.prepare('SELECT pixel_ids FROM account_sites WHERE site = ?1 AND username = ?2').bind(matchedSite, username).first();
+        d1Result = await env.DB.prepare('SELECT pixel_ids, config_version FROM account_sites WHERE site = ?1 AND username = ?2').bind(matchedSite, username).first();
         if ((!d1Result || !d1Result.pixel_ids || d1Result.pixel_ids === '[]') && matchedHost !== matchedSite) {
-          d1Result = await env.DB.prepare('SELECT pixel_ids FROM account_sites WHERE site = ?1 AND username = ?2').bind(matchedHost, username).first();
+          d1Result = await env.DB.prepare('SELECT pixel_ids, config_version FROM account_sites WHERE site = ?1 AND username = ?2').bind(matchedHost, username).first();
         }
         if ((!d1Result || !d1Result.pixel_ids || d1Result.pixel_ids === '[]') && rawSite !== matchedSite && rawSite !== matchedHost) {
-          d1Result = await env.DB.prepare('SELECT pixel_ids FROM account_sites WHERE site = ?1 AND username = ?2').bind(rawSite, username).first();
+          d1Result = await env.DB.prepare('SELECT pixel_ids, config_version FROM account_sites WHERE site = ?1 AND username = ?2').bind(rawSite, username).first();
         }
         var rawHost = rawSite;
         try { rawHost = new URL(rawSite).hostname; } catch (e) {}
         if ((!d1Result || !d1Result.pixel_ids || d1Result.pixel_ids === '[]') && rawHost !== rawSite && rawHost !== matchedSite && rawHost !== matchedHost) {
-          d1Result = await env.DB.prepare('SELECT pixel_ids FROM account_sites WHERE site = ?1 AND username = ?2').bind(rawHost, username).first();
+          d1Result = await env.DB.prepare('SELECT pixel_ids, config_version FROM account_sites WHERE site = ?1 AND username = ?2').bind(rawHost, username).first();
         }
         if (!d1Result || !d1Result.pixel_ids || d1Result.pixel_ids === '[]') {
           // 回退 accounts 表
@@ -61,7 +61,7 @@ export async function onRequest(context) {
       } catch (e) {}
     }
 
-    // 合并：取数据更多的一方
+    // 合并：D1 优先（按站点隔离的最新数据），KV 仅做回退
     var d1Ids = [];
     var kvIds = [];
     if (d1Result && d1Result.pixel_ids) {
@@ -72,12 +72,13 @@ export async function onRequest(context) {
       try { kvIds = JSON.parse(kvResult); } catch (e) {}
     }
 
-    if (d1Ids.length >= kvIds.length) {
-      ids = d1Ids;
-    } else {
-      ids = kvIds;
+    if (d1Ids.length > 0) {
+      ids = d1Ids;                // D1 有数据，永远用它（按站点隔离，最新）
+    } else if (kvIds.length > 0) {
+      ids = kvIds;                // D1 无数据，回退 KV
       version = Math.max(version, 1);
     }
+    // 两边都没数据 → ids = []，version = 0
 
     // 记录访问日志（非阻塞）
     if (username && matchedSite) {

@@ -73,10 +73,10 @@ export async function onRequest(context) {
       if (site) {
         // 写入 account_sites（按站点隔离，不污染 accounts 共享表）
         try {
-          await env.DB.prepare('INSERT INTO account_sites (site, username, pixel_ids, apk_url, apk_history) VALUES (?1, ?2, ?3, ?4, ?5) ON CONFLICT(site, username) DO UPDATE SET pixel_ids = ?3')
+          await env.DB.prepare('INSERT INTO account_sites (site, username, pixel_ids, apk_url, apk_history, config_version) VALUES (?1, ?2, ?3, ?4, ?5, 1) ON CONFLICT(site, username) DO UPDATE SET pixel_ids = ?3, config_version = config_version + 1')
             .bind(site, me.user, idsJson, '', '[]').run();
         } catch (e1) {
-          try { await env.DB.prepare('UPDATE account_sites SET pixel_ids = ?1 WHERE site = ?2 AND username = ?3').bind(idsJson, site, me.user).run(); } catch (e2) {}
+          try { await env.DB.prepare('UPDATE account_sites SET pixel_ids = ?1, config_version = config_version + 1 WHERE site = ?2 AND username = ?3').bind(idsJson, site, me.user).run(); } catch (e2) {}
         }
       }
 
