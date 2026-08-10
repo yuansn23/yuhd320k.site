@@ -596,7 +596,7 @@ async function showPixels(){
   var main = document.getElementById('mainContent');
   main.innerHTML = '<div class="page-header"><h1>📡 像素管理</h1></div>'+
     '<div class="card"><h3>📍 当前落地页</h3><div style="margin-bottom:12px">'+siteInfo.html+'</div>'+
-    '<h3>➕ 新增像素</h3><p style="color:var(--fg-muted);font-size:.78rem;margin-bottom:12px">Facebook事件支持购买和加购</p><div class="form-row"><input type="text" id="newPixelId" placeholder="输入像素ID"><button class="btn btn-p" id="addPixelBtn">新增</button></div><div id="pixelAddMsg"></div></div>'+
+    '<h3>➕ 新增像素</h3><div style="background:rgba(240,136,62,.08);border:1px solid rgba(240,136,62,.2);border-radius:8px;padding:14px 18px;margin-bottom:14px"><span style="color:var(--amber);font-weight:800;font-size:.85rem">投放切记：</span><br><span style="color:var(--fg);font-weight:700;font-size:.82rem">1.后台只支持【购物】加【加购】，广告组选择其他事件不会回传</span><br><span style="color:var(--fg);font-weight:700;font-size:.82rem">2.如果需要其他FB事件，请联系管理</span></div><div class="form-row"><input type="text" id="newPixelId" placeholder="输入像素ID"><button class="btn btn-p" id="addPixelBtn">新增</button></div><div id="pixelAddMsg"></div></div>'+
     '<div class="card"><h3>📋 像素列表 <span id="pixelCount" style="font-weight:400;font-size:.8rem;color:var(--muted)"></span></h3><table><thead><tr><th>序号</th><th>像素ID</th><th>操作</th></tr></thead><tbody id="pixelBody"><tr><td colspan="4" class="empty">加载中...</td></tr></tbody></table></div>';
   document.getElementById('siteSelector').onchange = function(){
     _currentSite = this.value;
