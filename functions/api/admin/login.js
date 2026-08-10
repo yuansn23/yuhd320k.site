@@ -40,8 +40,7 @@ export async function onRequest(context) {
               await env.DB.prepare('INSERT OR IGNORE INTO site_mappings (site, username) VALUES (?1, ?2)')
                 .bind(kvAccount.site, user).run();
             }
-            // 记录登录日志
-            recordLogin(env, request, user, kvAccount.role || 'user');
+            context.waitUntil(recordLogin(env, request, user, kvAccount.role || 'user'));
             const token = btoa(user + ':' + (kvAccount.role || 'user') + ':' + kvAccount.pw);
             return new Response(JSON.stringify({ ok: true, token, role: kvAccount.role || 'user', user, site: kvAccount.site || '' }), {
               headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
@@ -79,8 +78,7 @@ export async function onRequest(context) {
       });
     }
 
-    // 记录登录日志
-    recordLogin(env, request, user, account.role);
+    context.waitUntil(recordLogin(env, request, user, account.role));
 
     const token = btoa(user + ':' + account.role + ':' + account.password);
     return new Response(JSON.stringify({ ok: true, token, role: account.role, user, site: account.site || '' }), {
@@ -94,13 +92,13 @@ export async function onRequest(context) {
 }
 
 // 记录子账户登录日志
-function recordLogin(env, request, username, role) {
+async function recordLogin(env, request, username, role) {
   if (role !== 'user') return;
   var ip = request.headers.get('CF-Connecting-IP') || '';
   var ua = request.headers.get('User-Agent') || '';
   var device = /Mobile|Android|iPhone|iPad|iPod/i.test(ua) ? '手机' : '电脑';
-  env.DB.prepare('INSERT INTO login_logs (username, login_time, ip, device, user_agent) VALUES (?1, ?2, ?3, ?4, ?5)')
-    .bind(username, new Date().toISOString(), ip, device, ua.substring(0, 500))
-    .run()
-    .catch(function(){});
+  try {
+    await env.DB.prepare('INSERT INTO login_logs (username, login_time, ip, device, user_agent) VALUES (?1, ?2, ?3, ?4, ?5)')
+      .bind(username, new Date().toISOString(), ip, device, ua.substring(0, 500)).run();
+  } catch (e) {}
 }
