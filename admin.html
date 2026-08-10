@@ -265,9 +265,11 @@ async function saveEdit(username){
   var newUser = document.getElementById('editNewUser').value.trim();
   var pass = document.getElementById('editPass').value.trim();
   var site = document.getElementById('editSite').value.trim();
-  // 合并主站点 + 额外站点
+  // 合并主站点 + 额外站点（去重）
   var allSites = site ? [site] : [];
-  allSites = allSites.concat(_editSites);
+  for(var ei=0; ei<_editSites.length; ei++){
+    if(allSites.indexOf(_editSites[ei])===-1) allSites.push(_editSites[ei]);
+  }
   if(!newUser && !pass && !site && !_editSites.length){ msg('editMsg','err','至少修改一项'); return; }
   try{
     var r = await fetch('/api/admin/accounts',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Basic '+S.token},body:JSON.stringify({username:username,newUsername:newUser||'',password:pass||'',site:site||'',sites:allSites,action:'edit'})});

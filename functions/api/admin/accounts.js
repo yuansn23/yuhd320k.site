@@ -267,6 +267,8 @@ export async function onRequest(context) {
         // 同步多站点（sites 数组）— 只增删，不动已有数据
         if (body.sites && Array.isArray(body.sites)) {
           var newSites = body.sites.filter(function(s){ return s && s.trim(); }).map(function(s){ return s.trim(); });
+          // 保护：sites 为空则不操作，防止误清空
+          if (!newSites.length) { /* skip */ } else {
           // 获取现有站点
           var oldSites = [];
           try {
@@ -290,6 +292,7 @@ export async function onRequest(context) {
               } catch (e) {}
             }
           }
+          } // end if newSites.length
         }
 
         return new Response(JSON.stringify({ ok: true, username: finalUsername, site: newSite, msg: '已修改' }), {
