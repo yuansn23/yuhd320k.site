@@ -10,7 +10,16 @@ export async function onRequest(context) {
     var site = rawSite;
     try { site = new URL(rawSite).hostname; } catch (e) {}
 
-    var siteRow = await env.DB.prepare('SELECT site, username FROM site_mappings WHERE site = ?1').bind(site).first();
+    var siteRow = await env.DB.prepare('SELECT site, username FROM site_mappings WHERE site = ?1 OR site = ?2').bind(site, rawSite).first();
+    if (!siteRow) {
+      var allMaps = await env.DB.prepare('SELECT site, username FROM site_mappings').all();
+      if (allMaps && allMaps.results) {
+        for (var mi = 0; mi < allMaps.results.length && !siteRow; mi++) {
+          var mapped = allMaps.results[mi];
+          try { if (new URL(mapped.site).hostname === site) siteRow = mapped; } catch(e) {}
+        }
+      }
+    }
     const username = siteRow ? siteRow.username : '';
     var matchedSite = siteRow ? siteRow.site : site; // 用匹配到的站点点值
 
