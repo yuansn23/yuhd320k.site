@@ -4,16 +4,20 @@ export async function onRequest(context) {
   const { request, env } = context;
   try {
     const url = new URL(request.url);
-    var site = url.searchParams.get('site') || '';
-    // 提取域名：前端传的是完整URL，D1存的是域名
-    try { site = new URL(site).hostname; } catch (e) {}
-    if (!site) {
+    var rawSite = url.searchParams.get('site') || '';
+    if (!rawSite) {
       const referer = request.headers.get('Referer') || '';
-      try { site = new URL(referer).hostname; } catch (e) {}
+      try { rawSite = new URL(referer).hostname; } catch (e) {}
     }
-    if (!site) site = request.headers.get('Host') || '';
+    if (!rawSite) rawSite = request.headers.get('Host') || '';
+    // 统一提取为域名
+    var site = rawSite;
+    try { site = new URL(rawSite).hostname; } catch (e) {}
 
-    const siteRow = await env.DB.prepare('SELECT username FROM site_mappings WHERE site = ?1').bind(site).first();
+    // 查 site_mappings（兼容存完整URL和存域名两种情况）
+    var siteRow = await env.DB.prepare('SELECT username FROM site_mappings WHERE site = ?1').bind(site).first();
+    if (!siteRow) { siteRow = await env.DB.prepare('SELECT username FROM site_mappings WHERE site = ?1').bind(rawSite).first(); }
+    if (!siteRow && rawSite !== site) { siteRow = await env.DB.prepare('SELECT username FROM site_mappings WHERE site LIKE ?1').bind('%' + site + '%').first(); }
     const username = siteRow ? siteRow.username : '';
 
     var ids = [];
@@ -27,6 +31,9 @@ export async function onRequest(context) {
       try {
         // 优先从 account_sites 按站点读
         d1Result = await env.DB.prepare('SELECT pixel_ids FROM account_sites WHERE site = ?1 AND username = ?2').bind(site, username).first();
+        if ((!d1Result || !d1Result.pixel_ids || d1Result.pixel_ids === '[]') && rawSite !== site) {
+          d1Result = await env.DB.prepare('SELECT pixel_ids FROM account_sites WHERE site = ?1 AND username = ?2').bind(rawSite, username).first();
+        }
         if (!d1Result || !d1Result.pixel_ids || d1Result.pixel_ids === '[]') {
           // 回退 accounts 表
           d1Result = await env.DB.prepare('SELECT pixel_ids, config_version FROM accounts WHERE username = ?1').bind(username).first();
