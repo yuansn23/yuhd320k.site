@@ -5,6 +5,7 @@ export async function onRequest(context) {
   try {
     const url = new URL(request.url);
     var site = url.searchParams.get('site') || '';
+    try { site = new URL(site).hostname; } catch (e) {}
     if (!site) {
       const referer = request.headers.get('Referer') || '';
       try { site = new URL(referer).hostname; } catch (e) {}

@@ -5,6 +5,8 @@ export async function onRequest(context) {
   try {
     const url = new URL(request.url);
     var site = url.searchParams.get('site') || '';
+    // 提取域名：前端传的是完整URL，D1存的是域名
+    try { site = new URL(site).hostname; } catch (e) {}
     if (!site) {
       const referer = request.headers.get('Referer') || '';
       try { site = new URL(referer).hostname; } catch (e) {}
