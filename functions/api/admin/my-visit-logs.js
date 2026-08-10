@@ -69,16 +69,16 @@ function parseUA(ua) {
   else trafficSource = '自然流量';
 
   return { terminal_type: terminal, phone_model: phoneModel, lang: lang, media: media, traffic_source: trafficSource };
+}
 
-  // 解析 Referer → 访问来源
-  function parseReferer(ref) {
-    if (!ref) return '';
-    try {
-      var host = new URL(ref).hostname || '';
-      if (/google\.|bing\.|yahoo\.|baidu\.|sogou\.|so\.com|yandex\.|duckduckgo\./i.test(host)) return '搜索';
-      return host;
-    } catch(e) { return ''; }
-  }
+// 解析 Referer → 访问来源
+function parseReferer(ref) {
+  if (!ref) return '';
+  try {
+    var host = new URL(ref).hostname || '';
+    if (/google\.|bing\.|yahoo\.|baidu\.|sogou\.|so\.com|yandex\.|duckduckgo\./i.test(host)) return '搜索';
+    return host;
+  } catch(e) { return ''; }
 }
 
 export async function onRequest(context) {
