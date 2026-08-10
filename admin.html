@@ -244,17 +244,24 @@ async function showEditModal(username){
     }
   }catch(e){}
   renderEditSites();
-  // Add site button
-  document.getElementById('addSiteBtn').onclick = function(){
+  // Add site button（每次弹窗重新绑定）
+  var addBtn = document.getElementById('addSiteBtn');
+  var confirmBtn = document.getElementById('confirmAddSiteBtn');
+  var newAddBtn = addBtn.cloneNode(true);
+  var newConfirmBtn = confirmBtn.cloneNode(true);
+  addBtn.parentNode.replaceChild(newAddBtn, addBtn);
+  confirmBtn.parentNode.replaceChild(newConfirmBtn, confirmBtn);
+  newAddBtn.onclick = function(){
     document.getElementById('addSiteRow').style.display = 'flex';
     document.getElementById('newSiteInput').value = '';
   };
-  document.getElementById('confirmAddSiteBtn').onclick = function(){
+  newConfirmBtn.onclick = function(){
     var ns = document.getElementById('newSiteInput').value.trim();
     if(!ns) return;
-    if(_editSites.indexOf(ns)===-1 && document.getElementById('editSite').value.trim()!==ns){
-      _editSites.push(ns); renderEditSites();
-    }
+    var mainSite = document.getElementById('editSite').value.trim();
+    if(ns === mainSite){ alert('该站点已是主站点'); return; }
+    if(_editSites.indexOf(ns)!==-1){ alert('该站点已在列表中'); return; }
+    _editSites.push(ns); renderEditSites();
     document.getElementById('addSiteRow').style.display = 'none';
   };
   document.getElementById('saveEditBtn').onclick = function(){ saveEdit(username); };
