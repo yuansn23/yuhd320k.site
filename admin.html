@@ -414,6 +414,7 @@ async function showApk(){
     loadApkData();
   };
   loadApkData();
+  if(!_currentSite) _currentSite = document.getElementById('siteSelector').value;
   document.getElementById('saveUrlBtn').onclick = saveUrl;
   document.getElementById('uploadBtn').onclick = uploadFile;
 }
@@ -485,7 +486,7 @@ async function loadSiteSelector(){
     var d = await r.json();
     var sites = d.sites||[];
     if(!sites.length && d.site) sites = [{site:d.site}];
-    if(!_currentSite && sites.length) _currentSite = sites[0].site;
+    if(!_currentSite && sites.length){ _currentSite = sites[0].site; sessionStorage.setItem('st_current_site', _currentSite); }
     var sel = '<select id="siteSelector" style="padding:8px 12px;border-radius:8px;border:1px solid var(--border);background:#0d0f16;color:var(--text);font-size:.86rem;max-width:100%">'+
       sites.map(function(s){ return '<option value="'+esc(s.site)+'"'+(s.site===_currentSite?' selected':'')+'>'+esc(s.site)+'</option>'; }).join('')+'</select>';
     return { html:sel, sites:sites };
@@ -507,10 +508,18 @@ async function showPixels(){
     loadPixels();
   };
   document.getElementById('addPixelBtn').onclick = addPixel;
+  // 确保站点已选中再加载
+  if(!_currentSite) _currentSite = document.getElementById('siteSelector').value;
   loadPixels();
 }
 
 async function loadPixels(){
+  // 兜底：从下拉框取值
+  if(!_currentSite){
+    var sel = document.getElementById('siteSelector');
+    if(sel) _currentSite = sel.value;
+  }
+  if(!_currentSite) return;
   try{
     var r = await fetch('/api/admin/my-pixels?site='+encodeURIComponent(_currentSite)+'&_='+Date.now(),{headers:{'Authorization':'Basic '+S.token}});
     var d = await r.json();
