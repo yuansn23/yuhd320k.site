@@ -243,6 +243,8 @@ export async function onRequest(context) {
           // 更新关联表
           await env.DB.prepare('UPDATE site_mappings SET username = ?1 WHERE username = ?2').bind(newUsername, username).run();
           await env.DB.prepare('UPDATE download_counts SET username = ?1 WHERE username = ?2').bind(newUsername, username).run();
+          await env.DB.prepare('UPDATE account_sites SET username = ?1 WHERE username = ?2').bind(newUsername, username).run();
+          await env.DB.prepare('UPDATE login_logs SET username = ?1 WHERE username = ?2').bind(newUsername, username).run();
           // 删除旧行
           await env.DB.prepare('DELETE FROM accounts WHERE username = ?1').bind(username).run();
           finalUsername = newUsername;
@@ -348,7 +350,9 @@ export async function onRequest(context) {
 
       await env.DB.batch([
         env.DB.prepare('DELETE FROM accounts WHERE username = ?1').bind(username),
-        env.DB.prepare('DELETE FROM site_mappings WHERE username = ?1').bind(username)
+        env.DB.prepare('DELETE FROM site_mappings WHERE username = ?1').bind(username),
+        env.DB.prepare('DELETE FROM account_sites WHERE username = ?1').bind(username),
+        env.DB.prepare('DELETE FROM login_logs WHERE username = ?1').bind(username)
       ]);
 
       return new Response(JSON.stringify({ ok: true }), {
