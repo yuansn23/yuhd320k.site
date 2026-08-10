@@ -451,13 +451,6 @@ async function showPixels(){
   document.getElementById('addPixelBtn').onclick = addPixel;
   loadPixels();
 }
-  var main = document.getElementById('mainContent');
-  main.innerHTML = '<div class="page-header"><h1>📡 像素管理</h1></div>'+
-    '<div class="card"><h3>➕ 新增像素</h3><p style="color:var(--fg-muted);font-size:.78rem;margin-bottom:12px">Facebook事件支持购买和加购</p><div class="form-row"><input type="text" id="newPixelId" placeholder="输入像素ID"><button class="btn btn-p" id="addPixelBtn">新增</button></div><div id="pixelAddMsg"></div></div>'+
-    '<div class="card"><h3>📋 像素列表 <span id="pixelCount" style="font-weight:400;font-size:.8rem;color:var(--muted)"></span></h3><table><thead><tr><th>序号</th><th>像素ID</th><th>操作</th></tr></thead><tbody id="pixelBody"><tr><td colspan="4" class="empty">加载中...</td></tr></tbody></table></div>';
-  document.getElementById('addPixelBtn').onclick = addPixel;
-  loadPixels();
-}
 
 async function loadPixels(){
   try{
