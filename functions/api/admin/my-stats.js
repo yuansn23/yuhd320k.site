@@ -55,8 +55,8 @@ export async function onRequest(context) {
         var row = d1Result.results[r];
         d1Map[row.date] = (d1Map[row.date] || 0) + row.count;
         total += row.count;
-        // 按站点分组
-        var s = row.site || '';
+        // 按站点分组（空站点回退到主站点）
+        var s = row.site || me.site || '默认站点';
         if (!dailyBySite[s]) dailyBySite[s] = {};
         dailyBySite[s][row.date] = (dailyBySite[s][row.date] || 0) + row.count;
       }
