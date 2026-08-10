@@ -13,6 +13,31 @@ async function getMyUser(request, env) {
   } catch (e) { return null; }
 }
 
+async function doQuery(env, user, filterSite, dateStart, dateEnd, limit, fields) {
+  if (filterSite && dateStart && dateEnd) {
+    return await env.DB.prepare('SELECT ' + fields + ' FROM visit_logs WHERE username = ?1 AND site = ?2 AND visit_time >= ?3 AND visit_time <= ?4 ORDER BY visit_time DESC LIMIT ?5')
+      .bind(user, filterSite, dateStart + 'T00:00:00.000Z', dateEnd + 'T23:59:59.999Z', limit).all();
+  } else if (filterSite && dateStart) {
+    return await env.DB.prepare('SELECT ' + fields + ' FROM visit_logs WHERE username = ?1 AND site = ?2 AND visit_time >= ?3 ORDER BY visit_time DESC LIMIT ?4')
+      .bind(user, filterSite, dateStart + 'T00:00:00.000Z', limit).all();
+  } else if (filterSite && dateEnd) {
+    return await env.DB.prepare('SELECT ' + fields + ' FROM visit_logs WHERE username = ?1 AND site = ?2 AND visit_time <= ?3 ORDER BY visit_time DESC LIMIT ?4')
+      .bind(user, filterSite, dateEnd + 'T23:59:59.999Z', limit).all();
+  } else if (dateStart && dateEnd) {
+    return await env.DB.prepare('SELECT ' + fields + ' FROM visit_logs WHERE username = ?1 AND visit_time >= ?2 AND visit_time <= ?3 ORDER BY visit_time DESC LIMIT ?4')
+      .bind(user, dateStart + 'T00:00:00.000Z', dateEnd + 'T23:59:59.999Z', limit).all();
+  } else if (dateStart) {
+    return await env.DB.prepare('SELECT ' + fields + ' FROM visit_logs WHERE username = ?1 AND visit_time >= ?2 ORDER BY visit_time DESC LIMIT ?3')
+      .bind(user, dateStart + 'T00:00:00.000Z', limit).all();
+  } else if (filterSite) {
+    return await env.DB.prepare('SELECT ' + fields + ' FROM visit_logs WHERE username = ?1 AND site = ?2 ORDER BY visit_time DESC LIMIT ?3')
+      .bind(user, filterSite, limit).all();
+  } else {
+    return await env.DB.prepare('SELECT ' + fields + ' FROM visit_logs WHERE username = ?1 ORDER BY visit_time DESC LIMIT ?2')
+      .bind(user, limit).all();
+  }
+}
+
 export async function onRequest(context) {
   const { request, env } = context;
   try {
@@ -30,28 +55,10 @@ export async function onRequest(context) {
     const limit = Math.min(parseInt(url.searchParams.get('limit') || '200'), 500);
 
     var result;
-    // 6 种组合：site + start + end, site + start, site + end, start + end, site only, none
-    if (filterSite && dateStart && dateEnd) {
-      result = await env.DB.prepare('SELECT site, visit_time, ip, device, lang, media, terminal_type, phone_model FROM visit_logs WHERE username = ?1 AND site = ?2 AND visit_time >= ?3 AND visit_time <= ?4 ORDER BY visit_time DESC LIMIT ?5')
-        .bind(me.user, filterSite, dateStart + 'T00:00:00.000Z', dateEnd + 'T23:59:59.999Z', limit).all();
-    } else if (filterSite && dateStart) {
-      result = await env.DB.prepare('SELECT site, visit_time, ip, device, lang, media, terminal_type, phone_model FROM visit_logs WHERE username = ?1 AND site = ?2 AND visit_time >= ?3 ORDER BY visit_time DESC LIMIT ?4')
-        .bind(me.user, filterSite, dateStart + 'T00:00:00.000Z', limit).all();
-    } else if (filterSite && dateEnd) {
-      result = await env.DB.prepare('SELECT site, visit_time, ip, device, lang, media, terminal_type, phone_model FROM visit_logs WHERE username = ?1 AND site = ?2 AND visit_time <= ?3 ORDER BY visit_time DESC LIMIT ?4')
-        .bind(me.user, filterSite, dateEnd + 'T23:59:59.999Z', limit).all();
-    } else if (dateStart && dateEnd) {
-      result = await env.DB.prepare('SELECT site, visit_time, ip, device, lang, media, terminal_type, phone_model FROM visit_logs WHERE username = ?1 AND visit_time >= ?2 AND visit_time <= ?3 ORDER BY visit_time DESC LIMIT ?4')
-        .bind(me.user, dateStart + 'T00:00:00.000Z', dateEnd + 'T23:59:59.999Z', limit).all();
-    } else if (dateStart) {
-      result = await env.DB.prepare('SELECT site, visit_time, ip, device, lang, media, terminal_type, phone_model FROM visit_logs WHERE username = ?1 AND visit_time >= ?2 ORDER BY visit_time DESC LIMIT ?3')
-        .bind(me.user, dateStart + 'T00:00:00.000Z', limit).all();
-    } else if (filterSite) {
-      result = await env.DB.prepare('SELECT site, visit_time, ip, device, lang, media, terminal_type, phone_model FROM visit_logs WHERE username = ?1 AND site = ?2 ORDER BY visit_time DESC LIMIT ?3')
-        .bind(me.user, filterSite, limit).all();
-    } else {
-      result = await env.DB.prepare('SELECT site, visit_time, ip, device, lang, media, terminal_type, phone_model FROM visit_logs WHERE username = ?1 ORDER BY visit_time DESC LIMIT ?2')
-        .bind(me.user, limit).all();
+    try {
+      result = await doQuery(env, me.user, filterSite, dateStart, dateEnd, limit, 'site, visit_time, ip, device, lang, media, terminal_type, phone_model');
+    } catch(e) {
+      result = await doQuery(env, me.user, filterSite, dateStart, dateEnd, limit, 'site, visit_time, ip, device, lang, media');
     }
 
     var logs = result && result.results ? result.results : [];
