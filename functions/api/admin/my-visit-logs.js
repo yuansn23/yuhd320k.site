@@ -73,30 +73,38 @@ export async function onRequest(context) {
     const filterSite = url.searchParams.get('site') || '';
     const dateStart = url.searchParams.get('start') || '';
     const dateEnd = url.searchParams.get('end') || '';
-    const limit = Math.min(parseInt(url.searchParams.get('limit') || '200'), 500);
+    const limit = Math.min(parseInt(url.searchParams.get('limit') || '50'), 200);
+    const page = Math.max(parseInt(url.searchParams.get('page') || '1'), 1);
+    const offset = (page - 1) * limit;
 
-    // 构建查询
+    // 构建查询条件
+    var whereBase = 'username = ?1';
+    var condParams = [me.user];
+    var idx = 2;
+    if (filterSite) { whereBase += ' AND site = ?' + (idx++); condParams.push(filterSite); }
+    if (dateStart) { whereBase += ' AND visit_time >= ?' + (idx++); condParams.push(dateStart + 'T00:00:00.000Z'); }
+    if (dateEnd) { whereBase += ' AND visit_time <= ?' + (idx++); condParams.push(dateEnd + 'T23:59:59.999Z'); }
+
     var fields = 'site, visit_time, ip, device, user_agent';
-    var result;
-    if (filterSite && dateStart && dateEnd) {
-      result = await env.DB.prepare('SELECT ' + fields + ' FROM visit_logs WHERE username = ?1 AND site = ?2 AND visit_time >= ?3 AND visit_time <= ?4 ORDER BY visit_time DESC LIMIT ?5')
-        .bind(me.user, filterSite, dateStart + 'T00:00:00.000Z', dateEnd + 'T23:59:59.999Z', limit).all();
-    } else if (filterSite && dateStart) {
-      result = await env.DB.prepare('SELECT ' + fields + ' FROM visit_logs WHERE username = ?1 AND site = ?2 AND visit_time >= ?3 ORDER BY visit_time DESC LIMIT ?4')
-        .bind(me.user, filterSite, dateStart + 'T00:00:00.000Z', limit).all();
-    } else if (dateStart && dateEnd) {
-      result = await env.DB.prepare('SELECT ' + fields + ' FROM visit_logs WHERE username = ?1 AND visit_time >= ?2 AND visit_time <= ?3 ORDER BY visit_time DESC LIMIT ?4')
-        .bind(me.user, dateStart + 'T00:00:00.000Z', dateEnd + 'T23:59:59.999Z', limit).all();
-    } else if (dateStart) {
-      result = await env.DB.prepare('SELECT ' + fields + ' FROM visit_logs WHERE username = ?1 AND visit_time >= ?2 ORDER BY visit_time DESC LIMIT ?3')
-        .bind(me.user, dateStart + 'T00:00:00.000Z', limit).all();
-    } else if (filterSite) {
-      result = await env.DB.prepare('SELECT ' + fields + ' FROM visit_logs WHERE username = ?1 AND site = ?2 ORDER BY visit_time DESC LIMIT ?3')
-        .bind(me.user, filterSite, limit).all();
-    } else {
-      result = await env.DB.prepare('SELECT ' + fields + ' FROM visit_logs WHERE username = ?1 ORDER BY visit_time DESC LIMIT ?2')
-        .bind(me.user, limit).all();
-    }
+    var orderBy = ' ORDER BY visit_time DESC';
+
+    // 查总数
+    var countSql = 'SELECT COUNT(*) AS cnt FROM visit_logs WHERE ' + whereBase;
+    var countResult = null;
+    if (condParams.length === 1) countResult = await env.DB.prepare(countSql).bind(condParams[0]).first();
+    else if (condParams.length === 2) countResult = await env.DB.prepare(countSql).bind(condParams[0], condParams[1]).first();
+    else if (condParams.length === 3) countResult = await env.DB.prepare(countSql).bind(condParams[0], condParams[1], condParams[2]).first();
+    else countResult = await env.DB.prepare(countSql).bind(condParams[0], condParams[1], condParams[2], condParams[3]).first();
+    var totalCount = countResult ? countResult.cnt : 0;
+
+    // 查数据
+    var dataSql = 'SELECT ' + fields + ' FROM visit_logs WHERE ' + whereBase + orderBy + ' LIMIT ?' + (idx++) + ' OFFSET ?' + (idx);
+    var allParams = condParams.concat([limit, offset]);
+    var result = null;
+    if (allParams.length === 3) result = await env.DB.prepare(dataSql).bind(allParams[0], allParams[1], allParams[2]).all();
+    else if (allParams.length === 4) result = await env.DB.prepare(dataSql).bind(allParams[0], allParams[1], allParams[2], allParams[3]).all();
+    else if (allParams.length === 5) result = await env.DB.prepare(dataSql).bind(allParams[0], allParams[1], allParams[2], allParams[3], allParams[4]).all();
+    else result = await env.DB.prepare(dataSql).bind(allParams[0], allParams[1], allParams[2], allParams[3], allParams[4], allParams[5]).all();
 
     var logs = [];
     if (result && result.results) {
@@ -112,7 +120,7 @@ export async function onRequest(context) {
       });
     }
 
-    return new Response(JSON.stringify({ logs: logs, total: logs.length }), {
+    return new Response(JSON.stringify({ logs: logs, total: totalCount, page: page, limit: limit }), {
       headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
     });
   } catch (e) {

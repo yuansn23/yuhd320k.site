@@ -390,14 +390,15 @@ async function showVisits(){
     _currentSite = this.value;
     sessionStorage.setItem('st_current_site', _currentSite);
   };
-  document.getElementById('visitFilterBtn').onclick = loadVisits;
+  document.getElementById('visitFilterBtn').onclick = function(){ _visitPage = 1; loadVisits(); };
   loadVisits();
 }
 
+var _visitPage = 1;
 async function loadVisits(){
   var tbody = document.getElementById('visitBody');
   try{
-    var url = '/api/admin/my-visit-logs?limit=200';
+    var url = '/api/admin/my-visit-logs?limit=50&page='+_visitPage;
     if(_currentSite) url += '&site='+encodeURIComponent(_currentSite);
     var ds = document.getElementById('visitDateStart').value;
     var de = document.getElementById('visitDateEnd').value;
@@ -406,16 +407,27 @@ async function loadVisits(){
     var r = await fetch(url,{headers:{'Authorization':'Basic '+S.token}});
     var d = await r.json();
     var logs = d.logs||[];
-    document.getElementById('visitCount').textContent = '共 '+logs.length+' 条';
-    if(!logs.length){ tbody.innerHTML='<tr><td colspan="5" class="empty">暂无访问记录</td></tr>'; return; }
-    tbody.innerHTML = logs.map(function(l){
+    var total = d.total||0;
+    var totalPages = Math.max(1, Math.ceil(total / 50));
+    document.getElementById('visitCount').textContent = '共 '+total+' 条，第 '+_visitPage+'/'+totalPages+' 页';
+    if(!logs.length){ tbody.innerHTML='<tr><td colspan="7" class="empty">暂无访问记录</td></tr>'; return; }
+    var html = logs.map(function(l){
       var dt = new Date(l.visit_time);
       var tz = dt.getTime() + 8*3600000;
       var d8 = new Date(tz);
       var ts = d8.getUTCFullYear()+'-'+pad(d8.getUTCMonth()+1)+'-'+pad(d8.getUTCDate())+' '+pad(d8.getUTCHours())+':'+pad(d8.getUTCMinutes())+':'+pad(d8.getUTCSeconds());
-      var dev = l.device==='手机' ? '📱' : '💻';
       return '<tr><td>'+ts+'</td><td style="font-family:monospace;word-break:break-all;max-width:300px">'+esc(l.site)+'</td><td style="font-family:monospace">'+esc(l.ip)+'</td><td>'+esc(l.terminal_type||l.device)+'</td><td>'+esc(l.phone_model||'—')+'</td><td>'+esc(l.lang||'—')+'</td><td>'+esc(l.media||'—')+'</td></tr>';
     }).join('');
+    // 翻页按钮
+    var prevDisabled = _visitPage <= 1 ? ' disabled style="opacity:.4;cursor:not-allowed"' : '';
+    var nextDisabled = _visitPage >= totalPages ? ' disabled style="opacity:.4;cursor:not-allowed"' : '';
+    html += '<tr><td colspan="7" style="text-align:center;padding:16px"><button class="btn btn-o btn-sm"'+prevDisabled+' id="visitPrev">◀ 上一页</button> <span style="margin:0 12px;color:var(--fg-muted);font-size:.82rem">'+_visitPage+' / '+totalPages+'</span> <button class="btn btn-o btn-sm"'+nextDisabled+' id="visitNext">下一页 ▶</button></td></tr>';
+    tbody.innerHTML = html;
+    // 绑定翻页事件
+    var pb = document.getElementById('visitPrev');
+    var nb = document.getElementById('visitNext');
+    if(pb && !pb.disabled) pb.onclick = function(){ _visitPage--; loadVisits(); };
+    if(nb && !nb.disabled) nb.onclick = function(){ _visitPage++; loadVisits(); };
   }catch(e){ tbody.innerHTML='<tr><td colspan="7" class="empty">加载失败: '+esc(e.message)+'</td></tr>'; }
 }
 
