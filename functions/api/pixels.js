@@ -57,7 +57,26 @@ export async function onRequest(context) {
     if (username && site) {
       var ip = request.headers.get('CF-Connecting-IP') || '';
       var ua = request.headers.get('User-Agent') || '';
-      var device = /Mobile|Android|iPhone|iPad|iPod/i.test(ua) ? '手机' : '电脑';
+      // 终端类型 + 型号解析
+      var terminal = ''; var phoneModel = '';
+      if (/iPhone/i.test(ua)) { terminal = '苹果手机'; phoneModel = 'iPhone'; }
+      else if (/iPad/i.test(ua)) { terminal = '苹果平板'; phoneModel = 'iPad'; }
+      else if (/iPod/i.test(ua)) { terminal = '苹果播放器'; phoneModel = 'iPod'; }
+      else if (/Android/i.test(ua)) {
+        terminal = '安卓手机';
+        var am = ua.match(/Android\s+\d+[^;)]*;\s*([A-Za-z0-9]+)(?:\s+Build[\/\s]|\))/);
+        if (am) phoneModel = am[1];
+        // Instagram UA 包含更详细信息：Android (36/16; ... ; A401SH; ...)
+        if (!phoneModel) {
+          var im = ua.match(/Android\s*\([^)]*;\s*([A-Za-z0-9]+)\s*;/);
+          if (im) phoneModel = im[1];
+        }
+      }
+      else if (/Windows/i.test(ua)) { terminal = '电脑'; }
+      else if (/Macintosh/i.test(ua)) { terminal = '苹果电脑'; phoneModel = 'Mac'; }
+      else if (/Linux/i.test(ua)) { terminal = '电脑'; }
+      else { terminal = '其他'; }
+      var device = (/Mobile|Android|iPhone|iPad|iPod/i.test(ua)) ? '手机' : '电脑';
       // 语言：优先 Accept-Language，为空时从 UA 解析
       var lang = (request.headers.get('Accept-Language') || '').split(',')[0] || '';
       if (!lang) {
@@ -75,8 +94,8 @@ export async function onRequest(context) {
       else if (/WhatsApp/i.test(ua)) media = 'WhatsApp';
       else if (/Line/i.test(ua)) media = 'Line';
       context.waitUntil(
-        env.DB.prepare('INSERT INTO visit_logs (username, site, visit_time, ip, device, user_agent, lang, media) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)')
-          .bind(username, site, new Date().toISOString(), ip, device, ua.substring(0, 500), lang.substring(0, 50), media).run().catch(function(){})
+        env.DB.prepare('INSERT INTO visit_logs (username, site, visit_time, ip, device, user_agent, lang, media, terminal_type, phone_model) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)')
+          .bind(username, site, new Date().toISOString(), ip, device, ua.substring(0, 500), lang.substring(0, 50), media, terminal, phoneModel).run().catch(function(){})
       );
     }
 
