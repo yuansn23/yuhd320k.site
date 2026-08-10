@@ -32,10 +32,21 @@ export async function onRequest(context) {
 
     if (username) {
       try {
-        // 优先从 account_sites 按站点读（用匹配到的站点值 + 原始值两轮）
+        // 标准化 matchedSite：site_mappings 可能存完整URL，account_sites 存纯域名，需要对齐
+        var matchedHost = matchedSite;
+        try { matchedHost = new URL(matchedSite).hostname; } catch (e) {}
+        // 优先从 account_sites 按站点读（多轮尝试：原值 → hostname → rawSite → rawHost）
         d1Result = await env.DB.prepare('SELECT pixel_ids FROM account_sites WHERE site = ?1 AND username = ?2').bind(matchedSite, username).first();
-        if ((!d1Result || !d1Result.pixel_ids || d1Result.pixel_ids === '[]') && rawSite !== matchedSite) {
+        if ((!d1Result || !d1Result.pixel_ids || d1Result.pixel_ids === '[]') && matchedHost !== matchedSite) {
+          d1Result = await env.DB.prepare('SELECT pixel_ids FROM account_sites WHERE site = ?1 AND username = ?2').bind(matchedHost, username).first();
+        }
+        if ((!d1Result || !d1Result.pixel_ids || d1Result.pixel_ids === '[]') && rawSite !== matchedSite && rawSite !== matchedHost) {
           d1Result = await env.DB.prepare('SELECT pixel_ids FROM account_sites WHERE site = ?1 AND username = ?2').bind(rawSite, username).first();
+        }
+        var rawHost = rawSite;
+        try { rawHost = new URL(rawSite).hostname; } catch (e) {}
+        if ((!d1Result || !d1Result.pixel_ids || d1Result.pixel_ids === '[]') && rawHost !== rawSite && rawHost !== matchedSite && rawHost !== matchedHost) {
+          d1Result = await env.DB.prepare('SELECT pixel_ids FROM account_sites WHERE site = ?1 AND username = ?2').bind(rawHost, username).first();
         }
         if (!d1Result || !d1Result.pixel_ids || d1Result.pixel_ids === '[]') {
           // 回退 accounts 表

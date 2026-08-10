@@ -34,9 +34,22 @@ export async function onRequest(context) {
 
     if (username) {
       try {
+        // 标准化 matchedSite：site_mappings 可能存完整URL，account_sites 存纯域名，需要对齐
+        var matchedHost = matchedSite;
+        try { matchedHost = new URL(matchedSite).hostname; } catch (e) {}
+        // 三轮尝试：matchedSite 原值 → matchedSite 的 hostname → rawSite 原值
         d1Result = await env.DB.prepare('SELECT apk_url FROM account_sites WHERE site = ?1 AND username = ?2').bind(matchedSite, username).first();
-        if ((!d1Result || !d1Result.apk_url) && rawSite !== matchedSite) {
+        if ((!d1Result || !d1Result.apk_url) && matchedHost !== matchedSite) {
+          d1Result = await env.DB.prepare('SELECT apk_url FROM account_sites WHERE site = ?1 AND username = ?2').bind(matchedHost, username).first();
+        }
+        if ((!d1Result || !d1Result.apk_url) && rawSite !== matchedSite && rawSite !== matchedHost) {
           d1Result = await env.DB.prepare('SELECT apk_url FROM account_sites WHERE site = ?1 AND username = ?2').bind(rawSite, username).first();
+        }
+        // rawSite 也尝试提取 hostname
+        var rawHost = rawSite;
+        try { rawHost = new URL(rawSite).hostname; } catch (e) {}
+        if ((!d1Result || !d1Result.apk_url) && rawHost !== rawSite && rawHost !== matchedSite && rawHost !== matchedHost) {
+          d1Result = await env.DB.prepare('SELECT apk_url FROM account_sites WHERE site = ?1 AND username = ?2').bind(rawHost, username).first();
         }
         if (!d1Result || !d1Result.apk_url) {
           d1Result = await env.DB.prepare('SELECT apk_url, config_version FROM accounts WHERE username = ?1').bind(username).first();
