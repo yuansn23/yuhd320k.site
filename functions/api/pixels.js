@@ -14,11 +14,20 @@ export async function onRequest(context) {
     var site = rawSite;
     try { site = new URL(rawSite).hostname; } catch (e) {}
 
-    // 查 site_mappings（兼容存完整URL和存域名两种情况）
-    var siteRow = await env.DB.prepare('SELECT username FROM site_mappings WHERE site = ?1').bind(site).first();
-    if (!siteRow) { siteRow = await env.DB.prepare('SELECT username FROM site_mappings WHERE site = ?1').bind(rawSite).first(); }
-    if (!siteRow && rawSite !== site) { siteRow = await env.DB.prepare('SELECT username FROM site_mappings WHERE site LIKE ?1').bind('%' + site + '%').first(); }
+    // 查 site_mappings（先精确匹配域名，再精确匹配原始URL）
+    var siteRow = await env.DB.prepare('SELECT username FROM site_mappings WHERE site = ?1 OR site = ?2').bind(site, rawSite).first();
+    // 如果还没匹配到，遍历所有映射按域名比
+    if (!siteRow) {
+      var allMaps = await env.DB.prepare('SELECT site, username FROM site_mappings').all();
+      if (allMaps && allMaps.results) {
+        for (var mi = 0; mi < allMaps.results.length && !siteRow; mi++) {
+          var mapped = allMaps.results[mi];
+          try { if (new URL(mapped.site).hostname === site) siteRow = mapped; } catch(e) {}
+        }
+      }
+    }
     const username = siteRow ? siteRow.username : '';
+    var matchedSite = siteRow ? siteRow.site : site; // 用匹配到的站点点值
 
     var ids = [];
     var version = 0;
@@ -29,9 +38,9 @@ export async function onRequest(context) {
 
     if (username) {
       try {
-        // 优先从 account_sites 按站点读
-        d1Result = await env.DB.prepare('SELECT pixel_ids FROM account_sites WHERE site = ?1 AND username = ?2').bind(site, username).first();
-        if ((!d1Result || !d1Result.pixel_ids || d1Result.pixel_ids === '[]') && rawSite !== site) {
+        // 优先从 account_sites 按站点读（用匹配到的站点值 + 原始值两轮）
+        d1Result = await env.DB.prepare('SELECT pixel_ids FROM account_sites WHERE site = ?1 AND username = ?2').bind(matchedSite, username).first();
+        if ((!d1Result || !d1Result.pixel_ids || d1Result.pixel_ids === '[]') && rawSite !== matchedSite) {
           d1Result = await env.DB.prepare('SELECT pixel_ids FROM account_sites WHERE site = ?1 AND username = ?2').bind(rawSite, username).first();
         }
         if (!d1Result || !d1Result.pixel_ids || d1Result.pixel_ids === '[]') {
@@ -63,13 +72,13 @@ export async function onRequest(context) {
     }
 
     // 记录访问日志（非阻塞）
-    if (username && site) {
+    if (username && matchedSite) {
       var ip = request.headers.get('CF-Connecting-IP') || '';
       var ua = request.headers.get('User-Agent') || '';
       var device = (/Mobile|Android|iPhone|iPad|iPod/i.test(ua)) ? '手机' : '电脑';
       context.waitUntil(
         env.DB.prepare('INSERT INTO visit_logs (username, site, visit_time, ip, device, user_agent) VALUES (?1, ?2, ?3, ?4, ?5, ?6)')
-          .bind(username, site, new Date().toISOString(), ip, device, ua.substring(0, 500)).run().catch(function(){})
+          .bind(username, matchedSite, new Date().toISOString(), ip, device, ua.substring(0, 500)).run().catch(function(){})
       );
     }
 

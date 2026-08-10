@@ -13,22 +13,29 @@ export async function onRequest(context) {
     var site = rawSite;
     try { site = new URL(rawSite).hostname; } catch (e) {}
 
-    var siteRow = await env.DB.prepare('SELECT username FROM site_mappings WHERE site = ?1').bind(site).first();
-    if (!siteRow) { siteRow = await env.DB.prepare('SELECT username FROM site_mappings WHERE site = ?1').bind(rawSite).first(); }
-    if (!siteRow && rawSite !== site) { siteRow = await env.DB.prepare('SELECT username FROM site_mappings WHERE site LIKE ?1').bind('%' + site + '%').first(); }
+    var siteRow = await env.DB.prepare('SELECT username FROM site_mappings WHERE site = ?1 OR site = ?2').bind(site, rawSite).first();
+    if (!siteRow) {
+      var allMaps = await env.DB.prepare('SELECT site, username FROM site_mappings').all();
+      if (allMaps && allMaps.results) {
+        for (var mi = 0; mi < allMaps.results.length && !siteRow; mi++) {
+          var mapped = allMaps.results[mi];
+          try { if (new URL(mapped.site).hostname === site) siteRow = mapped; } catch(e) {}
+        }
+      }
+    }
     const username = siteRow ? siteRow.username : '';
+    var matchedSite = siteRow ? siteRow.site : site;
 
     var apkUrl = '';
     var version = 0;
 
-    // 并行读 D1(account_sites → accounts) + KV
     var d1Result = null;
     var kvResult = null;
 
     if (username) {
       try {
-        d1Result = await env.DB.prepare('SELECT apk_url FROM account_sites WHERE site = ?1 AND username = ?2').bind(site, username).first();
-        if ((!d1Result || !d1Result.apk_url) && rawSite !== site) {
+        d1Result = await env.DB.prepare('SELECT apk_url FROM account_sites WHERE site = ?1 AND username = ?2').bind(matchedSite, username).first();
+        if ((!d1Result || !d1Result.apk_url) && rawSite !== matchedSite) {
           d1Result = await env.DB.prepare('SELECT apk_url FROM account_sites WHERE site = ?1 AND username = ?2').bind(rawSite, username).first();
         }
         if (!d1Result || !d1Result.apk_url) {
@@ -51,12 +58,12 @@ export async function onRequest(context) {
     }
 
     // 计数器写入 D1（非阻塞，按站点区分）
-    if (username) {
+    if (username && matchedSite) {
       const today = new Date().toISOString().slice(0, 10);
       context.waitUntil(
         env.DB.prepare(
           'INSERT INTO download_counts (username, date, site, count) VALUES (?1, ?2, ?3, 1) ON CONFLICT (username, date, site) DO UPDATE SET count = count + 1'
-        ).bind(username, today, site).run().catch(function(){})
+        ).bind(username, today, matchedSite).run().catch(function(){})
       );
     }
 
