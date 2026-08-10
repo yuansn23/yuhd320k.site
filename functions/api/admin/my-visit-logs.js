@@ -30,7 +30,17 @@ export async function onRequest(context) {
     const limit = Math.min(parseInt(url.searchParams.get('limit') || '200'), 500);
 
     var result;
-    if (dateStart && dateEnd) {
+    // 6 种组合：site + start + end, site + start, site + end, start + end, site only, none
+    if (filterSite && dateStart && dateEnd) {
+      result = await env.DB.prepare('SELECT site, visit_time, ip, device, lang FROM visit_logs WHERE username = ?1 AND site = ?2 AND visit_time >= ?3 AND visit_time <= ?4 ORDER BY visit_time DESC LIMIT ?5')
+        .bind(me.user, filterSite, dateStart + 'T00:00:00.000Z', dateEnd + 'T23:59:59.999Z', limit).all();
+    } else if (filterSite && dateStart) {
+      result = await env.DB.prepare('SELECT site, visit_time, ip, device, lang FROM visit_logs WHERE username = ?1 AND site = ?2 AND visit_time >= ?3 ORDER BY visit_time DESC LIMIT ?4')
+        .bind(me.user, filterSite, dateStart + 'T00:00:00.000Z', limit).all();
+    } else if (filterSite && dateEnd) {
+      result = await env.DB.prepare('SELECT site, visit_time, ip, device, lang FROM visit_logs WHERE username = ?1 AND site = ?2 AND visit_time <= ?3 ORDER BY visit_time DESC LIMIT ?4')
+        .bind(me.user, filterSite, dateEnd + 'T23:59:59.999Z', limit).all();
+    } else if (dateStart && dateEnd) {
       result = await env.DB.prepare('SELECT site, visit_time, ip, device, lang FROM visit_logs WHERE username = ?1 AND visit_time >= ?2 AND visit_time <= ?3 ORDER BY visit_time DESC LIMIT ?4')
         .bind(me.user, dateStart + 'T00:00:00.000Z', dateEnd + 'T23:59:59.999Z', limit).all();
     } else if (dateStart) {
