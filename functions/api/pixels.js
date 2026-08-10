@@ -34,31 +34,30 @@ export async function onRequest(context) {
     var kvResult = null;
 
     if (username) {
-      try {
-        // 标准化 matchedSite：site_mappings 可能存完整URL，account_sites 存纯域名，需要对齐
-        var matchedHost = matchedSite;
-        try { matchedHost = new URL(matchedSite).hostname; } catch (e) {}
-        // 优先从 account_sites 按站点读（多轮尝试：原值 → hostname → rawSite → rawHost）
-        d1Result = await env.DB.prepare('SELECT pixel_ids, config_version FROM account_sites WHERE site = ?1 AND username = ?2').bind(matchedSite, username).first();
-        if ((!d1Result || !d1Result.pixel_ids || d1Result.pixel_ids === '[]') && matchedHost !== matchedSite) {
-          d1Result = await env.DB.prepare('SELECT pixel_ids, config_version FROM account_sites WHERE site = ?1 AND username = ?2').bind(matchedHost, username).first();
-        }
-        if ((!d1Result || !d1Result.pixel_ids || d1Result.pixel_ids === '[]') && rawSite !== matchedSite && rawSite !== matchedHost) {
-          d1Result = await env.DB.prepare('SELECT pixel_ids, config_version FROM account_sites WHERE site = ?1 AND username = ?2').bind(rawSite, username).first();
-        }
-        var rawHost = rawSite;
-        try { rawHost = new URL(rawSite).hostname; } catch (e) {}
-        if ((!d1Result || !d1Result.pixel_ids || d1Result.pixel_ids === '[]') && rawHost !== rawSite && rawHost !== matchedSite && rawHost !== matchedHost) {
-          d1Result = await env.DB.prepare('SELECT pixel_ids, config_version FROM account_sites WHERE site = ?1 AND username = ?2').bind(rawHost, username).first();
-        }
-        if (!d1Result || !d1Result.pixel_ids || d1Result.pixel_ids === '[]') {
-          // 回退 accounts 表
-          d1Result = await env.DB.prepare('SELECT pixel_ids, config_version FROM accounts WHERE username = ?1').bind(username).first();
-        }
-      } catch (e) {}
-      try {
-        kvResult = await env.kvadmin.get(username + ':pixel_ids');
-      } catch (e) {}
+      // 标准化 matchedSite：site_mappings 可能存完整URL，account_sites 存纯域名，需要对齐
+      var matchedHost = matchedSite;
+      try { matchedHost = new URL(matchedSite).hostname; } catch (e) {}
+      var rawHost = rawSite;
+      try { rawHost = new URL(rawSite).hostname; } catch (e) {}
+
+      // 多轮尝试 account_sites（每轮独立 try，不因缺列互相影响）
+      var d1Row = null;
+      var candidates = [matchedSite];
+      if (matchedHost !== matchedSite) candidates.push(matchedHost);
+      if (rawSite !== matchedSite && rawSite !== matchedHost) candidates.push(rawSite);
+      if (rawHost !== rawSite && rawHost !== matchedSite && rawHost !== matchedHost) candidates.push(rawHost);
+      for (var ci = 0; ci < candidates.length && (!d1Row || !d1Row.pixel_ids || d1Row.pixel_ids === '[]'); ci++) {
+        try { d1Row = await env.DB.prepare('SELECT pixel_ids FROM account_sites WHERE site = ?1 AND username = ?2').bind(candidates[ci], username).first(); } catch (e) {}
+      }
+
+      // 回退 accounts 表
+      if (!d1Row || !d1Row.pixel_ids || d1Row.pixel_ids === '[]') {
+        try { d1Row = await env.DB.prepare('SELECT pixel_ids, config_version FROM accounts WHERE username = ?1').bind(username).first(); } catch (e) {}
+      }
+
+      try { kvResult = await env.kvadmin.get(username + ':pixel_ids'); } catch (e) {}
+
+      d1Result = d1Row;
     }
 
     // 合并：D1 优先（按站点隔离的最新数据），KV 仅做回退
@@ -66,7 +65,7 @@ export async function onRequest(context) {
     var kvIds = [];
     if (d1Result && d1Result.pixel_ids) {
       try { d1Ids = JSON.parse(d1Result.pixel_ids); } catch (e) {}
-      version = d1Result.config_version || 0;
+      version = d1Result.config_version || 1;
     }
     if (kvResult) {
       try { kvIds = JSON.parse(kvResult); } catch (e) {}
