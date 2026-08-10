@@ -86,16 +86,31 @@ export async function onRequest(context) {
       daily.push({ date: dates[k], count: d1Map[dates[k]] });
     }
 
-    // 并行读取配置（D1 优先，KV 回退）
+    // 并行读取配置（按站点隔离：有 site 参数读 account_sites，无则读 accounts）
+    var qSite = (new URL(request.url)).searchParams.get('site') || '';
     var apkUrl = '';
     var history = [];
-    try {
-      var cfg = await env.DB.prepare('SELECT apk_url, apk_history FROM accounts WHERE username = ?1').bind(me.user).first();
-      if (cfg) {
-        apkUrl = cfg.apk_url || '';
-        if (cfg.apk_history) { try { history = JSON.parse(cfg.apk_history); } catch (e) {} }
-      }
-    } catch (e) {}
+    var fromAccountSites = false;
+    if (qSite) {
+      try {
+        var siteCfg = await env.DB.prepare('SELECT apk_url, apk_history FROM account_sites WHERE site = ?1 AND username = ?2').bind(qSite, me.user).first();
+        if (siteCfg) {
+          fromAccountSites = true;
+          apkUrl = siteCfg.apk_url || '';
+          if (siteCfg.apk_history) { try { history = JSON.parse(siteCfg.apk_history); } catch (e) {} }
+        }
+      } catch (e) {}
+    }
+    // 回退 accounts 表（无 site 参数，或 account_sites 中没有该站点）
+    if (!fromAccountSites) {
+      try {
+        var cfg = await env.DB.prepare('SELECT apk_url, apk_history FROM accounts WHERE username = ?1').bind(me.user).first();
+        if (cfg) {
+          apkUrl = apkUrl || cfg.apk_url || '';
+          if (!history.length && cfg.apk_history) { try { history = JSON.parse(cfg.apk_history); } catch (e) {} }
+        }
+      } catch (e) {}
+    }
     // KV 回退
     if (!apkUrl && !history.length) {
       try {
@@ -105,13 +120,6 @@ export async function onRequest(context) {
         ]);
         if (kvUrl) apkUrl = kvUrl;
         if (kvHist) history = JSON.parse(kvHist);
-        // 自动迁移
-        if (kvUrl || kvHist) {
-          context.waitUntil(
-            env.DB.prepare('UPDATE accounts SET apk_url = ?1, apk_history = ?2 WHERE username = ?3')
-              .bind(kvUrl || '', kvHist || '[]', me.user).run().catch(function(){})
-          );
-        }
       } catch (e) {}
     }
 
