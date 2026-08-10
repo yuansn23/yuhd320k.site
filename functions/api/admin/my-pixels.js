@@ -39,22 +39,23 @@ export async function onRequest(context) {
     if (request.method === 'GET') {
       var qSite = (new URL(request.url)).searchParams.get('site') || me.site || '';
       var ids = [];
-      // 从 account_sites 读
+      // 从 account_sites 读（站点存在就用它的，空就是空）
+      var siteExists = false;
       if (qSite) {
         try {
           var row = await env.DB.prepare('SELECT pixel_ids FROM account_sites WHERE site = ?1 AND username = ?2').bind(qSite, me.user).first();
-          if (row && row.pixel_ids) ids = JSON.parse(row.pixel_ids);
+          if (row) { siteExists = true; ids = JSON.parse(row.pixel_ids || '[]'); }
         } catch (e) {}
       }
-      // 回退 accounts 表
-      if (!ids.length) {
+      // 站点不在 account_sites 才回退 accounts 表
+      if (!siteExists) {
         try {
           var acc = await env.DB.prepare('SELECT pixel_ids FROM accounts WHERE username = ?1').bind(me.user).first();
           if (acc && acc.pixel_ids) ids = JSON.parse(acc.pixel_ids);
         } catch (e) {}
       }
-      // KV 回退
-      if (!ids.length) {
+      // KV 回退（仅站点不存在且 accounts 也无数据时）
+      if (!ids.length && !siteExists) {
         try { var raw = await env.kvadmin.get(me.user + ':pixel_ids'); if (raw) ids = JSON.parse(raw); } catch (e) {}
       }
       return new Response(JSON.stringify({ ids: ids }), {
@@ -70,7 +71,7 @@ export async function onRequest(context) {
       var idsJson = JSON.stringify(ids);
 
       if (site) {
-        // 写入 account_sites（按站点）
+        // 写入 account_sites（按站点隔离，不污染 accounts 共享表）
         try {
           await env.DB.prepare('INSERT INTO account_sites (site, username, pixel_ids, apk_url, apk_history) VALUES (?1, ?2, ?3, ?4, ?5) ON CONFLICT(site) DO UPDATE SET pixel_ids = ?3')
             .bind(site, me.user, idsJson, '', '[]').run();
@@ -78,10 +79,6 @@ export async function onRequest(context) {
           try { await env.DB.prepare('UPDATE account_sites SET pixel_ids = ?1 WHERE site = ?2 AND username = ?3').bind(idsJson, site, me.user).run(); } catch (e2) {}
         }
       }
-      // 同步更新 accounts 表（兼容）
-      try { await env.DB.prepare('UPDATE accounts SET pixel_ids = ?1, config_version = config_version + 1 WHERE username = ?2').bind(idsJson, me.user).run(); } catch (e) {}
-      // KV 回退
-      try { await env.kvadmin.put(me.user + ':pixel_ids', idsJson); } catch (e) {}
 
       return new Response(JSON.stringify({ ok: true, ids: ids, count: ids.length }), {
         headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }

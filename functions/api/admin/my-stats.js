@@ -115,24 +115,25 @@ export async function onRequest(context) {
       } catch (e) {}
     }
 
-    // 获取所有站点列表（account_sites + accounts 兜底）
+    // 获取所有站点列表（account_sites 优先，老数据从 accounts 兜底）
     var sites = [];
     try {
-      var acctRow = await env.DB.prepare('SELECT pixel_ids, apk_url FROM accounts WHERE username = ?1').bind(me.user).first();
-      var defPixelIds = (acctRow && acctRow.pixel_ids) ? JSON.parse(acctRow.pixel_ids) : [];
-      var defApkUrl = (acctRow && acctRow.apk_url) ? acctRow.apk_url : '';
       var sr = await env.DB.prepare('SELECT site, pixel_ids, apk_url FROM account_sites WHERE username = ?1').bind(me.user).all();
       if (sr && sr.results && sr.results.length) {
         sites = sr.results.map(function(r){
-          var pids = (r.pixel_ids && r.pixel_ids !== '[]') ? JSON.parse(r.pixel_ids) : defPixelIds;
-          return { site: r.site, pixelCount: pids.length, apkUrl: r.apk_url || defApkUrl };
+          var pids = JSON.parse(r.pixel_ids || '[]');
+          return { site: r.site, pixelCount: pids.length, apkUrl: r.apk_url || '' };
         });
-      } else if (me.site) {
-        sites = [{ site: me.site, pixelCount: defPixelIds.length, apkUrl: defApkUrl }];
       }
     } catch (e) {}
+    // 老数据兜底：account_sites 为空但 accounts.site 有值
     if (!sites.length && me.site) {
-      sites = [{ site: me.site, pixelCount: 0, apkUrl: '' }];
+      try {
+        var acctRow = await env.DB.prepare('SELECT pixel_ids, apk_url FROM accounts WHERE username = ?1').bind(me.user).first();
+        var pids = (acctRow && acctRow.pixel_ids) ? JSON.parse(acctRow.pixel_ids) : [];
+        var apk = (acctRow && acctRow.apk_url) ? acctRow.apk_url : '';
+        sites = [{ site: me.site, pixelCount: pids.length, apkUrl: apk }];
+      } catch (e) {}
     }
 
     return new Response(JSON.stringify({ total, apkUrl: apkUrl, history: history, daily, site: me.site, sites: sites }), {

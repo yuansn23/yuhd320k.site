@@ -86,7 +86,6 @@ export async function onRequest(context) {
           } catch (e) {
             try { await env.DB.prepare('UPDATE account_sites SET apk_history = ?1 WHERE site = ?2 AND username = ?3').bind(JSON.stringify(body.history), qSite, me.user).run(); } catch (e2) {}
           }
-          try { await env.DB.prepare('UPDATE accounts SET apk_history = ?1 WHERE username = ?2').bind(JSON.stringify(body.history), me.user).run(); } catch (e) {}
           return new Response(JSON.stringify({ ok: true, msg: '历史已更新' }), {
             headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
           });
@@ -127,8 +126,7 @@ export async function onRequest(context) {
         } catch (e) {
           try { await env.DB.prepare('UPDATE account_sites SET apk_url = ?1, apk_history = ?2 WHERE site = ?3 AND username = ?4').bind(apkUrl, histJson, qSite, me.user).run(); } catch (e2) {}
         }
-        // 同步 accounts
-        try { await env.DB.prepare('UPDATE accounts SET apk_url = ?1, apk_history = ?2, config_version = config_version + 1 WHERE username = ?3').bind(apkUrl, histJson, me.user).run(); } catch (e) {}
+        // 只写 account_sites，不污染其他站点
         return new Response(JSON.stringify({ ok: true, url: apkUrl }), {
           headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
         });
