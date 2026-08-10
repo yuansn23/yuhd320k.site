@@ -64,16 +64,29 @@ export async function onRequest(context) {
       else if (/iPod/i.test(ua)) { terminal = 'iOS'; phoneModel = 'iPod'; }
       else if (/Android/i.test(ua)) {
         terminal = '安卓';
-        // 尝试多种 Android UA 格式提取型号（支持连字符）
-        var patterns = [
-          /Android\s+\d+[^;)]*;\s*([\w-]+)\s+Build/,
-          /Android\s+\d+[^;)]*;\s*([\w-]+)\)/,
-          /Android\s+\d+\;\s*([\w-]+)\s/,
-          /Android\s*\([^)]*;\s*([\w-]+)\s*;/
-        ];
-        for (var pi = 0; pi < patterns.length && !phoneModel; pi++) {
-          var pm = ua.match(patterns[pi]);
-          if (pm) phoneModel = pm[1];
+        // 标准格式: Android VERSION; MODEL Build/
+        var stdModel = ua.match(/Android\s+\d+[^;]*;\s*([A-Za-z][\w-]{2,20})\s+Build/);
+        if (stdModel && !/^\d+$/.test(stdModel[1])) phoneModel = stdModel[1];
+        // Instagram 内嵌格式: Android (dpi; wxh; maker; MODEL; ...)
+        if (!phoneModel) {
+          var igMatch = ua.match(/Android\s*\([^)]+\)/);
+          if (igMatch) {
+            var igParts = igMatch[0].split(/[;)]/);
+            for (var pi = 0; pi < igParts.length; pi++) {
+              var part = igParts[pi].trim();
+              // 型号特征：3-20位，含字母，非纯数字，非已知关键词
+              if (part.length >= 3 && part.length <= 20 && /[A-Za-z]/.test(part) && !/^\d+$/.test(part)
+                  && !/^(Android|SHARP|Samsung|qcom|Orga|IABMV|dpi|wv|NV|\d+x\d+)$/i.test(part)) {
+                phoneModel = part;
+                break;
+              }
+            }
+          }
+        }
+        // 最后兜底：; MODEL )
+        if (!phoneModel) {
+          var fb = ua.match(/;\s*([A-Za-z][\w-]{3,20})\s*\)/);
+          if (fb && !/^\d+$/.test(fb[1])) phoneModel = fb[1];
         }
       }
       else if (/Windows/i.test(ua)) { terminal = '电脑'; }
