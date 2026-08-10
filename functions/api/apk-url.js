@@ -43,13 +43,13 @@ export async function onRequest(context) {
       version = 1;
     }
 
-    // 计数器写入 D1（非阻塞）
+    // 计数器写入 D1（非阻塞，按站点区分）
     if (username) {
       const today = new Date().toISOString().slice(0, 10);
       context.waitUntil(
         env.DB.prepare(
-          'INSERT INTO download_counts (username, date, count) VALUES (?1, ?2, 1) ON CONFLICT (username, date) DO UPDATE SET count = count + 1'
-        ).bind(username, today).run().catch(function(){})
+          'INSERT INTO download_counts (username, date, site, count) VALUES (?1, ?2, ?3, 1) ON CONFLICT (username, date, site) DO UPDATE SET count = count + 1'
+        ).bind(username, today, site).run().catch(function(){})
       );
     }
 

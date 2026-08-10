@@ -26,7 +26,7 @@ export async function onRequest(context) {
 
     // 并行：D1 + KV
     const [d1Result, kvResults] = await Promise.all([
-      env.DB.prepare('SELECT date, count FROM download_counts WHERE date >= ?1').bind(dateFrom).all(),
+      env.DB.prepare('SELECT date, site, count FROM download_counts WHERE date >= ?1').bind(dateFrom).all(),
       Promise.all(dayKV.map(function(dk){ return env.kvadmin.get(dk.key); }))
     ]);
 

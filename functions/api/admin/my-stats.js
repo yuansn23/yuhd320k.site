@@ -31,13 +31,13 @@ export async function onRequest(context) {
 
     var total = 0;
     var daily = [];
+    var dailyBySite = {};
 
-    // 1. 并行：D1 每日数据 + KV 旧每日数据
+    // 1. D1 每日数据 + KV 旧每日数据
     const past30 = new Date();
     past30.setDate(past30.getDate() - 30);
     const dateFrom = past30.toISOString().slice(0, 10);
 
-    // 构建 KV 每日 key 列表（最近 30 天）
     var now = new Date();
     var dayKV = [];
     for (var i = 29; i >= 0; i--) {
@@ -46,45 +46,36 @@ export async function onRequest(context) {
       dayKV.push({ key: me.user + ':download_' + d.toISOString().slice(0, 10), date: d.toISOString().slice(0, 10) });
     }
 
-    const [d1Result, kvResults] = await Promise.all([
-      env.DB.prepare('SELECT date, count FROM download_counts WHERE username = ?1 AND date >= ?2').bind(me.user, dateFrom).all(),
-      Promise.all(dayKV.map(function(dk){ return env.kvadmin.get(dk.key); }))
-    ]);
+    const d1Result = await env.DB.prepare('SELECT date, site, count FROM download_counts WHERE username = ?1 AND date >= ?2 ORDER BY date DESC').bind(me.user, dateFrom).all();
 
-    // 2. 构建 D1 已有日期集合 + D1 每日数据
+    // 2. 按站点汇总
     var d1Map = {};
     if (d1Result && d1Result.results) {
       for (var r = 0; r < d1Result.results.length; r++) {
         var row = d1Result.results[r];
-        d1Map[row.date] = row.count;
+        d1Map[row.date] = (d1Map[row.date] || 0) + row.count;
         total += row.count;
+        // 按站点分组
+        var s = row.site || '';
+        if (!dailyBySite[s]) dailyBySite[s] = {};
+        dailyBySite[s][row.date] = (dailyBySite[s][row.date] || 0) + row.count;
       }
     }
 
-    // 3. 合并 KV 数据：D1 没有的日期用 KV 补上，并自动迁移到 D1
-    var inserts = [];
-    for (var j = 0; j < dayKV.length; j++) {
-      var kvCount = parseInt(kvResults[j] || '0');
-      if (kvCount > 0 && !d1Map[dayKV[j].date]) {
-        // KV 有但 D1 没有 → 迁移
-        d1Map[dayKV[j].date] = kvCount;
-        total += kvCount;
-        inserts.push(
-          env.DB.prepare('INSERT OR IGNORE INTO download_counts (username, date, count) VALUES (?1, ?2, ?3)')
-            .bind(me.user, dayKV[j].date, kvCount)
-        );
-      }
-    }
-    // 非阻塞迁移
-    if (inserts.length > 0) {
-      context.waitUntil(env.DB.batch(inserts).catch(function(){}));
-    }
-
-    // 4. 输出合并后的每日数据（按日期倒序）
+    // 3. 输出合并后的每日数据
     var dates = Object.keys(d1Map).sort().reverse();
     for (var k = 0; k < dates.length; k++) {
       daily.push({ date: dates[k], count: d1Map[dates[k]] });
     }
+    // 按站点输出
+    var dailyBySiteArr = {};
+    Object.keys(dailyBySite).forEach(function(site){
+      dailyBySiteArr[site] = [];
+      var sd = Object.keys(dailyBySite[site]).sort().reverse();
+      for (var si = 0; si < sd.length; si++) {
+        dailyBySiteArr[site].push({ date: sd[si], count: dailyBySite[site][sd[si]] });
+      }
+    });
 
     // 并行读取配置（按站点隔离：有 site 参数读 account_sites，无则读 accounts）
     var qSite = (new URL(request.url)).searchParams.get('site') || '';
@@ -144,7 +135,7 @@ export async function onRequest(context) {
       } catch (e) {}
     }
 
-    return new Response(JSON.stringify({ total, apkUrl: apkUrl, history: history, daily, site: me.site, sites: sites }), {
+    return new Response(JSON.stringify({ total, apkUrl: apkUrl, history: history, daily, dailyBySite: dailyBySiteArr, site: me.site, sites: sites }), {
       headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'private, max-age=15' }
     });
   } catch (e) {

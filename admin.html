@@ -310,8 +310,24 @@ async function loadStats(){
 
     var tbody = document.getElementById('dailyBody');
     var daily = d.daily||[];
-    if(!daily.length){ tbody.innerHTML='<tr><td colspan="2" class="empty">暂无数据</td></tr>'; return; }
-    tbody.innerHTML = daily.map(function(x){ return '<tr><td>'+x.date+'</td><td><strong>'+x.count+'</strong></td></tr>'; }).join('');
+    var dailyBySite = d.dailyBySite||{};
+    var sites = Object.keys(dailyBySite);
+    var html = '';
+    if(!daily.length && !sites.length){ tbody.innerHTML='<tr><td colspan="2" class="empty">暂无数据</td></tr>'; return; }
+    // 总计
+    if(daily.length){
+      html += '<tr style="background:rgba(255,255,255,.03)"><td colspan="2" style="font-weight:700;color:var(--fg)">📊 全部站点合计</td></tr>';
+      html += daily.map(function(x){ return '<tr><td>'+x.date+'</td><td><strong>'+x.count+'</strong></td></tr>'; }).join('');
+    }
+    // 按站点
+    sites.forEach(function(site){
+      var siteData = dailyBySite[site]||[];
+      if(!siteData.length) return;
+      var siteLabel = site || '默认站点';
+      html += '<tr style="background:rgba(255,255,255,.03)"><td colspan="2" style="font-weight:700;color:var(--blue)">📍 '+esc(siteLabel)+'</td></tr>';
+      html += siteData.map(function(x){ return '<tr><td style="padding-left:24px">'+x.date+'</td><td><strong>'+x.count+'</strong></td></tr>'; }).join('');
+    });
+    tbody.innerHTML = html;
   }catch(e){}
 }
 
@@ -517,7 +533,7 @@ function savePixel(i){
   var id = input.value.trim();
   if(!/^\d{10,20}$/.test(id)){ alert('无效像素ID'); return; }
   _pixelIds[i] = id;
-  savePixelsToServer();
+  savePixelsToServer(function(){ alert('✅ 像素ID修改成功'); });
 }
 
 function delPixel(i){
@@ -538,8 +554,7 @@ async function addPixel(){
 
 // 序列化保存队列，防止并发覆盖
 var _saveQueue = Promise.resolve();
-function savePixelsToServer(){
-  // 快照：入队时立即捕获当前站点的数据，防止切换站点后串数据
+function savePixelsToServer(onSuccess){
   var snapIds = _pixelIds.slice();
   var snapSite = _currentSite;
   _saveQueue = _saveQueue.then(function(){
@@ -547,8 +562,8 @@ function savePixelsToServer(){
     .then(function(r){return r.json()})
     .then(function(d){
       if(d.ok){
-        // 只有当前站点没变才更新本地数据，避免旧保存覆盖新数据
         if(snapSite === _currentSite){ _pixelIds = d.ids; loadPixels(); }
+        if(onSuccess) onSuccess();
       }
       else alert(d.error);
     });
