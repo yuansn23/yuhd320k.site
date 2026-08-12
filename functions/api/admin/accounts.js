@@ -188,9 +188,9 @@ export async function onRequest(context) {
       const body = await request.json();
       const { username, newUsername, password, site, action } = body;
 
-      // 清理站点URL（仅去空白，管理员输入什么就存什么）
+      // 标准化站点为纯域名
       function normalizeSite(s) {
-        return s.trim();
+        try { return new URL(s).hostname; } catch(e) { return s.trim(); }
       }
 
       // -- 启用/禁用 --
