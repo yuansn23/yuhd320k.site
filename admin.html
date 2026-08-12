@@ -131,7 +131,7 @@ function buildNav(){
   if(S.role==='admin'){
     nav.innerHTML = '<a class="active" data-p="accounts">📋 账户管理</a><a data-p="loginLogs">🕐 登录日志</a>';
   } else {
-    nav.innerHTML = '<a class="active" data-p="dashboard">📊 控制台</a><a data-p="landing">🌐 我的落地页</a><a data-p="visits">📈 流量访问</a><a data-p="apk">📦 普通跳转地址配置</a><a data-p="pixels">📡 像素管理</a>';
+    nav.innerHTML = '<a class="active" data-p="dashboard">📊 控制台</a><a data-p="landing">🌐 我的落地页</a><a data-p="visits">📈 流量访问</a><a data-p="clicks">👆 点击统计</a><a data-p="apk">📦 普通跳转地址配置</a><a data-p="pixels">📡 像素管理</a>';
   }
   nav.querySelectorAll('a').forEach(function(a){
     a.onclick = function(){
@@ -145,6 +145,7 @@ function buildNav(){
       else if(p==='visits') showVisits();
       else if(p==='apk') showApk();
       else if(p==='pixels') showPixels();
+      else if(p==='clicks') showClicks();
     };
   });
 }
@@ -457,6 +458,67 @@ function showDailyDetail(dailyBySite, defaultSite, sitesList, filterDate){
   document.body.appendChild(overlay);
   overlay.querySelector('#closeDetail').onclick = function(){ overlay.remove(); };
   overlay.onclick = function(e){ if(e.target===overlay) overlay.remove(); };
+}
+
+// ========== USER: 点击统计 ==========
+var _clickPage = 1, _clickSite = '';
+
+async function showClicks(){
+  var main = document.getElementById('mainContent');
+  main.innerHTML = '<div class="page-header"><h1>👆 点击统计</h1></div>'+
+    '<div class="card" style="margin-bottom:12px"><div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">'+
+    '<label style="font-size:.82rem;color:var(--muted)">落地页筛选：</label>'+
+    '<select id="clickSiteFilter" style="padding:6px 10px;border-radius:6px;border:1px solid var(--border);background:#0d0f16;color:var(--text);font-size:.82rem"><option value="">全部站点</option></select>'+
+    '<span style="font-size:.8rem;color:var(--muted)" id="clickTotal">共 0 条</span>'+
+    '</div></div>'+
+    '<div class="card"><table><thead><tr><th>点击时间</th><th>落地页</th><th>IP地址</th><th>设备</th><th>语言</th></tr></thead><tbody id="clickBody"><tr><td colspan="5" class="empty">加载中...</td></tr></tbody></table>'+
+    '<div style="display:flex;justify-content:center;align-items:center;gap:8px;margin-top:14px" id="clickPager"></div></div>';
+  loadClickLogs();
+}
+
+async function loadClickLogs(){
+  var siteFilter = document.getElementById('clickSiteFilter');
+  if(!siteFilter){ return; }
+  try{
+    // 加载站点列表到下拉框
+    var r1 = await fetch('/api/admin/my-click-logs?page=1&_='+Date.now(),{headers:{'Authorization':'Basic '+S.token}});
+    var d1 = await r1.json();
+    if(d1.sites && siteFilter.options.length<=1){
+      for(var si=0; si<d1.sites.length; si++){
+        var opt = document.createElement('option');
+        opt.value = d1.sites[si]; opt.textContent = d1.sites[si];
+        if(d1.sites[si]===_clickSite) opt.selected = true;
+        siteFilter.appendChild(opt);
+      }
+    }
+    siteFilter.onchange = function(){ _clickSite = this.value; _clickPage = 1; loadClickLogs(); };
+
+    var url = '/api/admin/my-click-logs?page='+_clickPage+'&_='+Date.now();
+    if(_clickSite) url += '&site='+encodeURIComponent(_clickSite);
+    var r = await fetch(url,{headers:{'Authorization':'Basic '+S.token}});
+    var d = await r.json();
+    document.getElementById('clickTotal').textContent = '共 '+d.total+' 条';
+    var tbody = document.getElementById('clickBody');
+    if(!d.rows.length){ tbody.innerHTML = '<tr><td colspan="5" class="empty">暂无点击数据</td></tr>'; }
+    else {
+      tbody.innerHTML = d.rows.map(function(r){
+        var ts = r.click_time ? r.click_time.replace('T',' ').substring(0,19) : '';
+        return '<tr><td>'+ts+'</td><td style="font-family:monospace;word-break:break-all;max-width:300px">'+esc(r.site)+'</td><td style="font-family:monospace">'+esc(r.ip)+'</td><td>'+esc(r.device||'—')+'</td><td>'+esc(r.lang||'—')+'</td></tr>';
+      }).join('');
+    }
+    // 分页
+    var pages = Math.ceil(d.total / d.pageSize);
+    var pager = document.getElementById('clickPager');
+    if(pages <= 1){ pager.innerHTML = ''; return; }
+    var html = '';
+    for(var pi = 1; pi <= pages; pi++){
+      html += '<button class="btn '+(pi===_clickPage?'btn-p':'btn-o')+' btn-sm" data-cp="'+pi+'">'+pi+'</button>';
+    }
+    pager.innerHTML = html;
+    pager.querySelectorAll('[data-cp]').forEach(function(b){
+      b.onclick = function(){ _clickPage = parseInt(this.getAttribute('data-cp')); loadClickLogs(); };
+    });
+  }catch(e){ document.getElementById('clickBody').innerHTML = '<tr><td colspan="5" class="empty">加载失败</td></tr>'; }
 }
 
 // ========== USER: 我的落地页 ==========

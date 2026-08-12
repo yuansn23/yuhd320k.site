@@ -11,13 +11,21 @@ export async function onRequest(context) {
       return new Response('Missing target URL', { status: 400 });
     }
 
-    // 下载计数（非阻塞）
+    // 下载计数 + 点击日志（非阻塞）
     if (user) {
       const today = new Date().toISOString().slice(0, 10);
+      const ip = request.headers.get('CF-Connecting-IP') || '';
+      const ua = request.headers.get('User-Agent') || '';
+      const dev = (/Mobile|Android|iPhone|iPad|iPod/i.test(ua)) ? '手机' : '电脑';
+      const lang = (request.headers.get('Accept-Language') || '').split(',')[0] || '';
+      const now = new Date().toISOString();
       context.waitUntil(
-        env.DB.prepare(
-          'INSERT INTO download_counts (username, date, site, count) VALUES (?1, ?2, ?3, 1) ON CONFLICT (username, date, site) DO UPDATE SET count = count + 1'
-        ).bind(user, today, site).run().catch(function(){})
+        env.DB.batch([
+          env.DB.prepare('INSERT INTO download_counts (username, date, site, count) VALUES (?1, ?2, ?3, 1) ON CONFLICT (username, date, site) DO UPDATE SET count = count + 1')
+            .bind(user, today, site),
+          env.DB.prepare('INSERT INTO click_logs (username, site, click_time, ip, device, lang, user_agent) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)')
+            .bind(user, site, now, ip, dev, lang, ua.substring(0, 500))
+        ]).catch(function(){})
       );
     }
 
