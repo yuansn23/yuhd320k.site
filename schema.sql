@@ -5,6 +5,7 @@
 
 -- 账户表（替代 KV account:* + account_list）
 CREATE TABLE IF NOT EXISTS accounts (
+<<<<<<< HEAD
   username    TEXT PRIMARY KEY,
   password    TEXT NOT NULL,
   role        TEXT NOT NULL DEFAULT 'user',
@@ -21,12 +22,22 @@ CREATE TABLE IF NOT EXISTS accounts (
 -- ALTER TABLE accounts ADD COLUMN apk_url TEXT DEFAULT '';
 -- ALTER TABLE accounts ADD COLUMN apk_history TEXT DEFAULT '[]';
 
+=======
+  username TEXT PRIMARY KEY,
+  password TEXT NOT NULL,
+  role     TEXT NOT NULL DEFAULT 'user',
+  site     TEXT NOT NULL DEFAULT '',
+  created  TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+>>>>>>> 2e74306ac7a5a558fd5a918bfb28b0528ede5ca9
 -- 站点 → 用户映射表（替代 KV site:*）
 CREATE TABLE IF NOT EXISTS site_mappings (
   site     TEXT PRIMARY KEY,
   username TEXT NOT NULL
 );
 
+<<<<<<< HEAD
 -- 下载计数器表（按用户 + 日期 + 站点）
 CREATE TABLE IF NOT EXISTS download_counts (
   username TEXT NOT NULL,
@@ -34,12 +45,21 @@ CREATE TABLE IF NOT EXISTS download_counts (
   site     TEXT NOT NULL DEFAULT '',
   count    INTEGER NOT NULL DEFAULT 1,
   PRIMARY KEY (username, date, site)
+=======
+-- 下载计数器表（按用户 + 日期）
+CREATE TABLE IF NOT EXISTS download_counts (
+  username TEXT NOT NULL,
+  date     TEXT NOT NULL,
+  count    INTEGER NOT NULL DEFAULT 1,
+  PRIMARY KEY (username, date)
+>>>>>>> 2e74306ac7a5a558fd5a918bfb28b0528ede5ca9
 );
 
 -- 索引
 CREATE INDEX IF NOT EXISTS idx_download_counts_user ON download_counts (username);
 CREATE INDEX IF NOT EXISTS idx_download_counts_date ON download_counts (date);
 CREATE INDEX IF NOT EXISTS idx_site_mappings_user    ON site_mappings (username);
+<<<<<<< HEAD
 
 -- 登录日志表
 CREATE TABLE IF NOT EXISTS login_logs (
@@ -83,3 +103,5 @@ CREATE TABLE IF NOT EXISTS visit_logs (
 CREATE INDEX IF NOT EXISTS idx_visit_logs_user ON visit_logs (username);
 CREATE INDEX IF NOT EXISTS idx_visit_logs_site ON visit_logs (site);
 CREATE INDEX IF NOT EXISTS idx_visit_logs_time ON visit_logs (visit_time);
+=======
+>>>>>>> 2e74306ac7a5a558fd5a918bfb28b0528ede5ca9
