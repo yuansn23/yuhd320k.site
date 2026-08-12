@@ -107,10 +107,15 @@ export async function onRequest(context) {
       version = 1;
     }
 
-    // 在下载链接上附加追踪参数，点击下载时由 dl.js 计数
+    // 附加追踪参数：APK 文件直传 dl.js，外链走 /api/rd 中转计数后跳转
     if (apkUrl && username) {
-      var sep = apkUrl.indexOf('?') === -1 ? '?' : '&';
-      apkUrl += sep + '_u=' + encodeURIComponent(username) + '&_s=' + encodeURIComponent(matchedSite);
+      var isDl = apkUrl.indexOf('/api/dl') !== -1;
+      if (isDl) {
+        apkUrl += '&_u=' + encodeURIComponent(username) + '&_s=' + encodeURIComponent(matchedSite);
+      } else {
+        var apiHost = new URL(request.url).hostname;
+        apkUrl = 'https://' + apiHost + '/api/rd?_u=' + encodeURIComponent(username) + '&_s=' + encodeURIComponent(matchedSite) + '&_t=' + encodeURIComponent(apkUrl);
+      }
     }
 
     return new Response(JSON.stringify({ url: apkUrl, version: version, _site: site, _dbg: { rawSite: rawSite, site: site, foundMapping: !!siteRow, username: username, matchedSite: matchedSite, matchedHost: typeof matchedHost !== 'undefined' ? matchedHost : '', fromD1: !!d1Result, fromKV: !!kvResult } }), {
