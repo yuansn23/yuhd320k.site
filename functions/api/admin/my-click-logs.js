@@ -27,31 +27,31 @@ export async function onRequest(context) {
     }
 
     const url = new URL(request.url);
-    const page = parseInt(url.searchParams.get('page')) || 1;
-    const siteFilter = url.searchParams.get('site') || '';
-    const limit = 50;
+    const filterSite = url.searchParams.get('site') || '';
+    const dateStart = url.searchParams.get('start') || '';
+    const dateEnd = url.searchParams.get('end') || '';
+    const limit = Math.min(parseInt(url.searchParams.get('limit') || '50'), 200);
+    const page = Math.max(parseInt(url.searchParams.get('page') || '1'), 1);
     const offset = (page - 1) * limit;
 
-    var total = 0;
-    var rows = [];
+    // 动态构建 WHERE
+    var whereBase = 'username = ?1';
+    var condParams = [me.user];
+    var idx = 2;
+    if (filterSite) { whereBase += ' AND site = ?' + (idx++); condParams.push(filterSite); }
+    if (dateStart) { whereBase += ' AND click_time >= ?' + (idx++); condParams.push(dateStart + 'T00:00:00.000Z'); }
+    if (dateEnd) { whereBase += ' AND click_time <= ?' + (idx++); condParams.push(dateEnd + 'T23:59:59.999Z'); }
 
     // 统计总数
-    if (siteFilter) {
-      var tc = await env.DB.prepare('SELECT COUNT(*) AS cnt FROM click_logs WHERE username = ?1 AND site = ?2').bind(me.user, siteFilter).first();
-    } else {
-      var tc = await env.DB.prepare('SELECT COUNT(*) AS cnt FROM click_logs WHERE username = ?1').bind(me.user).first();
-    }
-    total = tc ? tc.cnt : 0;
+    var tc = await env.DB.prepare('SELECT COUNT(*) AS cnt FROM click_logs WHERE ' + whereBase).bind.apply(null, [env.DB].concat(condParams)).first();
+    var total = tc ? tc.cnt : 0;
 
     // 分页查询
-    if (siteFilter) {
-      var rr = await env.DB.prepare('SELECT click_time, site, ip, device, lang FROM click_logs WHERE username = ?1 AND site = ?2 ORDER BY click_time DESC LIMIT ?3 OFFSET ?4').bind(me.user, siteFilter, limit, offset).all();
-    } else {
-      var rr = await env.DB.prepare('SELECT click_time, site, ip, device, lang FROM click_logs WHERE username = ?1 ORDER BY click_time DESC LIMIT ?2 OFFSET ?3').bind(me.user, limit, offset).all();
-    }
-    rows = (rr && rr.results) ? rr.results : [];
+    var qParams = condParams.concat([limit, offset]);
+    var rr = await env.DB.prepare('SELECT click_time, site, ip, device, lang FROM click_logs WHERE ' + whereBase + ' ORDER BY click_time DESC LIMIT ?' + (idx++) + ' OFFSET ?' + (idx++)).bind.apply(null, [env.DB].concat(qParams)).all();
+    var rows = (rr && rr.results) ? rr.results : [];
 
-    // 获取用户的站点列表用作筛选下拉
+    // 获取用户的站点列表
     var sites = [];
     try {
       var sr = await env.DB.prepare('SELECT site FROM account_sites WHERE username = ?1').bind(me.user).all();

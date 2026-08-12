@@ -466,22 +466,27 @@ var _clickPage = 1, _clickSite = '';
 async function showClicks(){
   var main = document.getElementById('mainContent');
   main.innerHTML = '<div class="page-header"><h1>👆 点击统计</h1></div>'+
-    '<div class="card" style="margin-bottom:12px"><div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">'+
-    '<label style="font-size:.82rem;color:var(--muted)">落地页筛选：</label>'+
+    '<div class="card"><h3>📍 筛选条件</h3><div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px">'+
+    '<span style="color:var(--muted);font-size:.8rem">落地页:</span>'+
     '<select id="clickSiteFilter" style="padding:6px 10px;border-radius:6px;border:1px solid var(--border);background:#0d0f16;color:var(--text);font-size:.82rem"><option value="">全部站点</option></select>'+
-    '<span style="font-size:.8rem;color:var(--muted)" id="clickTotal">共 0 条</span>'+
+    '<span style="color:var(--muted);font-size:.8rem;margin-left:8px">日期:</span>'+
+    '<input type="date" id="clickDateStart" style="width:170px;min-height:42px;padding:10px 14px;font-size:.9rem;border-radius:8px;border:1px solid var(--border);background:#0d0f16;color:var(--text);cursor:pointer">'+
+    '<span style="font-size:.86rem;margin:0 4px">至</span>'+
+    '<input type="date" id="clickDateEnd" style="width:170px;min-height:42px;padding:10px 14px;font-size:.9rem;border-radius:8px;border:1px solid var(--border);background:#0d0f16;color:var(--text);cursor:pointer">'+
+    '<button class="btn btn-p btn-sm" id="clickFilterBtn">查询</button>'+
     '</div></div>'+
-    '<div class="card"><table><thead><tr><th>点击时间</th><th>落地页</th><th>IP地址</th><th>设备</th><th>语言</th></tr></thead><tbody id="clickBody"><tr><td colspan="5" class="empty">加载中...</td></tr></tbody></table>'+
-    '<div style="display:flex;justify-content:center;align-items:center;gap:8px;margin-top:14px" id="clickPager"></div></div>';
+    '<div class="card"><h3>📋 点击记录 <span id="clickTotal" style="font-weight:400;font-size:.8rem;color:var(--muted)"></span></h3><table><thead><tr><th>点击时间</th><th>落地页</th><th>IP地址</th><th>设备</th><th>语言</th></tr></thead><tbody id="clickBody"><tr><td colspan="5" class="empty">加载中...</td></tr></tbody></table></div>';
+  document.getElementById('clickFilterBtn').onclick = function(){ _clickPage = 1; loadClickLogs(); };
   loadClickLogs();
 }
 
 async function loadClickLogs(){
   var siteFilter = document.getElementById('clickSiteFilter');
   if(!siteFilter){ return; }
+  var tbody = document.getElementById('clickBody');
   try{
     // 加载站点列表到下拉框
-    var r1 = await fetch('/api/admin/my-click-logs?page=1&_='+Date.now(),{headers:{'Authorization':'Basic '+S.token}});
+    var r1 = await fetch('/api/admin/my-click-logs?limit=1&_='+Date.now(),{headers:{'Authorization':'Basic '+S.token}});
     var d1 = await r1.json();
     if(d1.sites && siteFilter.options.length<=1){
       for(var si=0; si<d1.sites.length; si++){
@@ -491,34 +496,35 @@ async function loadClickLogs(){
         siteFilter.appendChild(opt);
       }
     }
-    siteFilter.onchange = function(){ _clickSite = this.value; _clickPage = 1; loadClickLogs(); };
+    siteFilter.onchange = function(){ _clickSite = this.value; _clickPage = 1; };
 
-    var url = '/api/admin/my-click-logs?page='+_clickPage+'&_='+Date.now();
+    var url = '/api/admin/my-click-logs?limit=50&page='+_clickPage+'&_='+Date.now();
     if(_clickSite) url += '&site='+encodeURIComponent(_clickSite);
+    var ds = document.getElementById('clickDateStart').value;
+    var de = document.getElementById('clickDateEnd').value;
+    if(ds) url += '&start='+encodeURIComponent(ds);
+    if(de) url += '&end='+encodeURIComponent(de);
     var r = await fetch(url,{headers:{'Authorization':'Basic '+S.token}});
     var d = await r.json();
-    document.getElementById('clickTotal').textContent = '共 '+d.total+' 条';
-    var tbody = document.getElementById('clickBody');
-    if(!d.rows.length){ tbody.innerHTML = '<tr><td colspan="5" class="empty">暂无点击数据</td></tr>'; }
-    else {
-      tbody.innerHTML = d.rows.map(function(r){
-        var ts = r.click_time ? r.click_time.replace('T',' ').substring(0,19) : '';
-        return '<tr><td>'+ts+'</td><td style="font-family:monospace;word-break:break-all;max-width:300px">'+esc(r.site)+'</td><td style="font-family:monospace">'+esc(r.ip)+'</td><td>'+esc(r.device||'—')+'</td><td>'+esc(r.lang||'—')+'</td></tr>';
-      }).join('');
-    }
-    // 分页
-    var pages = Math.ceil(d.total / d.pageSize);
-    var pager = document.getElementById('clickPager');
-    if(pages <= 1){ pager.innerHTML = ''; return; }
-    var html = '';
-    for(var pi = 1; pi <= pages; pi++){
-      html += '<button class="btn '+(pi===_clickPage?'btn-p':'btn-o')+' btn-sm" data-cp="'+pi+'">'+pi+'</button>';
-    }
-    pager.innerHTML = html;
-    pager.querySelectorAll('[data-cp]').forEach(function(b){
-      b.onclick = function(){ _clickPage = parseInt(this.getAttribute('data-cp')); loadClickLogs(); };
-    });
-  }catch(e){ document.getElementById('clickBody').innerHTML = '<tr><td colspan="5" class="empty">加载失败</td></tr>'; }
+    var rows = d.rows||[];
+    var total = d.total||0;
+    var totalPages = Math.max(1, Math.ceil(total / 50));
+    document.getElementById('clickTotal').textContent = '共 '+total+' 条，第 '+_clickPage+'/'+totalPages+' 页';
+    if(!rows.length){ tbody.innerHTML='<tr><td colspan="5" class="empty">暂无点击数据</td></tr>'; return; }
+    var html = rows.map(function(r){
+      var ts = r.click_time ? r.click_time.replace('T',' ').substring(0,19) : '';
+      return '<tr><td>'+ts+'</td><td style="font-family:monospace;word-break:break-all;max-width:300px">'+esc(r.site)+'</td><td style="font-family:monospace">'+esc(r.ip)+'</td><td>'+esc(r.device||'—')+'</td><td>'+esc(r.lang||'—')+'</td></tr>';
+    }).join('');
+    // 翻页
+    var prevDisabled = _clickPage <= 1 ? ' disabled style="opacity:.4;cursor:not-allowed"' : '';
+    var nextDisabled = _clickPage >= totalPages ? ' disabled style="opacity:.4;cursor:not-allowed"' : '';
+    html += '<tr><td colspan="5" style="text-align:center;padding:16px"><button class="btn btn-o btn-sm"'+prevDisabled+' id="clickPrev">◀ 上一页</button> <span style="margin:0 12px;color:var(--muted);font-size:.82rem">'+_clickPage+' / '+totalPages+'</span> <button class="btn btn-o btn-sm"'+nextDisabled+' id="clickNext">下一页 ▶</button></td></tr>';
+    tbody.innerHTML = html;
+    var pb = document.getElementById('clickPrev');
+    var nb = document.getElementById('clickNext');
+    if(pb && !pb.disabled) pb.onclick = function(){ _clickPage--; loadClickLogs(); };
+    if(nb && !nb.disabled) nb.onclick = function(){ _clickPage++; loadClickLogs(); };
+  }catch(e){ tbody.innerHTML='<tr><td colspan="5" class="empty">加载失败</td></tr>'; }
 }
 
 // ========== USER: 我的落地页 ==========
