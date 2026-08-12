@@ -42,16 +42,22 @@ export async function onRequest(context) {
     if (dateStart) { whereBase += ' AND click_time >= ?' + (idx++); condParams.push(dateStart + 'T00:00:00.000Z'); }
     if (dateEnd) { whereBase += ' AND click_time <= ?' + (idx++); condParams.push(dateEnd + 'T23:59:59.999Z'); }
 
-    // 统计总数
-    var tc = await env.DB.prepare('SELECT COUNT(*) AS cnt FROM click_logs WHERE ' + whereBase).bind.apply(null, [env.DB].concat(condParams)).first();
-    var total = tc ? tc.cnt : 0;
+    // 统计总数（表可能不存在，兜底返回 0）
+    var total = 0;
+    try {
+      var tc = await env.DB.prepare('SELECT COUNT(*) AS cnt FROM click_logs WHERE ' + whereBase).bind.apply(null, [env.DB].concat(condParams)).first();
+      total = tc ? tc.cnt : 0;
+    } catch (e) {}
 
-    // 分页查询
-    var qParams = condParams.concat([limit, offset]);
-    var rr = await env.DB.prepare('SELECT click_time, site, ip, device, lang FROM click_logs WHERE ' + whereBase + ' ORDER BY click_time DESC LIMIT ?' + (idx++) + ' OFFSET ?' + (idx++)).bind.apply(null, [env.DB].concat(qParams)).all();
-    var rows = (rr && rr.results) ? rr.results : [];
+    // 分页查询（表可能不存在，兜底返回空）
+    var rows = [];
+    try {
+      var qParams = condParams.concat([limit, offset]);
+      var rr = await env.DB.prepare('SELECT click_time, site, ip, device, lang FROM click_logs WHERE ' + whereBase + ' ORDER BY click_time DESC LIMIT ?' + (idx++) + ' OFFSET ?' + (idx++)).bind.apply(null, [env.DB].concat(qParams)).all();
+      rows = (rr && rr.results) ? rr.results : [];
+    } catch (e) {}
 
-    // 获取用户的站点列表
+    // 获取用户的站点列表（独立查询，不受 click_logs 表是否存在影响）
     var sites = [];
     try {
       var sr = await env.DB.prepare('SELECT site FROM account_sites WHERE username = ?1').bind(me.user).all();

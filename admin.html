@@ -466,6 +466,14 @@ var _clickPage = 1, _clickSite = '';
 async function showClicks(){
   var main = document.getElementById('mainContent');
   main.innerHTML = '<div class="page-header"><h1>👆 点击统计</h1></div>'+
+    '<div class="card" style="background:linear-gradient(135deg,#2d1f0a 0%,#1a0f04 100%);border:1px solid #f0a030;margin-bottom:14px">'+
+    '<div style="display:flex;align-items:flex-start;gap:10px">'+
+    '<span style="font-size:1.4rem">⚠️</span>'+
+    '<div style="font-size:.84rem;color:#f0c060;line-height:1.7">'+
+    '<strong style="color:#f0a030">重要说明：</strong><br>'+
+    '1. 点击数据仅供参考，非 100% 精确。<br>'+
+    '2. 点击是指用户点击了落地页的<strong style="color:#f0a030">跳转按钮</strong>。如果您同时配置了 Facebook 转化事件，此处的点击数据会与 Facebook 成效数据<strong style="color:#f0a030">基本一致</strong>。'+
+    '</div></div></div>'+
     '<div class="card"><h3>📍 筛选条件</h3><div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px">'+
     '<span style="color:var(--muted);font-size:.8rem">落地页:</span>'+
     '<select id="clickSiteFilter" style="padding:6px 10px;border-radius:6px;border:1px solid var(--border);background:#0d0f16;color:var(--text);font-size:.82rem"><option value="">全部站点</option></select>'+
@@ -477,18 +485,18 @@ async function showClicks(){
     '</div></div>'+
     '<div class="card"><h3>📋 点击记录 <span id="clickTotal" style="font-weight:400;font-size:.8rem;color:var(--muted)"></span></h3><table><thead><tr><th>点击时间</th><th>落地页</th><th>IP地址</th><th>设备</th><th>语言</th></tr></thead><tbody id="clickBody"><tr><td colspan="5" class="empty">加载中...</td></tr></tbody></table></div>';
   document.getElementById('clickFilterBtn').onclick = function(){ _clickPage = 1; loadClickLogs(); };
+  // 先加载站点下拉框（独立于点击数据）
+  loadClickSites();
   loadClickLogs();
 }
 
-async function loadClickLogs(){
+async function loadClickSites(){
   var siteFilter = document.getElementById('clickSiteFilter');
-  if(!siteFilter){ return; }
-  var tbody = document.getElementById('clickBody');
-  try{
-    // 加载站点列表到下拉框
+  if(!siteFilter) return;
+  try {
     var r1 = await fetch('/api/admin/my-click-logs?limit=1&_='+Date.now(),{headers:{'Authorization':'Basic '+S.token}});
     var d1 = await r1.json();
-    if(d1.sites && siteFilter.options.length<=1){
+    if(d1.sites && d1.sites.length && siteFilter.options.length<=1){
       for(var si=0; si<d1.sites.length; si++){
         var opt = document.createElement('option');
         opt.value = d1.sites[si]; opt.textContent = d1.sites[si];
@@ -496,8 +504,15 @@ async function loadClickLogs(){
         siteFilter.appendChild(opt);
       }
     }
-    siteFilter.onchange = function(){ _clickSite = this.value; _clickPage = 1; };
+  } catch(e) {}
+  siteFilter.onchange = function(){ _clickSite = this.value; _clickPage = 1; loadClickLogs(); };
+}
 
+async function loadClickLogs(){
+  var siteFilter = document.getElementById('clickSiteFilter');
+  if(!siteFilter){ return; }
+  var tbody = document.getElementById('clickBody');
+  try{
     var url = '/api/admin/my-click-logs?limit=50&page='+_clickPage+'&_='+Date.now();
     if(_clickSite) url += '&site='+encodeURIComponent(_clickSite);
     var ds = document.getElementById('clickDateStart').value;
