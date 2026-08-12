@@ -10,8 +10,18 @@ export async function onRequest(context) {
     var site = rawSite;
     try { site = new URL(rawSite).hostname; } catch (e) {}
 
-    // 精确匹配优先：先查 rawSite，再尝试加 .html（兼容 clean URL），再查域名
+    // 精确匹配优先：rawSite → 斜杠变体 → .html → 域名（兼容新旧数据格式）
     var siteRow = await env.DB.prepare('SELECT site, username FROM site_mappings WHERE site = ?1').bind(rawSite).first();
+    // 末尾斜杠变体：配置 /path 也能匹配 /path/（反之亦然）
+    var rawSiteAlt = '';
+    if (!siteRow) {
+      if (rawSite.charAt(rawSite.length - 1) === '/') {
+        rawSiteAlt = rawSite.slice(0, -1);
+      } else if (rawSite.indexOf('/') > 0) {
+        rawSiteAlt = rawSite + '/';
+      }
+      if (rawSiteAlt) siteRow = await env.DB.prepare('SELECT site, username FROM site_mappings WHERE site = ?1').bind(rawSiteAlt).first();
+    }
     if (!siteRow && rawSite.indexOf('.') > 0 && rawSite.indexOf('/') > 0 && rawSite.indexOf('.html') === -1) {
       siteRow = await env.DB.prepare('SELECT site, username FROM site_mappings WHERE site = ?1').bind(rawSite + '.html').first();
     }
@@ -21,10 +31,10 @@ export async function onRequest(context) {
     if (!siteRow) {
       var allMaps = await env.DB.prepare('SELECT site, username FROM site_mappings').all();
       if (allMaps && allMaps.results) {
-        // 第一轮：精确匹配 rawSite、rawSite+.html、site
+        // 第一轮：精确匹配
         for (var mi = 0; mi < allMaps.results.length && !siteRow; mi++) {
           var mapped = allMaps.results[mi];
-          if (mapped.site === rawSite || mapped.site === rawSite + '.html' || mapped.site === site) { siteRow = mapped; break; }
+          if (mapped.site === rawSite || mapped.site === rawSiteAlt || mapped.site === rawSite + '.html' || mapped.site === site) { siteRow = mapped; break; }
         }
         // 第二轮：hostname 匹配（仅当精确匹配都没命中）
         if (!siteRow) {
@@ -54,12 +64,18 @@ export async function onRequest(context) {
       try { rawHost = new URL(rawSite).hostname; } catch (e) {}
 
       // 多轮尝试 account_sites（每轮独立 try，不因缺列互相影响）
-      // 优先级：实际请求URL → 域名 → site_mappings（越具体越优先，避免串数据）
+      // 优先级：实际请求URL → 斜杠变体 → 域名 → site_mappings
       var d1Row = null;
       var candidates = [rawSite];
-      if (rawHost !== rawSite) candidates.push(rawHost);
-      if (matchedSite !== rawSite && matchedSite !== rawHost) candidates.push(matchedSite);
-      if (matchedHost !== matchedSite && matchedHost !== rawSite && matchedHost !== rawHost) candidates.push(matchedHost);
+      // 末尾斜杠变体：配置 /path 也能匹配 /path/（反之亦然）
+      if (rawSite.charAt(rawSite.length - 1) === '/') {
+        candidates.push(rawSite.slice(0, -1));
+      } else if (rawSite.indexOf('/') > 0) {
+        candidates.push(rawSite + '/');
+      }
+      if (rawHost !== rawSite && rawHost !== candidates[candidates.length-1]) candidates.push(rawHost);
+      if (matchedSite !== rawSite && matchedSite !== rawHost && matchedSite !== candidates[candidates.length-1]) candidates.push(matchedSite);
+      if (matchedHost !== matchedSite && matchedHost !== rawSite && matchedHost !== rawHost && matchedHost !== candidates[candidates.length-1]) candidates.push(matchedHost);
       for (var ci = 0; ci < candidates.length && (!d1Row || !d1Row.pixel_ids || d1Row.pixel_ids === '[]'); ci++) {
         try { d1Row = await env.DB.prepare('SELECT pixel_ids FROM account_sites WHERE site = ?1 AND username = ?2').bind(candidates[ci], username).first(); } catch (e) {}
       }
