@@ -107,14 +107,10 @@ export async function onRequest(context) {
       version = 1;
     }
 
-    // 计数器写入 D1（非阻塞，按站点区分）
-    if (username && matchedSite) {
-      const today = new Date().toISOString().slice(0, 10);
-      context.waitUntil(
-        env.DB.prepare(
-          'INSERT INTO download_counts (username, date, site, count) VALUES (?1, ?2, ?3, 1) ON CONFLICT (username, date, site) DO UPDATE SET count = count + 1'
-        ).bind(username, today, matchedSite).run().catch(function(){})
-      );
+    // 在下载链接上附加追踪参数，点击下载时由 dl.js 计数
+    if (apkUrl && username) {
+      var sep = apkUrl.indexOf('?') === -1 ? '?' : '&';
+      apkUrl += sep + '_u=' + encodeURIComponent(username) + '&_s=' + encodeURIComponent(matchedSite);
     }
 
     return new Response(JSON.stringify({ url: apkUrl, version: version, _site: site, _dbg: { rawSite: rawSite, site: site, foundMapping: !!siteRow, username: username, matchedSite: matchedSite, matchedHost: typeof matchedHost !== 'undefined' ? matchedHost : '', fromD1: !!d1Result, fromKV: !!kvResult } }), {
