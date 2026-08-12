@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>接粉后台配置</title>
+<style>
+:root{--bg:#0f1119;--card:#181b28;--border:rgba(255,255,255,.06);--text:#e1e4ed;--muted:#7c8097;--green:#21C064;--red:#f85149;--blue:#58a6ff;--amber:#f0883e}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:system-ui,-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+.hide{display:none!important}
+/* 侧边栏 */
+.sidebar{width:220px;background:var(--card);border-right:1px solid var(--border);padding:24px 0;display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:10}
+.sidebar-logo{padding:0 20px 24px;border-bottom:1px solid var(--border);font-weight:800;font-size:1.05rem;display:flex;align-items:center;gap:8px}
+.sidebar-logo .dot{width:8px;height:8px;border-radius:50%;background:var(--green)}
+.sidebar-nav{flex:1;padding:12px 0}
+.sidebar-nav a{display:flex;align-items:center;gap:10px;padding:10px 20px;color:var(--muted);text-decoration:none;font-size:.88rem;transition:all .15s;border-left:2px solid transparent;cursor:pointer}
+.sidebar-nav a:hover,.sidebar-nav a.active{color:var(--text);background:rgba(255,255,255,.03);border-left-color:var(--green)}
+.sidebar-nav a.active{font-weight:600}
+.sidebar-user{padding:16px 20px;border-top:1px solid var(--border);font-size:.8rem;color:var(--muted)}
+.sidebar-user .logout{color:var(--red);cursor:pointer;font-weight:600;margin-top:6px;display:inline-block}
+.sidebar-user .logout:hover{text-decoration:underline}
+/* 主区域 */
+.main{margin-left:220px;flex:1;padding:28px 32px}
+.page-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px}
+.page-header h1{font-size:1.4rem;font-weight:700}
+.card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:24px;margin-bottom:20px}
+.card h3{font-size:1rem;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+table{width:100%;border-collapse:collapse;font-size:.86rem}
+th{text-align:left;padding:10px 12px;color:var(--muted);font-weight:600;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid var(--border)}
+td{padding:12px;border-bottom:1px solid var(--border);vertical-align:middle}
+tr:hover td{background:rgba(255,255,255,.015)}
+input,textarea{width:100%;padding:10px 14px;border-radius:8px;border:1px solid var(--border);background:#0d0f16;color:var(--text);font-size:.88rem;font-family:monospace}
+input:focus,textarea:focus{outline:none;border-color:var(--green)}
+input[type=date]{position:relative}input[type=date]::-webkit-calendar-picker-indicator{position:absolute;top:0;left:0;right:0;bottom:0;width:100%;height:100%;color:transparent;background:transparent;cursor:pointer}
+textarea{resize:vertical}
+.btn{padding:10px 22px;border:none;border-radius:8px;font-weight:700;font-size:.88rem;cursor:pointer;transition:all .2s;white-space:nowrap}
+.btn-p{background:var(--green);color:#fff}.btn-p:hover{background:#1a9e52}
+.btn-d{background:var(--red);color:#fff}.btn-d:hover{opacity:.85}
+.btn-o{background:transparent;border:1px solid var(--border);color:var(--muted)}.btn-o:hover{color:var(--text)}
+.btn-sm{padding:6px 14px;font-size:.76rem}
+.msg{padding:10px 14px;border-radius:8px;font-size:.84rem;margin-top:12px}
+.msg.ok{background:rgba(33,192,100,.08);color:var(--green);border:1px solid rgba(33,192,100,.15)}
+.msg.err{background:rgba(248,81,73,.08);color:var(--red);border:1px solid rgba(248,81,73,.15)}
+.msg.warn{background:rgba(240,136,62,.08);color:var(--amber);border:1px solid rgba(240,136,62,.15)}
+.stat-row{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px}
+.stat-mini{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:18px 20px}
+.stat-mini .sval{font-size:1.6rem;font-weight:800;line-height:1}
+.stat-mini .sval.g{color:var(--green)}.stat-mini .sval.b{color:var(--blue)}
+.stat-mini .slbl{font-size:.76rem;color:var(--muted);margin-top:4px}
+.form-row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+.form-row input{flex:1;min-width:140px;margin-bottom:0}
+.badge{display:inline-block;padding:3px 8px;border-radius:4px;font-size:.7rem;font-weight:700}
+.badge.green{background:rgba(33,192,100,.12);color:var(--green)}
+.badge.red{background:rgba(248,81,73,.12);color:var(--red)}
+.empty{text-align:center;padding:40px;color:var(--muted);font-size:.9rem}
+.login-wrap{display:flex;align-items:center;justify-content:center;min-height:100vh}
+.login-box{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:40px 32px;width:100%;max-width:380px;text-align:center}
+.login-box h2{font-size:1.3rem;margin-bottom:4px}
+.login-box .sub{color:var(--muted);font-size:.84rem;margin-bottom:24px}
+.login-box label{display:block;text-align:left;font-size:.8rem;font-weight:600;color:var(--muted);margin-bottom:4px}
+.login-box input{margin-bottom:14px}
+.login-box .btn{width:100%;padding:13px;margin-top:6px}
+@media(max-width:900px){.stat-row{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:720px){.sidebar{width:60px;padding:16px 0}.sidebar-logo span,.sidebar-nav a span,.sidebar-user span{display:none}.sidebar-logo{padding:0 12px 16px;justify-content:center}.sidebar-nav a{justify-content:center;padding:12px}.main{margin-left:60px;padding:20px 16px}.stat-row{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<!-- 登录 -->
+<div id="loginPage" class="login-wrap">
+  <div class="login-box">
+    <h2>🔐 接粉后台配置</h2>
+    <p class="sub">管理员或子账户登录</p>
+    <label>用户名</label><input type="text" id="userInput" autocomplete="username">
+    <label>密码</label><input type="password" id="passInput" autocomplete="current-password">
+    <button class="btn btn-p" id="loginBtn">登 录</button>
+    <div id="loginMsg"></div>
+  </div>
+</div>
+
+<!-- 后台面板 -->
+<div id="adminPage" class="hide">
+  <aside class="sidebar">
+    <div class="sidebar-logo"><span class="dot"></span><span>接粉后台</span></div>
+    <nav class="sidebar-nav" id="sidebarNav"></nav>
+    <div class="sidebar-user"><span id="sidebarUser">👤</span><span class="logout" id="logoutBtn">退出登录 →</span></div>
+  </aside>
+  <div class="main" id="mainContent"></div>
+</div>
+
+<script>
+var S = {}; // state
+S.token = sessionStorage.getItem('st_token') || '';
+S.user = sessionStorage.getItem('st_user') || '';
+S.role = sessionStorage.getItem('st_role') || '';
+S.site = sessionStorage.getItem('st_site') || '';
+
+// ========== LOGIN ==========
+document.getElementById('loginBtn').onclick = login;
+document.getElementById('passInput').onkeydown = function(e){ if(e.key==='Enter') login(); };
+
+async function login(){
+  var u = document.getElementById('userInput').value.trim();
+  var p = document.getElementById('passInput').value;
+  if(!u||!p){ msg('loginMsg','err','请输入账号密码'); return; }
+  msg('loginMsg','ok','登录中...');
+  try{
+    var r = await fetch('/api/admin/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user:u,pass:p})});
+    var d = await r.json();
+    if(d.ok){
+      S.token = d.token; S.user = d.user; S.role = d.role; S.site = d.site||'';
+      ['st_token','st_user','st_role','st_site'].forEach(function(k,i){ sessionStorage.setItem(k,[S.token,S.user,S.role,S.site][i]); });
+      document.getElementById('loginPage').classList.add('hide');
+      document.getElementById('adminPage').classList.remove('hide');
+      document.getElementById('sidebarUser').innerHTML = '👤 '+S.user + (S.role==='admin'?' <span class=\"badge green\">管理员</span>':' <span class=\"badge red\">子账户</span>');
+      buildNav();
+      if(S.role==='admin') showAccounts(); else showDashboard();
+    }else{ msg('loginMsg','err',d.error||'登录失败'); }
+  }catch(e){ msg('loginMsg','err','网络错误'); }
+}
+
+document.getElementById('logoutBtn').onclick = function(){
+  ['st_token','st_user','st_role','st_site'].forEach(function(k){ sessionStorage.removeItem(k); });
+  location.reload();
+};
+
+// ========== NAVIGATION ==========
+function buildNav(){
+  var nav = document.getElementById('sidebarNav');
+  if(S.role==='admin'){
+    nav.innerHTML = '<a class="active" data-p="accounts">📋 账户管理</a><a data-p="loginLogs">🕐 登录日志</a>';
+  } else {
+    nav.innerHTML = '<a class="active" data-p="dashboard">📊 控制台</a><a data-p="landing">🌐 我的落地页</a><a data-p="visits">📈 流量访问</a><a data-p="apk">📦 普通跳转地址配置</a><a data-p="pixels">📡 像素管理</a>';
+  }
+  nav.querySelectorAll('a').forEach(function(a){
+    a.onclick = function(){
+      nav.querySelectorAll('a').forEach(function(x){x.classList.remove('active')});
+      this.classList.add('active');
+      var p = this.getAttribute('data-p');
+      if(p==='accounts') showAccounts();
+      else if(p==='loginLogs') showLoginLogs();
+      else if(p==='dashboard') showDashboard();
+      else if(p==='landing') showLanding();
+      else if(p==='visits') showVisits();
+      else if(p==='apk') showApk();
+      else if(p==='pixels') showPixels();
+    };
+  });
+}
+
+function msg(id,cls,text){ document.getElementById(id).innerHTML = '<div class="msg '+cls+'">'+text+'</div>'; }
+
+// ========== ADMIN: 账户管理 ==========
+async function showAccounts(){
+  var main = document.getElementById('mainContent');
+  main.innerHTML = '<div class="page-header"><h1>📋 账户管理</h1></div>'+
+    '<div class="card"><h3>➕ 创建子账户</h3>'+
+    '<div class="form-row"><input type="text" id="newUser" placeholder="用户名"><input type="text" id="newPass" placeholder="密码"><input type="text" id="newSite" placeholder="绑定域名 site1.example.com"><button class="btn btn-p" id="createBtn">创建</button></div><div id="createMsg"></div></div>'+
+    '<div id="editModal" class="hide" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.7);z-index:99;display:flex;align-items:center;justify-content:center"><div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:28px;width:480px;max-width:95vw;max-height:90vh;overflow-y:auto"><h3 style="margin-bottom:16px">✏️ 编辑子账户 <span id="editUsername" style="color:var(--green)"></span></h3><label style="font-size:.8rem;color:var(--muted)">新用户名（留空不修改）</label><input type="text" id="editNewUser" placeholder="留空则不修改用户名" style="margin-bottom:8px"><label style="font-size:.8rem;color:var(--muted)">新密码（留空不修改）</label><input type="text" id="editPass" placeholder="留空则不修改密码" style="margin-bottom:8px"><label style="font-size:.8rem;color:var(--muted)">主站点域名</label><input type="text" id="editSite" placeholder="https://site.example.com/estest/" style="margin-bottom:12px"><label style="font-size:.8rem;color:var(--muted);display:flex;align-items:center;gap:8px">🌐 额外落地页 <button class="btn btn-p btn-sm" id="addSiteBtn" style="font-size:.68rem;padding:4px 10px">+ 添加</button></label><div id="editSitesList" style="margin-bottom:12px"></div><div class="form-row" id="addSiteRow" style="display:none"><input type="text" id="newSiteInput" placeholder="输入落地页域名 site.example.com"><button class="btn btn-p btn-sm" id="confirmAddSiteBtn">确定</button></div><div style="display:flex;gap:10px"><button class="btn btn-p" id="saveEditBtn">保存</button><button class="btn btn-o" id="cancelEditBtn">取消</button></div><div id="editMsg"></div></div></div>'+
+    '<div class="card"><h3>📋 子账户列表</h3><table><thead><tr><th>用户名</th><th>密码</th><th>绑定站点</th><th>点击/下载</th><th>像素</th><th>跳转地址</th><th>操作</th></tr></thead><tbody id="accountsBody"><tr><td colspan="8" class="empty">加载中...</td></tr></tbody></table></div>';
+
+  document.getElementById('createBtn').onclick = createAccount;
+  loadAccounts();
+}
+
+async function loadAccounts(){
+  var tbody = document.getElementById('accountsBody');
+  try{
+    var r = await fetch('/api/admin/accounts',{headers:{'Authorization':'Basic '+S.token}});
+    var list = await r.json();
+    if(!list.length){ tbody.innerHTML='<tr><td colspan="7" class="empty">暂无子账户</td></tr>'; return; }
+    tbody.innerHTML = list.map(function(a){
+      var siteList = (a.stats.sites||[]).map(function(s){return s.site;});
+      if(!siteList.length && a.site) siteList = [a.site];
+      var sitesHtml = siteList.length ? siteList.map(function(s){return '<span style="display:inline-block;background:rgba(255,255,255,.04);padding:2px 8px;border-radius:4px;font-size:.72rem;margin:2px 4px 2px 0;word-break:break-all">'+esc(s)+'</span>';}).join('') : esc(a.site||'—');
+      var isDisabled = a.status === 'disabled';
+      var statusBadge = isDisabled ? ' <span class=\"badge red\">已禁用</span>' : ' <span class=\"badge green\">正常</span>';
+      var toggleLabel = isDisabled ? '启用' : '禁用';
+      var toggleCls = isDisabled ? 'btn-p' : 'btn-o';
+      return '<tr style=\"'+(isDisabled?'opacity:.5':'')+'\"><td><strong>'+esc(a.username)+'</strong>'+statusBadge+'</td><td style=\"font-family:monospace\">'+esc(a.pw||'—')+'</td><td style=\"max-width:260px\">'+sitesHtml+'</td><td>'+a.stats.downloads+'</td><td>'+(a.stats.pixels||[]).length+'</td><td style=\"max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap\">'+esc(a.stats.apkUrl||'—')+'</td>'+
+        '<td><button class=\"btn btn-p btn-sm\" data-edit=\"'+esc(a.username)+'\">编辑</button> <button class=\"btn '+toggleCls+' btn-sm\" data-toggle=\"'+esc(a.username)+'\">'+toggleLabel+'</button> <button class=\"btn btn-d btn-sm\" data-del=\"'+esc(a.username)+'\">删除</button></td></tr>';
+    }).join('');
+    tbody.querySelectorAll('[data-edit]').forEach(function(b){
+      b.onclick = function(){ showEditModal(this.getAttribute('data-edit')); };
+    });
+    tbody.querySelectorAll('[data-del]').forEach(function(b){
+      b.onclick = function(){ deleteAccount(this.getAttribute('data-del')); };
+    });
+    tbody.querySelectorAll('[data-toggle]').forEach(function(b){
+      b.onclick = function(){ toggleAccount(this.getAttribute('data-toggle')); };
+    });
+  }catch(e){ tbody.innerHTML='<tr><td colspan="7" class="empty">加载失败: '+esc(e.message)+'</td></tr>'; }
+}
+
+async function toggleAccount(u){
+  try{
+    var r = await fetch('/api/admin/accounts',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Basic '+S.token},body:JSON.stringify({username:u,action:'toggle-status'})});
+    var d = await r.json();
+    if(d.ok) loadAccounts(); else alert(d.error);
+  }catch(e){ alert('网络错误'); }
+}
+
+async function createAccount(){
+  var u = document.getElementById('newUser').value.trim();
+  var p = document.getElementById('newPass').value.trim();
+  var s = document.getElementById('newSite').value.trim();
+  if(!u||!p||!s){ msg('createMsg','err','所有字段必填'); return; }
+  try{
+    var r = await fetch('/api/admin/accounts',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Basic '+S.token},body:JSON.stringify({username:u,password:p,site:s})});
+    var d = await r.json();
+    if(d.ok){ msg('createMsg','ok','✅ 已创建: '+u); document.getElementById('newUser').value=''; document.getElementById('newPass').value=''; document.getElementById('newSite').value=''; loadAccounts(); }
+    else msg('createMsg','err',d.error);
+  }catch(e){ msg('createMsg','err','网络错误'); }
+}
+
+var _editSites = [];
+function renderEditSites(){
+  var list = document.getElementById('editSitesList');
+  if(!_editSites.length){ list.innerHTML='<span style="color:var(--fg-muted);font-size:.76rem">暂无额外落地页</span>'; return; }
+  list.innerHTML = _editSites.map(function(s,i){
+    return '<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;background:rgba(255,255,255,.03);padding:6px 10px;border-radius:6px"><span style="flex:1;font-size:.82rem;word-break:break-all">'+esc(s)+'</span><button class="btn btn-d btn-sm" data-delsite="'+i+'" style="font-size:.64rem;padding:3px 8px">×</button></div>';
+  }).join('');
+  list.querySelectorAll('[data-delsite]').forEach(function(b){
+    b.onclick = function(){ _editSites.splice(parseInt(this.getAttribute('data-delsite')),1); renderEditSites(); };
+  });
+}
+
+async function showEditModal(username){
+  document.getElementById('editModal').classList.remove('hide');
+  document.getElementById('editUsername').textContent = username;
+  document.getElementById('editNewUser').value = '';
+  document.getElementById('editPass').value = '';
+  document.getElementById('editSite').value = '';
+  document.getElementById('editMsg').innerHTML = '';
+  document.getElementById('addSiteRow').style.display = 'none';
+  _editSites = [];
+  // Load current data
+  try{
+    var r = await fetch('/api/admin/accounts',{headers:{'Authorization':'Basic '+S.token}});
+    var list = await r.json();
+    var acc = list.find(function(a){return a.username===username;});
+    if(acc){
+      document.getElementById('editSite').value = acc.site||'';
+      if(acc.stats && acc.stats.sites) _editSites = acc.stats.sites.map(function(s){ return s.site; }).filter(function(s){ return s !== acc.site; });
+      _origSite = acc.site||'';
+      _origSitesCount = (acc.stats&&acc.stats.sites) ? acc.stats.sites.length : 0;
+      _origEditCount = _editSites.length;
+    }
+  }catch(e){}
+  renderEditSites();
+  // 添加站点按钮
+  var ab = document.getElementById('addSiteBtn');
+  var cb = document.getElementById('confirmAddSiteBtn');
+  if(ab) ab.onclick = function(){
+    document.getElementById('addSiteRow').style.display = 'flex';
+    document.getElementById('newSiteInput').value = '';
+  };
+  if(cb) cb.onclick = function(){
+    var ns = document.getElementById('newSiteInput').value.trim();
+    if(!ns) return;
+    var mainSite = document.getElementById('editSite').value.trim();
+    if(ns === mainSite){ alert('该站点已是主站点'); return; }
+    if(_editSites.indexOf(ns)!==-1){ alert('该站点已在列表中'); return; }
+    _editSites.push(ns); renderEditSites();
+    document.getElementById('addSiteRow').style.display = 'none';
+  };
+  document.getElementById('saveEditBtn').onclick = function(){ saveEdit(username); };
+  document.getElementById('cancelEditBtn').onclick = function(){ document.getElementById('editModal').classList.add('hide'); };
+}
+
+async function saveEdit(username){
+  var newUser = document.getElementById('editNewUser').value.trim();
+  var pass = document.getElementById('editPass').value.trim();
+  var site = document.getElementById('editSite').value.trim();
+  // 合并主站点 + 额外站点（去重）
+  var allSites = site ? [site] : [];
+  for(var ei=0; ei<_editSites.length; ei++){
+    if(allSites.indexOf(_editSites[ei])===-1) allSites.push(_editSites[ei]);
+  }
+  // 没改任何东西则跳过
+  var hasSitesChange = (allSites.length !== (_origSitesCount||0)) || _editSites.length !== _origEditCount;
+  if(!newUser && !pass && !hasSitesChange && site===_origSite){ msg('editMsg','err','未做任何修改'); return; }
+  msg('editMsg','ok','保存中...');
+  try{
+    var body = {username:username,newUsername:newUser||'',password:pass||'',site:site||'',sites:allSites,action:'edit'};
+    var r = await fetch('/api/admin/accounts',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Basic '+S.token},body:JSON.stringify(body)});
+    var d = await r.json();
+    if(d.ok){ msg('editMsg','ok','✅ '+d.msg+' (共'+allSites.length+'个站点)'); setTimeout(function(){ document.getElementById('editModal').classList.add('hide'); loadAccounts(); },800); }
+    else msg('editMsg','err',d.error);
+  }catch(e){ msg('editMsg','err','网络错误'); }
+}
+
+async function deleteAccount(u){
+  if(!confirm('确定删除账户 '+u+' ？此操作不可恢复。')) return;
+  try{
+    var r = await fetch('/api/admin/accounts?username='+encodeURIComponent(u),{method:'DELETE',headers:{'Authorization':'Basic '+S.token}});
+    var d = await r.json();
+    if(d.ok) loadAccounts(); else alert(d.error);
+  }catch(e){ alert('网络错误'); }
+}
+
+// ========== USER: 控制台 ==========
+async function showDashboard(){
+  var main = document.getElementById('mainContent');
+  main.innerHTML = '<div class="page-header"><h1>📊 控制台</h1><span style="font-size:.92rem;color:var(--green);font-weight:700;background:rgba(33,192,100,.08);padding:4px 14px;border-radius:6px">🔗 '+esc(S.site||'未绑定')+'</span></div>'+
+    '<div class="stat-row"><div class="stat-mini"><div class="sval b" id="stTotal">—</div><div class="slbl">累计点击/下载 <span style="color:var(--fg-muted);font-weight:400;font-size:.68rem">仅参考</span></div></div><div class="stat-mini"><div class="sval g" id="stToday">—</div><div class="slbl">今日点击/下载 <span style="color:var(--fg-muted);font-weight:400;font-size:.68rem">仅参考</span></div></div><div class="stat-mini"><div class="sval" id="stVisitTotal" style="color:var(--violet);font-size:1.6rem;font-weight:800;line-height:1">—</div><div class="slbl">总流量访问</div></div><div class="stat-mini"><div class="sval" id="stVisitToday" style="color:var(--cyan);font-size:1.6rem;font-weight:800;line-height:1">—</div><div class="slbl">今日流量访问</div></div></div>'+
+    '<div class="card" style="margin-top:20px"><div style="display:flex;align-items:center;gap:10px;padding:18px 20px;background:rgba(240,136,62,.06);border-radius:8px;border-left:3px solid var(--amber)"><span style="font-size:1.2rem">⚠️</span><span style="color:var(--amber);font-weight:600;font-size:.92rem">重要提醒：此数据仅供参考</span></div></div>'+
+    '<div class="card"><h3>📈 每日点击/下载</h3><table><thead><tr><th>日期</th><th>次数</th><th style=\"width:80px\"></th></tr></thead><tbody id=\"dailyBody\"><tr><td colspan=\"3\" class=\"empty\">加载中...</td></tr></tbody></table></div>';
+  loadStats();
+}
+
+async function loadStats(){
+  try{
+    var r = await fetch('/api/admin/my-stats?_='+Date.now(),{headers:{'Authorization':'Basic '+S.token}});
+    var d = await r.json();
+
+    document.getElementById('stTotal').textContent = d.total||0;
+    document.getElementById('stVisitTotal').textContent = d.visitTotal||0;
+    document.getElementById('stVisitToday').textContent = d.visitToday||0;
+
+    var today = new Date().toISOString().slice(0,10);
+    var todayCount = 0;
+    (d.daily||[]).forEach(function(x){ if(x.date===today) todayCount=x.count; });
+    document.getElementById('stToday').textContent = todayCount;
+
+    var tbody = document.getElementById('dailyBody');
+    var daily = d.daily||[];
+    var dailyBySite = d.dailyBySite||{};
+    var sites = Object.keys(dailyBySite);
+    var html = '';
+    if(!daily.length){ tbody.innerHTML='<tr><td colspan="3" class="empty">暂无数据</td></tr>'; return; }
+    // 总计
+    html += '<tr style="background:rgba(255,255,255,.03)"><td colspan="2" style="font-weight:700;color:var(--fg)">📊 全部站点合计</td><td></td></tr>';
+    html += daily.map(function(x){ return '<tr><td>'+x.date+'</td><td><strong>'+x.count+'</strong></td><td><button class=\"btn btn-p btn-sm detail-day-btn\" data-date=\"'+x.date+'\" style=\"font-size:.68rem;padding:4px 10px\">详情</button></td></tr>'; }).join('');
+    tbody.innerHTML = html;
+    // 每天一个详情按钮
+    tbody.querySelectorAll('.detail-day-btn').forEach(function(btn){
+      btn.onclick = function(){
+        showDailyDetail(dailyBySite, d.site, d.sites||[], this.getAttribute('data-date'));
+      };
+    });
+  }catch(e){}
+}
+
+// ========== ADMIN: 登录日志 ==========
+async function showLoginLogs(){
+  var main = document.getElementById('mainContent');
+  main.innerHTML = '<div class="page-header"><h1>🕐 子账户登录日志</h1><select id="logUserFilter" style="padding:8px 14px;border-radius:8px;border:1px solid var(--border);background:#0d0f16;color:var(--text);font-size:.86rem"><option value="">全部账户</option></select></div>'+
+    '<div class="card"><h3>📋 登录记录</h3><table><thead><tr><th>用户名</th><th>登录时间</th><th>IP地址</th><th>设备</th></tr></thead><tbody id="logsBody"><tr><td colspan="4" class="empty">加载中...</td></tr></tbody></table></div>';
+  loadLoginLogs();
+  document.getElementById('logUserFilter').onchange = loadLoginLogs;
+}
+
+async function loadLoginLogs(){
+  var filter = document.getElementById('logUserFilter').value;
+  var tbody = document.getElementById('logsBody');
+  try{
+    // 加载用户列表到下拉框
+    var aR = await fetch('/api/admin/accounts',{headers:{'Authorization':'Basic '+S.token}});
+    var accts = await aR.json();
+    var sel = document.getElementById('logUserFilter');
+    sel.innerHTML = '<option value="">全部账户</option>' + accts.map(function(a){ return '<option value="'+esc(a.username)+'"'+(a.username===filter?' selected':'')+'>'+esc(a.username)+'</option>'; }).join('');
+
+    var url = '/api/admin/login-logs?limit=200';
+    if(filter) url += '&user='+encodeURIComponent(filter);
+    var r = await fetch(url,{headers:{'Authorization':'Basic '+S.token}});
+    var d = await r.json();
+    var logs = d.logs||[];
+    if(!logs.length){ tbody.innerHTML='<tr><td colspan="4" class="empty">暂无登录记录</td></tr>'; return; }
+    tbody.innerHTML = logs.map(function(l){
+      var deviceIcon = l.device==='手机' ? '📱' : '💻';
+      var dt = new Date(l.login_time);
+      var tz = dt.getTime() + 8*3600000;
+      var d8 = new Date(tz);
+      var timeStr = d8.getUTCFullYear()+'-'+pad(d8.getUTCMonth()+1)+'-'+pad(d8.getUTCDate())+' '+pad(d8.getUTCHours())+':'+pad(d8.getUTCMinutes())+':'+pad(d8.getUTCSeconds());
+      return '<tr><td><strong>'+esc(l.username)+'</strong></td><td>'+timeStr+'</td><td style="font-family:monospace">'+esc(l.ip)+'</td><td>'+deviceIcon+' '+esc(l.device)+'</td></tr>';
+    }).join('');
+  }catch(e){ tbody.innerHTML='<tr><td colspan="7" class="empty">加载失败: '+esc(e.message)+'</td></tr>'; }
+}
+
+// ========== USER: 流量访问 ==========
+async function showVisits(){
+  var siteInfo = await loadSiteSelector();
+  var main = document.getElementById('mainContent');
+  main.innerHTML = '<div class="page-header"><h1>📈 流量访问</h1></div>'+
+    '<div class="card"><h3>📍 筛选条件</h3><div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px"><span style="color:var(--muted);font-size:.8rem">落地页:</span>'+siteInfo.html+'<span style="color:var(--muted);font-size:.8rem;margin-left:8px">日期:</span><input type="date" id="visitDateStart" style="width:170px;min-height:42px;padding:10px 14px;font-size:.9rem;border-radius:8px;border:1px solid var(--border);background:#0d0f16;color:var(--text);cursor:pointer"><span style="font-size:.86rem;margin:0 4px">至</span><input type="date" id="visitDateEnd" style="width:170px;min-height:42px;padding:10px 14px;font-size:.9rem;border-radius:8px;border:1px solid var(--border);background:#0d0f16;color:var(--text);cursor:pointer"><button class="btn btn-p btn-sm" id="visitFilterBtn">查询</button></div></div>'+
+    '<div class="card"><h3>📋 访问记录 <span id="visitCount" style="font-weight:400;font-size:.8rem;color:var(--muted)"></span></h3><table><thead><tr><th>访问时间</th><th>落地页</th><th>IP地址</th><th>终端类型</th><th>型号</th><th>语言</th><th>流量媒体</th><th>访问来源</th></tr></thead><tbody id="visitBody"><tr><td colspan="8" class="empty">加载中...</td></tr></tbody></table></div>';
+  document.getElementById('siteSelector').onchange = function(){
+    _currentSite = this.value;
+    sessionStorage.setItem('st_current_site', _currentSite);
+  };
+  document.getElementById('visitFilterBtn').onclick = function(){ _visitPage = 1; loadVisits(); };
+  loadVisits();
+}
+
+var _visitPage = 1;
+async function loadVisits(){
+  var tbody = document.getElementById('visitBody');
+  try{
+    var url = '/api/admin/my-visit-logs?limit=50&page='+_visitPage;
+    if(_currentSite) url += '&site='+encodeURIComponent(_currentSite);
+    var ds = document.getElementById('visitDateStart').value;
+    var de = document.getElementById('visitDateEnd').value;
+    if(ds) url += '&start='+encodeURIComponent(ds);
+    if(de) url += '&end='+encodeURIComponent(de);
+    var r = await fetch(url,{headers:{'Authorization':'Basic '+S.token}});
+    var d = await r.json();
+    var logs = d.logs||[];
+    var total = d.total||0;
+    var totalPages = Math.max(1, Math.ceil(total / 50));
+    document.getElementById('visitCount').textContent = '共 '+total+' 条，第 '+_visitPage+'/'+totalPages+' 页';
+    if(!logs.length){ tbody.innerHTML='<tr><td colspan="8" class="empty">暂无访问记录</td></tr>'; return; }
+    var html = logs.map(function(l){
+      var dt = new Date(l.visit_time);
+      var tz = dt.getTime() + 8*3600000;
+      var d8 = new Date(tz);
+      var ts = d8.getUTCFullYear()+'-'+pad(d8.getUTCMonth()+1)+'-'+pad(d8.getUTCDate())+' '+pad(d8.getUTCHours())+':'+pad(d8.getUTCMinutes())+':'+pad(d8.getUTCSeconds());
+      return '<tr><td>'+ts+'</td><td style="font-family:monospace;word-break:break-all;max-width:300px">'+esc(l.site)+'</td><td style="font-family:monospace">'+esc(l.ip)+'</td><td>'+esc(l.terminal_type||l.device)+'</td><td>'+esc(l.phone_model||'—')+'</td><td>'+esc(l.lang||'—')+'</td><td>'+esc(l.media||'—')+'</td><td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+esc(l.referer_source||'—')+'">'+esc(l.referer_source||'—')+'</td></tr>';
+    }).join('');
+    // 翻页按钮
+    var prevDisabled = _visitPage <= 1 ? ' disabled style="opacity:.4;cursor:not-allowed"' : '';
+    var nextDisabled = _visitPage >= totalPages ? ' disabled style="opacity:.4;cursor:not-allowed"' : '';
+    html += '<tr><td colspan="8" style="text-align:center;padding:16px"><button class="btn btn-o btn-sm"'+prevDisabled+' id="visitPrev">◀ 上一页</button> <span style="margin:0 12px;color:var(--fg-muted);font-size:.82rem">'+_visitPage+' / '+totalPages+'</span> <button class="btn btn-o btn-sm"'+nextDisabled+' id="visitNext">下一页 ▶</button></td></tr>';
+    tbody.innerHTML = html;
+    // 绑定翻页事件
+    var pb = document.getElementById('visitPrev');
+    var nb = document.getElementById('visitNext');
+    if(pb && !pb.disabled) pb.onclick = function(){ _visitPage--; loadVisits(); };
+    if(nb && !nb.disabled) nb.onclick = function(){ _visitPage++; loadVisits(); };
+  }catch(e){ tbody.innerHTML='<tr><td colspan="7" class="empty">加载失败: '+esc(e.message)+'</td></tr>'; }
+}
+
+function showDailyDetail(dailyBySite, defaultSite, sitesList, filterDate){
+  var allSites = sitesList.map(function(s){ return s.site; });
+  if(!allSites.length && defaultSite) allSites = [defaultSite];
+  Object.keys(dailyBySite).forEach(function(s){ if(allSites.indexOf(s)===-1) allSites.push(s); });
+  var rows = '';
+  var totalOverall = 0;
+  allSites.forEach(function(site){
+    var sd = dailyBySite[site]||[];
+    var count = 0;
+    if(filterDate){
+      sd.forEach(function(d){ if(d.date===filterDate) count = d.count; });
+    } else {
+      sd.forEach(function(d){ count += d.count; });
+    }
+    totalOverall += count;
+    rows += '<tr><td style=\"font-family:monospace;font-size:.8rem;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap\" title=\"'+esc(site)+'\">📍 '+esc(site)+'</td><td><strong>'+(count||'-')+'</strong></td></tr>';
+  });
+  if(!totalOverall && filterDate) rows = '<tr><td colspan=\"2\" class=\"empty\">该日期暂无站点点击数据</td></tr>';
+  var title = filterDate ? ('📊 '+filterDate+' 各站点点击/下载') : '📊 各站点点击/下载';
+  rows = '<tr style=\"background:rgba(255,255,255,.03)\"><td style=\"font-weight:700\">站点</td><td style=\"font-weight:700\">次数</td></tr>'+rows;
+  var overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.7);z-index:200;display:flex;align-items:center;justify-content:center';
+  overlay.innerHTML = '<div style=\"background:var(--card);border:1px solid var(--border);border-radius:12px;padding:24px;width:500px;max-width:95vw;max-height:80vh;overflow:auto\"><div style=\"display:flex;align-items:center;justify-content:space-between;margin-bottom:16px\"><h3 style=\"margin:0\">'+title+'</h3><button class=\"btn btn-o btn-sm\" id=\"closeDetail\">✕ 关闭</button></div><table style=\"font-size:.82rem\">'+rows+'</table></div>';
+  document.body.appendChild(overlay);
+  overlay.querySelector('#closeDetail').onclick = function(){ overlay.remove(); };
+  overlay.onclick = function(e){ if(e.target===overlay) overlay.remove(); };
+}
+
+// ========== USER: 我的落地页 ==========
+async function showLanding(){
+  var main = document.getElementById('mainContent');
+  main.innerHTML = '<div class="page-header"><h1>🌐 我的落地页</h1></div>'+
+    '<div class="card"><h3>📋 落地页列表</h3><table><thead><tr><th>#</th><th>落地页URL</th><th>像素ID</th><th>跳转地址</th></tr></thead><tbody id="landingBody"><tr><td colspan="4" class="empty">加载中...</td></tr></tbody></table></div>';
+  loadLanding();
+}
+
+async function loadLanding(){
+  var tbody = document.getElementById('landingBody');
+  try{
+    var r = await fetch('/api/admin/my-stats?_='+Date.now(),{headers:{'Authorization':'Basic '+S.token}});
+    var d = await r.json();
+    var sites = d.sites||[];
+    if(!sites.length && d.site) sites = [{site:d.site, pixelCount:0, apkUrl:d.apkUrl||''}];
+    if(!sites.length){ tbody.innerHTML='<tr><td colspan="4" class="empty">暂无落地页，请联系管理员配置</td></tr>'; return; }
+    // 查每个站点的像素
+    var pixelPromises = sites.map(function(s){
+      return fetch('/api/admin/my-pixels?site='+encodeURIComponent(s.site)+'&_='+Date.now(),{headers:{'Authorization':'Basic '+S.token}}).then(function(r){return r.json()});
+    });
+    var pixelResults = await Promise.all(pixelPromises);
+    tbody.innerHTML = sites.map(function(s,i){
+      var ids = (pixelResults[i]&&pixelResults[i].ids) ? pixelResults[i].ids.join(', ') : '未配置';
+      return '<tr><td>'+(i+1)+'</td><td style="word-break:break-all;font-family:monospace">'+esc(s.site)+'</td><td style="word-break:break-all;font-family:monospace">'+esc(ids)+'</td><td style="word-break:break-all;font-family:monospace;max-width:300px">'+esc(s.apkUrl||'未配置')+'</td></tr>';
+    }).join('');
+  }catch(e){
+    tbody.innerHTML='<tr><td colspan="7" class="empty">加载失败: '+esc(e.message)+'</td></tr>';
+  }
+}
+
+// ========== USER: 普通跳转地址配置 ==========
+async function showApk(){
+  var siteInfo = await loadSiteSelector();
+  var main = document.getElementById('mainContent');
+  main.innerHTML = '<div class="page-header"><h1>📦 普通跳转地址配置</h1></div>'+
+    '<div class="card"><h3>📍 当前落地页</h3><div style="margin-bottom:12px">'+siteInfo.html+'</div>'+
+    '<h3>⚙️ 配置方式</h3>'+
+    '<div style="display:flex;gap:20px;margin-bottom:16px">'+
+    '<label style="display:flex;align-items:center;gap:6px;cursor:pointer;color:var(--text);font-weight:600"><input type="radio" name="apkMode" value="url" checked onchange="toggleApkMode()"> 普通跳转地址</label>'+
+    '<label style="display:flex;align-items:center;gap:6px;cursor:pointer;color:var(--text);font-weight:600"><input type="radio" name="apkMode" value="upload" onchange="toggleApkMode()"> 上传APK文件</label>'+
+    '</div>'+
+    '<div id="modeUrl"><div class="form-row"><input type="text" id="apkUrlInput" placeholder="https://cdn.example.com/app.apk"><button class="btn btn-p" id="saveUrlBtn">保存</button></div><div id="urlMsg"></div></div>'+
+    '<div id="modeUpload" class="hide"><p style="color:var(--muted);font-size:.82rem;margin-bottom:8px;padding:8px 14px;background:rgba(240,136,62,.06);border-radius:6px;border-left:3px solid var(--amber)">⚠️ 上传较大，需约30秒。如上传错误请重新上传即可</p><p style="color:var(--fg-muted);font-size:.78rem;margin-bottom:12px;white-space:nowrap">APK源文件后台不支持免杀功能</p><div class="form-row"><input type="file" id="fileInput" accept=".apk"><button class="btn btn-p" id="uploadBtn">上传</button></div><div id="uploadMsg"></div></div>'+
+    '</div>'+
+    '<div class="card"><h3>📋 上传/配置记录</h3><table><thead><tr><th>时间</th><th>文件名</th><th>URL</th><th>操作</th></tr></thead><tbody id="historyBody"><tr><td colspan="4" class="empty">加载中...</td></tr></tbody></table></div>';
+  document.getElementById('siteSelector').onchange = function(){
+    _currentSite = this.value;
+    sessionStorage.setItem('st_current_site', _currentSite);
+    loadApkData();
+  };
+  loadApkData();
+  if(!_currentSite) _currentSite = document.getElementById('siteSelector').value;
+  document.getElementById('saveUrlBtn').onclick = saveUrl;
+  document.getElementById('uploadBtn').onclick = uploadFile;
+}
+
+async function loadApkData(){
+  try{
+    var r = await fetch('/api/admin/my-stats?site='+encodeURIComponent(_currentSite)+'&_='+Date.now(),{headers:{'Authorization':'Basic '+S.token}});
+    var d = await r.json();
+    document.getElementById('apkUrlInput').value = d.apkUrl||'';
+    var tbody = document.getElementById('historyBody');
+    var h = d.history||[];
+    if(!h.length){ tbody.innerHTML='<tr><td colspan="4" class="empty">暂无记录</td></tr>'; return; }
+    tbody.innerHTML = h.map(function(x){ return '<tr><td>'+fmtTime(x.time)+'</td><td>'+esc(x.filename||'')+'</td><td style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(x.url||'')+'</td></tr>'; }).join('');
+  }catch(e){}
+  tbody.querySelectorAll('[data-delhist]').forEach(function(b){ b.onclick=function(){ deleteHistory(parseInt(this.getAttribute('data-delhist'))); }; });
+}
+
+async function deleteHistory(i){
+  if(!confirm('删除该记录？')) return;
+  try{
+    // Get current history, remove item, save back
+    var r = await fetch('/api/admin/my-stats?_='+Date.now(),{headers:{'Authorization':'Basic '+S.token}});
+    var d = await r.json();
+    var h = d.history||[];
+    h.splice(i,1);
+    // Save modified history via my-apk with a special action
+    // Since there's no direct delete endpoint, we update via the apk_url
+    // Actually store history back directly by re-uploading the latest URL
+    await fetch('/api/admin/my-apk',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Basic '+S.token},body:JSON.stringify({url:d.apkUrl||'',history:h})});
+    loadApkData();
+  }catch(e){ alert('网络错误'); }
+}
+
+function toggleApkMode(){
+  var mode = document.querySelector('input[name="apkMode"]:checked').value;
+  document.getElementById('modeUrl').classList.toggle('hide', mode !== 'url');
+  document.getElementById('modeUpload').classList.toggle('hide', mode !== 'upload');
+}
+
+async function saveUrl(){
+  var url = document.getElementById('apkUrlInput').value.trim();
+  if(!url){ msg('urlMsg','err','请输入URL'); return; }
+  try{
+    var r = await fetch('/api/admin/my-apk',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Basic '+S.token},body:JSON.stringify({url:url,site:_currentSite})});
+    var d = await r.json();
+    if(d.ok){ msg('urlMsg','ok','✅ 已保存'); loadApkData(); }
+    else msg('urlMsg','err',d.error);
+  }catch(e){ msg('urlMsg','err','网络错误'); }
+}
+
+async function uploadFile(){
+  var file = document.getElementById('fileInput').files[0];
+  if(!file){ msg('uploadMsg','err','请选择文件'); return; }
+  msg('uploadMsg','ok','上传中...');
+  try{
+    var fd = new FormData(); fd.append('apk',file); fd.append('site',_currentSite);
+    var r = await fetch('/api/admin/my-apk',{method:'POST',headers:{'Authorization':'Basic '+S.token},body:fd});
+    var d = await r.json();
+    if(d.ok){ msg('uploadMsg','ok','✅ 上传成功 请通过前端访问'); document.getElementById('fileInput').value=''; loadApkData(); }
+    else msg('uploadMsg','err',d.error);
+  }catch(e){ msg('uploadMsg','err','网络错误'); }
+}
+
+// ========== 站点选择器（子账户公共）==========
+var _currentSite = sessionStorage.getItem('st_current_site') || '';
+async function loadSiteSelector(){
+  try{
+    var r = await fetch('/api/admin/my-stats?_='+Date.now(),{headers:{'Authorization':'Basic '+S.token}});
+    var d = await r.json();
+    var sites = d.sites||[];
+    if(!sites.length && d.site) sites = [{site:d.site}];
+    if(!_currentSite && sites.length){ _currentSite = sites[0].site; sessionStorage.setItem('st_current_site', _currentSite); }
+    var sel = '<select id="siteSelector" style="padding:8px 12px;border-radius:8px;border:1px solid var(--border);background:#0d0f16;color:var(--text);font-size:.86rem;max-width:100%">'+
+      sites.map(function(s){ return '<option value="'+esc(s.site)+'"'+(s.site===_currentSite?' selected':'')+'>'+esc(s.site)+'</option>'; }).join('')+'</select>';
+    return { html:sel, sites:sites };
+  }catch(e){ return { html:'<span style="color:var(--red)">加载站点失败</span>', sites:[] }; }
+}
+
+// ========== USER: 像素管理 ==========
+var _pixelIds = [];
+async function showPixels(){
+  var siteInfo = await loadSiteSelector();
+  var main = document.getElementById('mainContent');
+  main.innerHTML = '<div class="page-header"><h1>📡 像素管理</h1></div>'+
+    '<div class="card"><h3>📍 当前落地页</h3><div style="margin-bottom:12px">'+siteInfo.html+'</div>'+
+    '<h3>➕ 新增像素</h3><div style="background:rgba(240,136,62,.08);border:1px solid rgba(240,136,62,.2);border-radius:8px;padding:14px 18px;margin-bottom:14px"><span style="color:var(--amber);font-weight:800;font-size:.85rem">投放切记：</span><br><span style="color:var(--fg);font-weight:700;font-size:.82rem">1.后台只支持【购物】加【加购】，广告组选择其他事件不会回传</span><br><span style="color:var(--fg);font-weight:700;font-size:.82rem">2.如果需要其他FB事件，请联系管理</span></div><div class="form-row"><input type="text" id="newPixelId" placeholder="输入像素ID"><button class="btn btn-p" id="addPixelBtn">新增</button></div><div id="pixelAddMsg"></div></div>'+
+    '<div class="card"><h3>📋 像素列表 <span id="pixelCount" style="font-weight:400;font-size:.8rem;color:var(--muted)"></span></h3><table><thead><tr><th>序号</th><th>像素ID</th><th>操作</th></tr></thead><tbody id="pixelBody"><tr><td colspan="4" class="empty">加载中...</td></tr></tbody></table></div>';
+  document.getElementById('siteSelector').onchange = function(){
+    _currentSite = this.value;
+    sessionStorage.setItem('st_current_site', _currentSite);
+    loadPixels();
+  };
+  document.getElementById('addPixelBtn').onclick = addPixel;
+  // 确保站点已选中再加载
+  if(!_currentSite) _currentSite = document.getElementById('siteSelector').value;
+  loadPixels();
+}
+
+async function loadPixels(){
+  // 兜底：从下拉框取值
+  if(!_currentSite){
+    var sel = document.getElementById('siteSelector');
+    if(sel) _currentSite = sel.value;
+  }
+  if(!_currentSite) return;
+  try{
+    var r = await fetch('/api/admin/my-pixels?site='+encodeURIComponent(_currentSite)+'&_='+Date.now(),{headers:{'Authorization':'Basic '+S.token}});
+    var d = await r.json();
+    _pixelIds = d.ids||[];
+    document.getElementById('pixelCount').textContent = '共 '+_pixelIds.length+' 个';
+    var tbody = document.getElementById('pixelBody');
+    if(!_pixelIds.length){ tbody.innerHTML='<tr><td colspan="4" class="empty">暂无</td></tr>'; return; }
+    tbody.innerHTML = _pixelIds.map(function(id,i){ return '<tr><td>'+(i+1)+'</td><td><input type="text" class="pe" value="'+esc(id)+'" data-i="'+i+'" style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--border);background:#0d0f16;color:var(--text);font-size:.86rem;font-family:monospace"></td><td><button class="btn btn-p btn-sm" data-save="'+i+'">保存</button> <button class="btn btn-d btn-sm" data-del="'+i+'">删除</button></td></tr>'; }).join('');
+    tbody.querySelectorAll('[data-save]').forEach(function(b){ b.onclick = function(){ savePixel(parseInt(this.getAttribute('data-save'))); }; });
+    tbody.querySelectorAll('[data-edit]').forEach(function(b){
+      b.onclick = function(){ showEditModal(this.getAttribute('data-edit')); };
+    });
+    tbody.querySelectorAll('[data-del]').forEach(function(b){ b.onclick = function(){ delPixel(parseInt(this.getAttribute('data-del'))); }; });
+  }catch(e){}
+  tbody.querySelectorAll('[data-delhist]').forEach(function(b){ b.onclick=function(){ deleteHistory(parseInt(this.getAttribute('data-delhist'))); }; });
+}
+
+function savePixel(i){
+  var input = document.querySelector('.pe[data-i="'+i+'"]');
+  var id = input.value.trim();
+  if(!/^\d{10,20}$/.test(id)){ alert('无效像素ID'); return; }
+  _pixelIds[i] = id;
+  savePixelsToServer(function(){ alert('✅ 像素ID修改成功'); });
+}
+
+function delPixel(i){
+  if(!confirm('删除该像素？')) return;
+  _pixelIds.splice(i,1);
+  savePixelsToServer();
+}
+
+async function addPixel(){
+  var id = document.getElementById('newPixelId').value.trim();
+  if(!/^\d{10,20}$/.test(id)){ msg('pixelAddMsg','err','无效像素ID'); return; }
+  if(_pixelIds.indexOf(id)!==-1){ msg('pixelAddMsg','err','已存在'); return; }
+  _pixelIds.push(id);
+  await savePixelsToServer();
+  document.getElementById('newPixelId').value='';
+  msg('pixelAddMsg','ok','✅ 已添加');
+}
+
+// 序列化保存队列，防止并发覆盖
+var _saveQueue = Promise.resolve();
+function savePixelsToServer(onSuccess){
+  var snapIds = _pixelIds.slice();
+  var snapSite = _currentSite;
+  _saveQueue = _saveQueue.then(function(){
+    return fetch('/api/admin/my-pixels',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Basic '+S.token},body:JSON.stringify({ids:snapIds,site:snapSite})})
+    .then(function(r){return r.json()})
+    .then(function(d){
+      if(d.ok){
+        // 合并：快照之后本地新增的 ID 不丢，服务器确认的 ID 做主
+        if(snapSite === _currentSite){
+          var localAdded = [];
+          for(var li=0; li<_pixelIds.length; li++){
+            if(snapIds.indexOf(_pixelIds[li])===-1) localAdded.push(_pixelIds[li]);
+          }
+          _pixelIds = d.ids.concat(localAdded);
+          loadPixels();
+        }
+        if(onSuccess) onSuccess();
+      }
+      else alert(d.error);
+    });
+  }).catch(function(){ alert('网络错误'); });
+  return _saveQueue;
+}
+
+// ========== UTILS ==========
+function esc(s){ var d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
+function fmtTime(t){ if(!t)return'—'; var d=new Date(t); return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+' '+pad(d.getHours())+':'+pad(d.getMinutes()); }
+function pad(n){ return n<10?'0'+n:''+n; }
+
+// ========== AUTO RESTORE ==========
+if(S.token){
+  document.getElementById('loginPage').classList.add('hide');
+  document.getElementById('adminPage').classList.remove('hide');
+  document.getElementById('sidebarUser').innerHTML = '👤 '+S.user + (S.role==='admin'?' <span class=\"badge green\">管理员</span>':' <span class=\"badge red\">子账户</span>');
+  buildNav();
+  if(S.role==='admin') showAccounts(); else showDashboard();
+}
+</script>
+</body>
+</html>
