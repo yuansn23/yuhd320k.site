@@ -45,16 +45,26 @@ export async function onRequest(context) {
     // 统计总数（表可能不存在，兜底返回 0）
     var total = 0;
     try {
-      var tc = await env.DB.prepare('SELECT COUNT(*) AS cnt FROM click_logs WHERE ' + whereBase).bind.apply(null, [env.DB].concat(condParams)).first();
-      total = tc ? tc.cnt : 0;
+      var countSql = 'SELECT COUNT(*) AS cnt FROM click_logs WHERE ' + whereBase;
+      var countResult = null;
+      if (condParams.length === 1) countResult = await env.DB.prepare(countSql).bind(condParams[0]).first();
+      else if (condParams.length === 2) countResult = await env.DB.prepare(countSql).bind(condParams[0], condParams[1]).first();
+      else if (condParams.length === 3) countResult = await env.DB.prepare(countSql).bind(condParams[0], condParams[1], condParams[2]).first();
+      else countResult = await env.DB.prepare(countSql).bind(condParams[0], condParams[1], condParams[2], condParams[3]).first();
+      total = countResult ? countResult.cnt : 0;
     } catch (e) {}
 
     // 分页查询（表可能不存在，兜底返回空）
     var rows = [];
     try {
-      var qParams = condParams.concat([limit, offset]);
-      var rr = await env.DB.prepare('SELECT click_time, site, ip, device, lang FROM click_logs WHERE ' + whereBase + ' ORDER BY click_time DESC LIMIT ?' + (idx++) + ' OFFSET ?' + (idx++)).bind.apply(null, [env.DB].concat(qParams)).all();
-      rows = (rr && rr.results) ? rr.results : [];
+      var dataSql = 'SELECT click_time, site, ip, device, lang FROM click_logs WHERE ' + whereBase + ' ORDER BY click_time DESC LIMIT ?' + (idx++) + ' OFFSET ?' + (idx++);
+      var allParams = condParams.concat([limit, offset]);
+      var result = null;
+      if (allParams.length === 3) result = await env.DB.prepare(dataSql).bind(allParams[0], allParams[1], allParams[2]).all();
+      else if (allParams.length === 4) result = await env.DB.prepare(dataSql).bind(allParams[0], allParams[1], allParams[2], allParams[3]).all();
+      else if (allParams.length === 5) result = await env.DB.prepare(dataSql).bind(allParams[0], allParams[1], allParams[2], allParams[3], allParams[4]).all();
+      else result = await env.DB.prepare(dataSql).bind(allParams[0], allParams[1], allParams[2], allParams[3], allParams[4], allParams[5]).all();
+      if (result && result.results) rows = result.results;
     } catch (e) {}
 
     // 获取用户的站点列表（独立查询，不受 click_logs 表是否存在影响）
