@@ -188,11 +188,9 @@ export async function onRequest(context) {
       const body = await request.json();
       const { username, newUsername, password, site, action } = body;
 
-      // 清理站点URL（保留完整路径，仅去空白和末尾斜杠）
+      // 清理站点URL（仅去空白，管理员输入什么就存什么）
       function normalizeSite(s) {
-        s = s.trim();
-        if (s.length > 8 && s.charAt(s.length - 1) === '/') s = s.slice(0, -1);
-        return s;
+        return s.trim();
       }
 
       // -- 启用/禁用 --
