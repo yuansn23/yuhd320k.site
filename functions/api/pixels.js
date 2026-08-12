@@ -76,12 +76,17 @@ export async function onRequest(context) {
       if (rawHost !== rawSite && rawHost !== candidates[candidates.length-1]) candidates.push(rawHost);
       if (matchedSite !== rawSite && matchedSite !== rawHost && matchedSite !== candidates[candidates.length-1]) candidates.push(matchedSite);
       if (matchedHost !== matchedSite && matchedHost !== rawSite && matchedHost !== rawHost && matchedHost !== candidates[candidates.length-1]) candidates.push(matchedHost);
+      // 遍历候选（找到有数据的就停，但记录是否匹配到过任何行）
+      var foundAnySite = false;
       for (var ci = 0; ci < candidates.length && (!d1Row || !d1Row.pixel_ids || d1Row.pixel_ids === '[]'); ci++) {
-        try { d1Row = await env.DB.prepare('SELECT pixel_ids FROM account_sites WHERE site = ?1 AND username = ?2').bind(candidates[ci], username).first(); } catch (e) {}
+        try {
+          var row = await env.DB.prepare('SELECT pixel_ids FROM account_sites WHERE site = ?1 AND username = ?2').bind(candidates[ci], username).first();
+          if (row) { d1Row = row; foundAnySite = true; }
+        } catch (e) {}
       }
 
-      // 回退 accounts 表
-      if (!d1Row || !d1Row.pixel_ids || d1Row.pixel_ids === '[]') {
+      // 回退 accounts 表 — 仅当 account_sites 完全没记录时才回退（有记录但为空 = 该站点未配置，不回退）
+      if (!foundAnySite) {
         try { d1Row = await env.DB.prepare('SELECT pixel_ids, config_version FROM accounts WHERE username = ?1').bind(username).first(); } catch (e) {}
       }
 
