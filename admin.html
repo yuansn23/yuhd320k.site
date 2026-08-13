@@ -69,7 +69,17 @@ input[type=checkbox],input[type=radio]{width:auto;flex-shrink:0;accent-color:var
 .badge.green{background:rgba(33,192,100,.12);color:var(--green)}
 .badge.red{background:rgba(248,81,73,.12);color:var(--red)}
 .empty{text-align:center;padding:40px;color:var(--muted);font-size:.9rem}
-.login-wrap{display:flex;align-items:center;justify-content:center;min-height:100vh}
+.login-wrap{display:flex;align-items:center;justify-content:center;min-height:100vh;gap:56px;padding:48px 24px;flex-wrap:wrap}
+.login-intro{max-width:520px;text-align:left;flex:1 1 440px}
+.login-intro h1{font-size:2.2rem;font-weight:800;letter-spacing:-.01em;margin-bottom:12px}
+.login-intro .lead{color:var(--muted);font-size:.95rem;line-height:1.75;margin-bottom:26px}
+.login-feature-list{display:flex;flex-direction:column;gap:12px}
+.login-feature{display:flex;gap:14px;padding:15px 16px;border-radius:10px;background:rgba(255,255,255,.03);border:1px solid var(--border)}
+.login-feature.hl{background:rgba(88,166,255,.12);border-color:rgba(88,166,255,.5)}
+.lf-icon{font-size:1.5rem;line-height:1.2}
+.login-feature b{display:block;font-size:.95rem;margin-bottom:3px}
+.login-feature b em{font-style:normal;display:inline-block;margin-left:7px;padding:1px 8px;border-radius:999px;background:var(--blue);color:#0a1220;font-size:.62rem;font-weight:800;vertical-align:middle}
+.login-feature span{display:block;font-size:.8rem;color:var(--muted);line-height:1.6}
 .login-box{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:40px 32px;width:100%;max-width:380px;text-align:center}
 .login-box h2{font-size:1.3rem;margin-bottom:4px}
 .login-box .sub{color:var(--muted);font-size:.84rem;margin-bottom:24px}
@@ -84,8 +94,26 @@ input[type=checkbox],input[type=radio]{width:auto;flex-shrink:0;accent-color:var
 
 <!-- 登录 -->
 <div id="loginPage" class="login-wrap">
+  <div class="login-intro">
+    <h1>天御系统</h1>
+    <p class="lead">智能流量防护平台——在用户点击的瞬间完成身份判定，自动过滤爬虫、审核机、VPN/代理等非正常流量，让每一次转化都来自真实用户。</p>
+    <div class="login-feature-list">
+      <div class="login-feature hl">
+        <div class="lf-icon">🧠</div>
+        <div><b>用户行为分析 <em>全网唯一</em></b><span>滚动深度、鼠标轨迹曲线、触摸连续性、页面可见性、滚动节奏——五项真人行为指纹，机器与脚本几乎无法模仿。</span></div>
+      </div>
+      <div class="login-feature">
+        <div class="lf-icon">🕶️</div>
+        <div><b>斗篷防护</b><span>拦截爬虫、审核机、VPN/代理等非正常流量，只放行真实用户。</span></div>
+      </div>
+      <div class="login-feature">
+        <div class="lf-icon">⚙️</div>
+        <div><b>规则可配置</b><span>设备、语言、时区、IP、行为等规则按需开启，命中即跳转兜底地址。</span></div>
+      </div>
+    </div>
+  </div>
   <div class="login-box">
-    <h2>🔐 天御系统后台</h2>
+    <h2>🔐 后台登录</h2>
     <p class="sub">管理员或子账户登录</p>
     <label>用户名</label><input type="text" id="userInput" autocomplete="username">
     <label>密码</label><input type="password" id="passInput" autocomplete="current-password">
