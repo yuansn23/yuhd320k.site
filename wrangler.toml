@@ -10,6 +10,8 @@ ADMIN_USER = "htes"
 ADMIN_PASS = "D2378ac"
 CF_API_TOKEN = "cfut_3PsDBD6Wvy3Zl44ddjJU3SSRTaEgEnrcChsflys0dc368ab5"
 CF_ZONE_ID = "af4e6aa04fe569eea70e8ecb0b63b6e1"
+# ipinfo.io 付费 token（读取 privacy.vpn / privacy.proxy 精确字段；为空则退化为免费 /json）
+IPINFO_TOKEN = ""
 
 # ── KV 命名空间（存储 APK URL + 上传历史）──
 [[kv_namespaces]]

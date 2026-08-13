@@ -132,7 +132,7 @@ function buildNav(){
   if(S.role==='admin'){
     nav.innerHTML = '<a class="active" data-p="accounts">📋 账户管理</a><a data-p="loginLogs">🕐 登录日志</a>';
   } else {
-    nav.innerHTML = '<a class="active" data-p="dashboard">📊 控制台</a><a data-p="landing">🌐 我的落地页</a><a data-p="visits">📈 流量访问</a><a data-p="clicks">👆 点击统计</a><a data-p="apk">📦 普通跳转地址配置</a><a data-p="pixels">📡 像素管理</a>';
+    nav.innerHTML = '<a class="active" data-p="dashboard">📊 控制台</a><a data-p="landing">🌐 我的落地页</a><a data-p="visits">📈 流量访问</a><a data-p="clicks">👆 点击统计</a><a data-p="apk">📦 普通跳转地址配置</a><a data-p="pixels">📡 像素管理</a><a data-p="cloak">🕶️ 斗篷设置</a>';
   }
   nav.querySelectorAll('a').forEach(function(a){
     a.onclick = function(){
@@ -147,6 +147,7 @@ function buildNav(){
       else if(p==='apk') showApk();
       else if(p==='pixels') showPixels();
       else if(p==='clicks') showClicks();
+      else if(p==='cloak') showCloak();
     };
   });
 }
@@ -768,6 +769,276 @@ function savePixelsToServer(onSuccess){
     });
   }).catch(function(){ alert('网络错误'); });
   return _saveQueue;
+}
+
+// ========== USER: 斗篷设置 ==========
+var _cloakTab = 'config';
+var _cloakConfig = null;
+var _cloakTrafficPage = 1, _cloakTrafficSite = '', _cloakTrafficResult = '';
+
+function cloakSetVal(id, v){ var el=document.getElementById(id); if(el) el.value = v; }
+function cloakQuickLang(){ cloakSetVal('langList','zh-cn\nzh-tw\nen\nja\nde\nfr\nes\nit\nar\npl'); }
+function cloakQuickTz(){ cloakSetVal('tzList','+8\n+9\n-5\n-8\n0\n+1\n+5.5'); }
+
+async function showCloak(){
+  var main = document.getElementById('mainContent');
+  main.innerHTML = '<div class="page-header"><h1>🕶️ 斗篷设置</h1><div style="display:flex;gap:8px"><button class="btn btn-p btn-sm" id="cloakTabConfig">斗篷规则</button><button class="btn btn-o btn-sm" id="cloakTabTraffic">斗篷流量</button></div></div>'+
+    '<div id="cloakTabContent"></div>';
+  document.getElementById('cloakTabConfig').onclick = function(){ _cloakTab='config'; setCloakTab(); showCloakConfig(); };
+  document.getElementById('cloakTabTraffic').onclick = function(){ _cloakTab='traffic'; setCloakTab(); showCloakTraffic(); };
+  setCloakTab();
+  if(_cloakTab==='config') showCloakConfig(); else showCloakTraffic();
+}
+
+function setCloakTab(){
+  var c = document.getElementById('cloakTabConfig');
+  var t = document.getElementById('cloakTabTraffic');
+  if(c) c.className = _cloakTab==='config' ? 'btn btn-p btn-sm' : 'btn btn-o btn-sm';
+  if(t) t.className = _cloakTab==='traffic' ? 'btn btn-p btn-sm' : 'btn btn-o btn-sm';
+}
+
+function cloakRuleCard(title, inner){
+  return '<div class="card"><h3>'+title+'</h3>'+inner+'</div>';
+}
+
+async function showCloakConfig(){
+  var siteInfo = await loadSiteSelector();
+  var c = document.getElementById('cloakTabContent');
+  c.innerHTML =
+    '<div class="card"><h3>📍 当前落地页</h3><div style="margin-bottom:12px">'+siteInfo.html+'</div>'+
+    '<h3>⚙️ 基础设置</h3>'+
+    '<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:700;margin-bottom:12px"><input type="checkbox" id="cloakEnabled"> 启用斗篷防护</label>'+
+    '<label style="font-size:.8rem;color:var(--muted)">不符合规则跳转到的地址</label><input type="text" id="cloakFallback" style="margin-bottom:12px" placeholder="https://www.google.com">'+
+    '<label style="font-size:.8rem;color:var(--muted)">白名单IP（每行一个，命中则完全放行，不受任何斗篷规则限制）</label><textarea id="cloakWhitelist" rows="2" style="margin-bottom:4px" placeholder="1.2.3.4"></textarea>'+
+    '</div>'+
+
+    cloakRuleCard('🕷️ 模块1 · 爬虫屏蔽',
+      '<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:600;margin-bottom:10px"><input type="checkbox" id="crawlerEnabled"> 启用爬虫屏蔽</label>'+
+      '<div style="display:flex;gap:20px;flex-wrap:wrap">'+
+      '<label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:.88rem"><input type="checkbox" id="crawler_google"> 谷歌 Googlebot</label>'+
+      '<label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:.88rem"><input type="checkbox" id="crawler_facebook"> Facebook</label>'+
+      '<label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:.88rem"><input type="checkbox" id="crawler_tiktok"> TikTok</label>'+
+      '</div>')+
+
+    cloakRuleCard('📱 模块2 · 设备环境设置',
+      '<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:600;margin-bottom:6px"><input type="checkbox" id="deviceEnabled"> 终端屏蔽</label>'+
+      '<div style="display:flex;gap:20px;margin:6px 0 8px"><label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:.84rem"><input type="radio" name="deviceMode" value="block" checked> 屏蔽列表内</label><label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:.84rem"><input type="radio" name="deviceMode" value="allow"> 仅允许列表内</label></div>'+
+      '<div style="display:flex;gap:20px;flex-wrap:wrap;margin-bottom:16px">'+
+      '<label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:.88rem"><input type="checkbox" id="device_android"> 安卓</label>'+
+      '<label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:.88rem"><input type="checkbox" id="device_ios"> iOS</label>'+
+      '<label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:.88rem"><input type="checkbox" id="device_pc"> 电脑端</label>'+
+      '<label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:.88rem"><input type="checkbox" id="device_mac"> Mac</label>'+
+      '</div>'+
+
+      '<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:600;margin-bottom:6px"><input type="checkbox" id="langEnabled"> 设备语言屏蔽</label>'+
+      '<div style="display:flex;gap:20px;margin:6px 0 8px"><label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:.84rem"><input type="radio" name="langMode" value="block" checked> 屏蔽列表内</label><label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:.84rem"><input type="radio" name="langMode" value="allow"> 仅允许列表内</label></div>'+
+      '<textarea id="langList" rows="3" placeholder="每行一个语言代码，如 ja（日文）、zh-cn（简体中文）"></textarea>'+
+      '<button class="btn btn-o btn-sm" onclick="cloakQuickLang()" style="margin:6px 0 16px">快捷填入 10 种语言</button>'+
+
+      '<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:600;margin-bottom:6px"><input type="checkbox" id="tzEnabled"> 地区时区屏蔽</label>'+
+      '<div style="display:flex;gap:20px;margin:6px 0 8px"><label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:.84rem"><input type="radio" name="tzMode" value="block" checked> 屏蔽列表内</label><label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:.84rem"><input type="radio" name="tzMode" value="allow"> 仅允许列表内</label></div>'+
+      '<textarea id="tzList" rows="3" placeholder="每行一个时区，如 +8（中国）、+9（日本）、Asia/Tokyo"></textarea>'+
+      '<button class="btn btn-o btn-sm" onclick="cloakQuickTz()" style="margin:6px 0 16px">快捷填入常用时区</button>'+
+
+      '<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:600;margin-bottom:6px"><input type="checkbox" id="ipBlockEnabled"> 屏蔽具体IP</label>'+
+      '<textarea id="ipBlockList" rows="2" placeholder="每行一个IP地址" style="margin-bottom:16px"></textarea>'+
+
+      '<div style="display:flex;gap:24px;flex-wrap:wrap;margin-bottom:16px">'+
+      '<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:.9rem"><input type="checkbox" id="vpnEnabled"> 屏蔽 VPN（ipinfo.io）</label>'+
+      '<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:.9rem"><input type="checkbox" id="proxyEnabled"> 屏蔽代理 IP（ipinfo.io）</label>'+
+      '</div>'+
+      '<label style="font-size:.8rem;color:var(--muted)">预留扩展（JSON，可留空）</label><textarea id="extraJson" rows="2" placeholder=\'{"future_rule": true}\'></textarea>')+
+
+    cloakRuleCard('🧠 模块3 · 用户行为设置',
+      '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:600"><input type="checkbox" id="bScrollEnabled"> 页面滚动深度</label><span style="color:var(--muted);font-size:.84rem">大于</span><input type="number" id="bScrollThreshold" min="0" max="100" style="width:90px;padding:6px 10px" value="90"><span style="color:var(--muted);font-size:.84rem">%</span></div>'+
+      '<div style="display:flex;gap:24px;flex-wrap:wrap">'+
+      '<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:.9rem"><input type="checkbox" id="bMouseEnabled"> 鼠标/手指轨迹曲线</label>'+
+      '<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:.9rem"><input type="checkbox" id="bTouchEnabled"> 触摸滑动连续性</label>'+
+      '<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:.9rem"><input type="checkbox" id="bVisibilityEnabled"> 页面可见性变化</label>'+
+      '<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:.9rem"><input type="checkbox" id="bRhythmEnabled"> 滚动非线性节奏</label>'+
+      '</div>')+
+
+    '<div class="card"><div style="display:flex;gap:10px;align-items:center"><button class="btn btn-p" id="cloakSaveBtn">保存斗篷配置</button></div><div id="cloakMsg"></div></div>'+
+
+    '<div class="card"><h3>📋 斗篷规则列表（开启状态）</h3><table><thead><tr><th>规则</th><th>状态</th></tr></thead><tbody id="cloakRuleBody"><tr><td colspan="2" class="empty">加载中...</td></tr></tbody></table></div>';
+
+  var sel = document.getElementById('siteSelector');
+  if(sel) sel.onchange = function(){ _currentSite = this.value; sessionStorage.setItem('st_current_site', _currentSite); loadCloak(); };
+  if(!_currentSite && sel) _currentSite = sel.value;
+  document.getElementById('cloakSaveBtn').onclick = saveCloak;
+  loadCloak();
+}
+
+async function loadCloak(){
+  if(!_currentSite){ var sel=document.getElementById('siteSelector'); if(sel) _currentSite = sel.value; }
+  if(!_currentSite) return;
+  function setChk(id,v){ var el=document.getElementById(id); if(el) el.checked = !!v; }
+  function setVal(id,v){ var el=document.getElementById(id); if(el) el.value = v; }
+  function setRadio(name,v){ document.querySelectorAll('input[name="'+name+'"]').forEach(function(el){ el.checked = (el.value===v); }); }
+  try{
+    var r = await fetch('/api/admin/my-cloak?site='+encodeURIComponent(_currentSite)+'&_='+Date.now(),{headers:{'Authorization':'Basic '+S.token}});
+    var d = await r.json();
+    if(d.error){ msg('cloakMsg','err',d.error); return; }
+    _cloakConfig = d;
+    var rules = d.rules || {};
+
+    setChk('cloakEnabled', d.enabled);
+    setVal('cloakFallback', d.fallback_url || 'https://www.google.com');
+    setVal('cloakWhitelist', (d.whitelist_ips||[]).join('\n'));
+
+    var cr = rules.crawler || {}; setChk('crawlerEnabled', cr.enabled);
+    var cEng = cr.engines || ['google','facebook','tiktok'];
+    ['google','facebook','tiktok'].forEach(function(g){ setChk('crawler_'+g, cEng.indexOf(g)!==-1); });
+
+    var dv = rules.device || {}; setChk('deviceEnabled', dv.enabled); setRadio('deviceMode', dv.mode||'block');
+    var dvList = dv.list || ['android','ios','pc','mac'];
+    ['android','ios','pc','mac'].forEach(function(x){ setChk('device_'+x, dvList.indexOf(x)!==-1); });
+
+    var lg = rules.language || {}; setChk('langEnabled', lg.enabled); setRadio('langMode', lg.mode||'block'); setVal('langList', (lg.list||[]).join('\n'));
+    var tz = rules.timezone || {}; setChk('tzEnabled', tz.enabled); setRadio('tzMode', tz.mode||'block'); setVal('tzList', (tz.list||[]).join('\n'));
+    var ib = rules.block_ips || {}; setChk('ipBlockEnabled', ib.enabled); setVal('ipBlockList', (ib.list||[]).join('\n'));
+    setChk('vpnEnabled', !!(rules.vpn && rules.vpn.enabled));
+    setChk('proxyEnabled', !!(rules.proxy && rules.proxy.enabled));
+
+    var bh = rules.behavior || {};
+    var sd = bh.scroll_depth || {}; setChk('bScrollEnabled', sd.enabled); setVal('bScrollThreshold', (typeof sd.threshold==='number'?sd.threshold:90));
+    setChk('bMouseEnabled', !!(bh.mouse_curve && bh.mouse_curve.enabled));
+    setChk('bTouchEnabled', !!(bh.touch_continuity && bh.touch_continuity.enabled));
+    setChk('bVisibilityEnabled', !!(bh.visibility && bh.visibility.enabled));
+    setChk('bRhythmEnabled', !!(bh.scroll_rhythm && bh.scroll_rhythm.enabled));
+    setVal('extraJson', (rules.extra && Object.keys(rules.extra).length) ? JSON.stringify(rules.extra) : '');
+
+    renderCloakRuleList(rules);
+  }catch(e){ msg('cloakMsg','err','加载失败: '+esc(e.message)); }
+}
+
+function renderCloakRuleList(rules){
+  var tb = document.getElementById('cloakRuleBody');
+  if(!tb) return;
+  var on = function(t){ return !!(t && t.enabled); };
+  var badge = function(en){ return en ? '<span class="badge green">开启</span>' : '<span class="badge red">关闭</span>'; };
+  var bh = rules.behavior || {};
+  var rows = [
+    ['谷歌/Facebook/TikTok 爬虫屏蔽', on(rules.crawler)],
+    ['终端屏蔽（手机/电脑/Mac）', on(rules.device)],
+    ['设备语言屏蔽', on(rules.language)],
+    ['地区时区屏蔽', on(rules.timezone)],
+    ['IP 屏蔽', on(rules.block_ips)],
+    ['VPN 屏蔽', on(rules.vpn)],
+    ['代理 IP 屏蔽', on(rules.proxy)],
+    ['页面滚动深度', on(bh.scroll_depth)],
+    ['鼠标/手指轨迹曲线', on(bh.mouse_curve)],
+    ['触摸滑动连续性', on(bh.touch_continuity)],
+    ['页面可见性变化', on(bh.visibility)],
+    ['滚动非线性节奏', on(bh.scroll_rhythm)]
+  ];
+  tb.innerHTML = rows.map(function(r){ return '<tr><td>'+r[0]+'</td><td>'+badge(r[1])+'</td></tr>'; }).join('');
+}
+
+function saveCloak(){
+  function lines(id){ var el=document.getElementById(id); if(!el) return []; return el.value.split('\n').map(function(s){return s.trim();}).filter(Boolean); }
+  function chk(id){ var el=document.getElementById(id); return el && el.checked; }
+  function radio(name){ var el=document.querySelector('input[name="'+name+'"]:checked'); return el ? el.value : 'block'; }
+  function num(id){ var el=document.getElementById(id); var v=parseFloat(el.value); return isNaN(v) ? 90 : v; }
+
+  var rules = {
+    crawler: { enabled: chk('crawlerEnabled'), engines: ['google','facebook','tiktok'].filter(function(g){ return chk('crawler_'+g); }) },
+    device: { enabled: chk('deviceEnabled'), mode: radio('deviceMode'), list: ['android','ios','pc','mac'].filter(function(x){ return chk('device_'+x); }) },
+    language: { enabled: chk('langEnabled'), mode: radio('langMode'), list: lines('langList') },
+    timezone: { enabled: chk('tzEnabled'), mode: radio('tzMode'), list: lines('tzList') },
+    block_ips: { enabled: chk('ipBlockEnabled'), list: lines('ipBlockList') },
+    vpn: { enabled: chk('vpnEnabled') },
+    proxy: { enabled: chk('proxyEnabled') },
+    behavior: {
+      scroll_depth: { enabled: chk('bScrollEnabled'), threshold: num('bScrollThreshold') },
+      mouse_curve: { enabled: chk('bMouseEnabled') },
+      touch_continuity: { enabled: chk('bTouchEnabled') },
+      visibility: { enabled: chk('bVisibilityEnabled') },
+      scroll_rhythm: { enabled: chk('bRhythmEnabled') }
+    },
+    extra: {}
+  };
+  var ex = document.getElementById('extraJson');
+  if(ex && ex.value.trim()){ try { rules.extra = JSON.parse(ex.value); } catch(e){ msg('cloakMsg','err','预留扩展 JSON 格式错误'); return; } }
+
+  var payload = {
+    site: _currentSite,
+    enabled: chk('cloakEnabled'),
+    fallback_url: document.getElementById('cloakFallback').value.trim() || 'https://www.google.com',
+    whitelist_ips: lines('cloakWhitelist'),
+    rules: rules
+  };
+  msg('cloakMsg','ok','保存中...');
+  fetch('/api/admin/my-cloak',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Basic '+S.token},body:JSON.stringify(payload)})
+    .then(function(r){return r.json()})
+    .then(function(d){ if(d.ok){ msg('cloakMsg','ok','✅ 已保存'); loadCloak(); } else msg('cloakMsg','err',d.error); })
+    .catch(function(){ msg('cloakMsg','err','网络错误'); });
+}
+
+async function showCloakTraffic(){
+  var siteInfo = await loadSiteSelector();
+  var siteOpts = '<option value="">全部站点</option>' + siteInfo.sites.map(function(s){ return '<option value="'+esc(s.site)+'">'+esc(s.site)+'</option>'; }).join('');
+  var c = document.getElementById('cloakTabContent');
+  c.innerHTML =
+    '<div class="card"><h3>📍 筛选条件</h3><div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px">'+
+    '<span style="color:var(--muted);font-size:.8rem">落地页:</span>'+
+    '<select id="cloakSiteFilter" style="padding:6px 10px;border-radius:6px;border:1px solid var(--border);background:#0d0f16;color:var(--text);font-size:.82rem">'+siteOpts+'</select>'+
+    '<span style="color:var(--muted);font-size:.8rem;margin-left:8px">结果:</span>'+
+    '<select id="cloakResultFilter" style="padding:6px 10px;border-radius:6px;border:1px solid var(--border);background:#0d0f16;color:var(--text);font-size:.82rem"><option value="">全部</option><option value="pass">通过</option><option value="fail">未通过</option></select>'+
+    '<span style="color:var(--muted);font-size:.8rem;margin-left:8px">日期:</span>'+
+    '<input type="date" id="cloakDateStart" style="width:170px;min-height:42px;padding:10px 14px;font-size:.9rem;border-radius:8px;border:1px solid var(--border);background:#0d0f16;color:var(--text);cursor:pointer">'+
+    '<span style="font-size:.86rem;margin:0 4px">至</span>'+
+    '<input type="date" id="cloakDateEnd" style="width:170px;min-height:42px;padding:10px 14px;font-size:.9rem;border-radius:8px;border:1px solid var(--border);background:#0d0f16;color:var(--text);cursor:pointer">'+
+    '<button class="btn btn-p btn-sm" id="cloakFilterBtn">查询</button>'+
+    '</div></div>'+
+    '<div class="card"><h3>📋 斗篷流量 <span id="cloakTrafficCount" style="font-weight:400;font-size:.8rem;color:var(--muted)"></span></h3>'+
+    '<table><thead><tr><th>IP</th><th>设备终端</th><th>访问时间(+8)</th><th>是否通过</th><th>触发的规则</th></tr></thead><tbody id="cloakTrafficBody"><tr><td colspan="5" class="empty">加载中...</td></tr></tbody></table></div>';
+
+  var sf = document.getElementById('cloakSiteFilter');
+  if(sf){ sf.value = _cloakTrafficSite; sf.onchange = function(){ _cloakTrafficSite = this.value; _cloakTrafficPage = 1; loadCloakTraffic(); }; }
+  var rf = document.getElementById('cloakResultFilter');
+  if(rf){ rf.value = _cloakTrafficResult; rf.onchange = function(){ _cloakTrafficResult = this.value; _cloakTrafficPage = 1; loadCloakTraffic(); }; }
+  document.getElementById('cloakFilterBtn').onclick = function(){ _cloakTrafficPage = 1; loadCloakTraffic(); };
+  loadCloakTraffic();
+}
+
+async function loadCloakTraffic(){
+  var tb = document.getElementById('cloakTrafficBody');
+  if(!tb) return;
+  try{
+    var url = '/api/admin/my-cloak-traffic?limit=50&page='+_cloakTrafficPage+'&_='+Date.now();
+    if(_cloakTrafficSite) url += '&site='+encodeURIComponent(_cloakTrafficSite);
+    if(_cloakTrafficResult) url += '&result='+encodeURIComponent(_cloakTrafficResult);
+    var ds = document.getElementById('cloakDateStart').value;
+    var de = document.getElementById('cloakDateEnd').value;
+    if(ds) url += '&start='+encodeURIComponent(ds);
+    if(de) url += '&end='+encodeURIComponent(de);
+    var r = await fetch(url,{headers:{'Authorization':'Basic '+S.token}});
+    var d = await r.json();
+    var rows = d.rows||[];
+    var total = d.total||0;
+    var totalPages = Math.max(1, Math.ceil(total/50));
+    document.getElementById('cloakTrafficCount').textContent = '共 '+total+' 条，第 '+_cloakTrafficPage+'/'+totalPages+' 页';
+    if(!rows.length){ tb.innerHTML='<tr><td colspan="5" class="empty">暂无斗篷流量</td></tr>'; return; }
+    var devName = { android:'安卓', ios:'iOS', pc:'电脑', mac:'Mac', other:'其他' };
+    var ruleName = { crawler:'爬虫', device:'终端', language:'语言', timezone:'时区', block_ips:'IP屏蔽', vpn:'VPN', proxy:'代理', 'behavior.scroll_depth':'滚动深度','behavior.mouse_curve':'鼠标轨迹','behavior.touch_continuity':'触摸连续性','behavior.visibility':'页面可见性','behavior.scroll_rhythm':'滚动节奏' };
+    var html = rows.map(function(r){
+      var passed = r.passed===1 || r.passed===true;
+      var trig = (r.triggered||[]).map(function(t){ return ruleName[t]||t; }).join('、') || '—';
+      var dt = new Date(r.created_at);
+      var d8 = new Date(dt.getTime() + 8*3600000);
+      var ts = d8.getUTCFullYear()+'-'+pad(d8.getUTCMonth()+1)+'-'+pad(d8.getUTCDate())+' '+pad(d8.getUTCHours())+':'+pad(d8.getUTCMinutes())+':'+pad(d8.getUTCSeconds());
+      var dev = (devName[r.device]||r.device||'—') + (r.is_vpn?' ·VPN':'') + (r.is_proxy?' ·代理':'');
+      return '<tr><td style="font-family:monospace">'+esc(r.ip||'—')+'</td><td>'+esc(dev)+'</td><td>'+ts+'</td><td>'+(passed?'<span class="badge green">通过</span>':'<span class="badge red">拦截</span>')+'</td><td style="max-width:260px">'+esc(trig)+'</td></tr>';
+    }).join('');
+    var prevDisabled = _cloakTrafficPage<=1 ? ' disabled style="opacity:.4;cursor:not-allowed"' : '';
+    var nextDisabled = _cloakTrafficPage>=totalPages ? ' disabled style="opacity:.4;cursor:not-allowed"' : '';
+    html += '<tr><td colspan="5" style="text-align:center;padding:16px"><button class="btn btn-o btn-sm"'+prevDisabled+' id="cloakPrev">◀ 上一页</button> <span style="margin:0 12px;color:var(--muted);font-size:.82rem">'+_cloakTrafficPage+' / '+totalPages+'</span> <button class="btn btn-o btn-sm"'+nextDisabled+' id="cloakNext">下一页 ▶</button></td></tr>';
+    tb.innerHTML = html;
+    var pb=document.getElementById('cloakPrev'); var nb=document.getElementById('cloakNext');
+    if(pb && !pb.disabled) pb.onclick=function(){ _cloakTrafficPage--; loadCloakTraffic(); };
+    if(nb && !nb.disabled) nb.onclick=function(){ _cloakTrafficPage++; loadCloakTraffic(); };
+  }catch(e){ tb.innerHTML='<tr><td colspan="5" class="empty">加载失败: '+esc(e.message)+'</td></tr>'; }
 }
 
 // ========== UTILS ==========
