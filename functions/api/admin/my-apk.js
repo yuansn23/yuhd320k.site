@@ -85,7 +85,7 @@ export async function onRequest(context) {
             if (ex1) {
               await env.DB.prepare('UPDATE account_sites SET apk_history = ?1 WHERE site = ?2 AND username = ?3').bind(JSON.stringify(body.history), qSite, me.user).run();
             } else {
-              await env.DB.prepare('INSERT INTO account_sites (site, username, pixel_ids, apk_url, apk_history) VALUES (?1, ?2, ?3, ?4, ?5)').bind(qSite, me.user, '[]', '', JSON.stringify(body.history)).run();
+              await env.DB.prepare('INSERT INTO account_sites (site, username, pixel_ids, apk_url, apk_history, config_version) VALUES (?1, ?2, ?3, ?4, ?5, 1)').bind(qSite, me.user, '[]', '', JSON.stringify(body.history)).run();
             }
           } catch (e) {}
           return new Response(JSON.stringify({ ok: true, msg: '历史已更新' }), {
@@ -127,7 +127,7 @@ export async function onRequest(context) {
           if (ex2) {
             await env.DB.prepare('UPDATE account_sites SET apk_url = ?1, apk_history = ?2 WHERE site = ?3 AND username = ?4').bind(apkUrl, histJson, qSite, me.user).run();
           } else {
-            await env.DB.prepare('INSERT INTO account_sites (site, username, pixel_ids, apk_url, apk_history) VALUES (?1, ?2, ?3, ?4, ?5)').bind(qSite, me.user, '[]', apkUrl, histJson).run();
+            await env.DB.prepare('INSERT INTO account_sites (site, username, pixel_ids, apk_url, apk_history, config_version) VALUES (?1, ?2, ?3, ?4, ?5, 1)').bind(qSite, me.user, '[]', apkUrl, histJson).run();
           }
         } catch (e) {}
         // 只写 account_sites，不污染其他站点

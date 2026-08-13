@@ -76,9 +76,9 @@ export async function onRequest(context) {
         try {
           var existingRow = await env.DB.prepare('SELECT 1 AS found FROM account_sites WHERE site = ?1 AND username = ?2').bind(site, me.user).first();
           if (existingRow) {
-            await env.DB.prepare('UPDATE account_sites SET pixel_ids = ?1 WHERE site = ?2 AND username = ?3').bind(idsJson, site, me.user).run();
+            await env.DB.prepare('UPDATE account_sites SET pixel_ids = ?1, config_version = config_version + 1 WHERE site = ?2 AND username = ?3').bind(idsJson, site, me.user).run();
           } else {
-            await env.DB.prepare('INSERT INTO account_sites (site, username, pixel_ids, apk_url, apk_history) VALUES (?1, ?2, ?3, ?4, ?5)').bind(site, me.user, idsJson, '', '[]').run();
+            await env.DB.prepare('INSERT INTO account_sites (site, username, pixel_ids, apk_url, apk_history, config_version) VALUES (?1, ?2, ?3, ?4, ?5, 1)').bind(site, me.user, idsJson, '', '[]').run();
           }
         } catch (e) {}
       }
