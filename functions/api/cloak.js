@@ -192,7 +192,10 @@ async function logTraffic(env, t) {
   try {
     await env.DB.prepare('INSERT INTO cloak_traffic (site, username, ip, device, terminal, lang, timezone, is_vpn, is_proxy, passed, triggered_rules, ua, created_at) VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13)')
       .bind(t.site || '', t.username || '', t.ip || '', t.device || '', t.terminal || t.device || '', t.lang || '', t.timezone || '', t.isVpn ? 1 : 0, t.isProxy ? 1 : 0, t.passed ? 1 : 0, JSON.stringify(t.triggered || []), (t.ua || '').substring(0, 500), new Date().toISOString()).run();
-  } catch (e) {}
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: (e && e.message) ? e.message : String(e) };
+  }
 }
 
 export async function onRequest(context) {
@@ -237,8 +240,8 @@ export async function onRequest(context) {
 
     // 未配置或总开关关闭 → 放行
     if (!config || (config.enabled !== 1 && config.enabled !== true)) {
-      await logTraffic(env, { site: resolved.site, username: resolved.username, ip: ip, device: device, lang: clientLang, timezone: timezoneStr, isVpn: false, isProxy: false, passed: true, triggered: [], ua: ua });
-      return new Response(JSON.stringify({ passed: true, disabled: !config }), { headers: jsonHeaders });
+      var logRes0 = await logTraffic(env, { site: resolved.site, username: resolved.username, ip: ip, device: device, lang: clientLang, timezone: timezoneStr, isVpn: false, isProxy: false, passed: true, triggered: [], ua: ua });
+      return new Response(JSON.stringify({ passed: true, disabled: !config, _dbg: { rawSite: rawSite, site: resolved.site, username: resolved.username, configFound: !!config, ip: ip, device: device, log: logRes0 } }), { headers: jsonHeaders });
     }
 
     var triggered = [];
@@ -255,9 +258,9 @@ export async function onRequest(context) {
 
     var passed = triggered.length === 0;
     var redirect = config.fallback_url || 'https://www.google.com';
-    await logTraffic(env, { site: resolved.site, username: resolved.username, ip: ip, device: device, lang: clientLang, timezone: timezoneStr, isVpn: isVpn, isProxy: isProxy, passed: passed, triggered: triggered, ua: ua });
+    var logRes = await logTraffic(env, { site: resolved.site, username: resolved.username, ip: ip, device: device, lang: clientLang, timezone: timezoneStr, isVpn: isVpn, isProxy: isProxy, passed: passed, triggered: triggered, ua: ua });
 
-    return new Response(JSON.stringify({ passed: passed, redirect: redirect, triggered: triggered, whitelisted: whitelisted }), { headers: jsonHeaders });
+    return new Response(JSON.stringify({ passed: passed, redirect: redirect, triggered: triggered, whitelisted: whitelisted, _dbg: { rawSite: rawSite, site: resolved.site, username: resolved.username, configFound: true, ip: ip, device: device, log: logRes } }), { headers: jsonHeaders });
   } catch (e) {
     // 兜底放行，避免落地页因服务端异常被整体拦截
     return new Response(JSON.stringify({ passed: true, error: e.message }), { headers: jsonHeaders });
