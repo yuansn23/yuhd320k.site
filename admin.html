@@ -1049,7 +1049,7 @@ function copyText(text, btnId, msgId){
 // 斗篷如何部署（面向小白的一键部署说明）
 function showCloakDeploy(){
   var main = document.getElementById('mainContent');
-  var code = '<script src="https://url.yuhd320k.site/js/cloak.js"></script>';
+  var code = '<script src="https://url.yuhd320k.site/js/cloak.js"><\/script>';
   main.innerHTML = '<div class="page-header"><h1>🕶️ 斗篷如何部署</h1></div>'+
     '<div class="card"><h3>① 复制这行代码</h3>'+
       '<p style="color:var(--muted);font-size:.86rem;margin-bottom:10px">这是斗篷防护的守卫脚本，只有一行。点右侧「复制代码」即可。</p>'+
@@ -1061,7 +1061,7 @@ function showCloakDeploy(){
     '</div>'+
     '<div class="card"><h3>② 粘贴到落地页的 &lt;head&gt; 里</h3>'+
       '<p style="color:var(--text);font-size:.9rem;line-height:1.9">打开你落地页的 HTML 文件，把这行代码放到 <code style="background:rgba(88,166,255,.15);color:var(--blue);padding:2px 7px;border-radius:4px;font-family:monospace">&lt;head&gt;</code> 和 <code style="background:rgba(88,166,255,.15);color:var(--blue);padding:2px 7px;border-radius:4px;font-family:monospace">&lt;/head&gt;</code> 之间，放好后大概长这样：</p>'+
-      '<pre style="background:#0d0f16;border:1px solid var(--border);border-radius:8px;padding:14px;overflow-x:auto;font-size:.84rem;line-height:1.8;color:var(--text);margin:0">'+esc('<!DOCTYPE html>\n<html>\n<head>\n  <meta charset="UTF-8">\n  <title>落地页</title>\n  <script src="https://url.yuhd320k.site/js/cloak.js"></script>   <!-- 就放这里 -->\n</head>\n<body>\n  ... 你的按钮、图片等内容 ...\n</body>\n</html>')+'</pre>'+
+      '<pre style="background:#0d0f16;border:1px solid var(--border);border-radius:8px;padding:14px;overflow-x:auto;font-size:.84rem;line-height:1.8;color:var(--text);margin:0">'+esc('<!DOCTYPE html>\n<html>\n<head>\n  <meta charset="UTF-8">\n  <title>落地页</title>\n  <script src="https://url.yuhd320k.site/js/cloak.js"><\/script>   <!-- 就放这里 -->\n</head>\n<body>\n  ... 你的按钮、图片等内容 ...\n</body>\n</html>')+'</pre>'+
     '</div>'+
     '<div class="card"><h3>③ 部署上线，然后配置斗篷</h3>'+
       '<ol style="padding-left:22px;color:var(--text);font-size:.9rem;line-height:2.1;margin:0">'+
