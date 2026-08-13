@@ -582,8 +582,23 @@ async function loadClickLogs(){
 async function showLanding(){
   var main = document.getElementById('mainContent');
   main.innerHTML = '<div class="page-header"><h1>🌐 我的落地页</h1></div>'+
+    '<div class="card"><h3>➕ 新增落地页</h3><div class="form-row"><input type="text" id="newSiteInput" placeholder="输入落地页域名，如 https://example.com/landing/"><button class="btn btn-p" id="addSiteBtn">新增</button></div><div style="font-size:.78rem;color:var(--muted);margin-top:6px">新增后，可在「斗篷设置」「像素管理」「普通跳转地址配置」里为该落地页分别配置</div><div id="addSiteMsg"></div></div>'+
     '<div class="card"><h3>📋 落地页列表</h3><table><thead><tr><th>#</th><th>落地页URL</th><th>像素ID</th><th>跳转地址</th></tr></thead><tbody id="landingBody"><tr><td colspan="4" class="empty">加载中...</td></tr></tbody></table></div>';
+  document.getElementById('addSiteBtn').onclick = addSite;
   loadLanding();
+}
+
+async function addSite(){
+  var inp = document.getElementById('newSiteInput');
+  var site = (inp && inp.value ? inp.value : '').trim();
+  if(!site){ msg('addSiteMsg','err','请输入落地页域名'); return; }
+  msg('addSiteMsg','ok','新增中...');
+  try{
+    var r = await fetch('/api/admin/my-sites',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Basic '+S.token},body:JSON.stringify({site:site})});
+    var d = await r.json();
+    if(d.ok){ msg('addSiteMsg','ok','✅ 已新增落地页 ' + esc(site)); inp.value=''; loadLanding(); }
+    else msg('addSiteMsg','err', d.error || '新增失败');
+  }catch(e){ msg('addSiteMsg','err','网络错误'); }
 }
 
 async function loadLanding(){
@@ -810,6 +825,7 @@ var _cloakTab = 'config';
 var _cloakSubTab = 'basic';
 var _cloakConfig = null;
 var _cloakTrafficPage = 1, _cloakTrafficSite = '', _cloakTrafficResult = '';
+var _cloakNewMode = false;
 
 function cloakSetVal(id, v){ var el=document.getElementById(id); if(el) el.value = v; }
 var CLOAK_LANGS = [
@@ -826,16 +842,50 @@ function cloakSiteInput(sites){
         list.map(function(s){ return '<button type="button" class="site-chip'+(s.site===_currentSite?' on':'')+'" data-site="'+esc(s.site)+'">'+esc(s.site)+'</button>'; }).join('')+
       '</div>'
     : '';
+  var addBtn = _currentSite
+    ? ''
+    : '<button type="button" class="btn btn-sm btn-p" id="cloakAddSiteBtn" style="flex-shrink:0;white-space:nowrap">➕ 添加</button>';
+  var hint = _currentSite
+    ? '⚠️ 请确认上方显示的是你要配置的落地页，切换后下方规则会随之更新，避免改错站点'
+    : '输入全新的落地页域名，点「➕ 添加」加入你的落地页后即可配置斗篷；也可点下方「我的落地页」标签切换已有站点';
   return '<div style="background:rgba(240,136,62,.1);border:1px solid rgba(240,136,62,.35);border-radius:10px;padding:12px 14px;margin-bottom:14px">'+
-    '<label style="display:block;font-weight:800;color:var(--amber);margin-bottom:6px;font-size:.92rem">📍 正在配置的落地页</label>'+
-    '<input id="siteSelector" list="cloakSiteDatalist" value="'+esc(_currentSite)+'" placeholder="输入或选择落地页域名" style="padding:8px 12px;border-radius:8px;border:1px solid var(--border);background:#0d0f16;color:var(--amber);font-weight:600;font-size:.9rem;width:100%">'+
+    '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:6px">'+
+      '<label style="font-weight:800;color:var(--amber);font-size:.92rem">📍 正在配置的落地页</label>'+
+      '<button type="button" class="btn btn-sm btn-core" id="cloakNewSite">➕ 新增落地页</button>'+
+    '</div>'+
+    '<div style="display:flex;gap:8px;align-items:center">'+
+      '<input id="siteSelector" list="cloakSiteDatalist" value="'+esc(_currentSite)+'" placeholder="输入或选择落地页域名" style="padding:8px 12px;border-radius:8px;border:1px solid var(--border);background:#0d0f16;color:var(--amber);font-weight:600;font-size:.9rem;flex:1;min-width:0">'+
+      addBtn+
+    '</div>'+
     '<datalist id="cloakSiteDatalist">'+opts+'</datalist>'+
     chips+
-    '<div style="font-size:.76rem;color:var(--muted);margin-top:8px">⚠️ 请确认上方显示的是你要配置的落地页，切换后下方规则会随之更新，避免改错站点</div>'+
+    '<div style="font-size:.76rem;color:var(--muted);margin-top:8px">'+hint+'</div>'+
     '</div>';
 }
 function highlightSiteChip(site){
   document.querySelectorAll('.site-chip').forEach(function(c){ c.classList.toggle('on', c.getAttribute('data-site')===site); });
+}
+function newCloakSite(){
+  _cloakNewMode = true;
+  _currentSite = '';
+  sessionStorage.removeItem('st_current_site');
+  showCloak();
+}
+async function cloakAddSite(){
+  var inp = document.getElementById('siteSelector');
+  var site = (inp && inp.value ? inp.value : '').trim();
+  if(!site){ msg('cloakMsg','err','请输入落地页域名'); return; }
+  try{
+    var r = await fetch('/api/admin/my-sites',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Basic '+S.token},body:JSON.stringify({site:site})});
+    var d = await r.json();
+    if(d.ok || (d.error && d.error.indexOf('已在你名下') !== -1)){
+      _currentSite = site;
+      sessionStorage.setItem('st_current_site', _currentSite);
+      showCloak();
+    } else {
+      msg('cloakMsg','err', d.error || '新增失败');
+    }
+  }catch(e){ msg('cloakMsg','err','网络错误'); }
 }
 function langSelectHtml(){
   var opts = CLOAK_LANGS.map(function(x){
@@ -1047,6 +1097,7 @@ function updateBehaviorGate(){
 
 async function showCloakConfig(){
   var siteInfo = await loadSiteSelector();
+  if(_cloakNewMode){ _currentSite = ''; sessionStorage.removeItem('st_current_site'); _cloakNewMode = false; }
   var c = document.getElementById('cloakTabContent');
   c.innerHTML =
     '<div class="card" style="background:rgba(240,136,62,.12);border:1px solid rgba(240,136,62,.45)">'+
@@ -1137,6 +1188,10 @@ async function showCloakConfig(){
   if(sel) sel.onchange = function(){ _currentSite = this.value; sessionStorage.setItem('st_current_site', _currentSite); highlightSiteChip(_currentSite); loadCloak(); };
   if(!_currentSite && sel) _currentSite = sel.value;
   wireLangSelect();
+  var nb = document.getElementById('cloakNewSite');
+  if(nb) nb.onclick = newCloakSite;
+  var ab = document.getElementById('cloakAddSiteBtn');
+  if(ab){ ab.onmousedown = function(e){ e.preventDefault(); }; ab.onclick = cloakAddSite; }
   document.querySelectorAll('.site-chip').forEach(function(chip){
     chip.onclick = function(){
       _currentSite = chip.getAttribute('data-site');
@@ -1157,11 +1212,16 @@ async function showCloakConfig(){
   });
   setCloakSubTab(_cloakSubTab);
   loadCloak();
+  if(!_currentSite){ var inp = document.getElementById('siteSelector'); if(inp) inp.focus(); }
 }
 
 async function loadCloak(){
   if(!_currentSite){ var sel=document.getElementById('siteSelector'); if(sel) _currentSite = sel.value; }
-  if(!_currentSite) return;
+  if(!_currentSite){
+    var tb0 = document.getElementById('cloakRuleBody');
+    if(tb0) tb0.innerHTML = '<tr><td colspan="2" class="empty">请先点击上方「➕ 新增落地页」或选择你要配置的落地页</td></tr>';
+    return;
+  }
   function setChk(id,v){ var el=document.getElementById(id); if(el) el.checked = !!v; }
   function setVal(id,v){ var el=document.getElementById(id); if(el) el.value = v; }
   function setRadio(name,v){ document.querySelectorAll('input[name="'+name+'"]').forEach(function(el){ el.checked = (el.value===v); }); }
