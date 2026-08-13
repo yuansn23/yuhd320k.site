@@ -556,7 +556,12 @@ async function loadClickLogs(){
     document.getElementById('clickTotal').textContent = '共 '+total+' 条，第 '+_clickPage+'/'+totalPages+' 页';
     if(!rows.length){ tbody.innerHTML='<tr><td colspan="5" class="empty">暂无点击数据</td></tr>'; return; }
     var html = rows.map(function(r){
-      var ts = r.click_time ? r.click_time.replace('T',' ').substring(0,19) : '';
+      var ts = '';
+      if(r.click_time){
+        var dt = new Date(r.click_time);
+        var d8 = new Date(dt.getTime() + 8*3600000);
+        ts = d8.getUTCFullYear()+'-'+pad(d8.getUTCMonth()+1)+'-'+pad(d8.getUTCDate())+' '+pad(d8.getUTCHours())+':'+pad(d8.getUTCMinutes())+':'+pad(d8.getUTCSeconds());
+      }
       return '<tr><td>'+ts+'</td><td style="font-family:monospace;word-break:break-all;max-width:300px">'+esc(r.site)+'</td><td style="font-family:monospace">'+esc(r.ip)+'</td><td>'+esc(r.device||'—')+'</td><td>'+esc(r.lang||'—')+'</td></tr>';
     }).join('');
     // 翻页
