@@ -149,7 +149,7 @@ function buildNav(){
   } else {
     nav.innerHTML = '<a class="active" data-p="dashboard">📊 控制台</a><a data-p="landing">🌐 我的落地页</a><a data-p="visits">📈 流量访问</a><a data-p="clicks">👆 点击统计</a><a data-p="apk">📦 普通跳转地址配置</a><a data-p="pixels">📡 像素管理</a>'+
       '<a class="nav-parent open" data-p="cloakParent">🕶️ 斗篷设置 <span class="nav-arrow">▾</span></a>'+
-      '<div class="nav-sub open" id="cloakSubmenu"><a data-p="cloakTraffic">斗篷流量</a><a data-p="cloakRules">斗篷规则列表</a><a data-p="cloakConfigQuery">斗篷配置查询</a></div>';
+      '<div class="nav-sub open" id="cloakSubmenu"><a data-p="cloakDeploy">斗篷如何部署</a><a data-p="cloakTraffic">斗篷流量</a><a data-p="cloakRules">斗篷规则列表</a><a data-p="cloakConfigQuery">斗篷配置查询</a></div>';
   }
   nav.querySelectorAll('a').forEach(function(a){
     a.onclick = function(){
@@ -163,7 +163,7 @@ function buildNav(){
       }
       nav.querySelectorAll('a').forEach(function(x){x.classList.remove('active')});
       this.classList.add('active');
-      var isCloak = (p==='cloakTraffic' || p==='cloakRules' || p==='cloakConfigQuery');
+      var isCloak = (p==='cloakTraffic' || p==='cloakRules' || p==='cloakConfigQuery' || p==='cloakDeploy');
       if(isCloak){ if(sub) sub.classList.add('open'); if(parent) parent.classList.add('open'); }
       else { if(sub) sub.classList.remove('open'); if(parent) parent.classList.remove('open'); }
       if(p==='accounts') showAccounts();
@@ -177,6 +177,7 @@ function buildNav(){
       else if(p==='cloakTraffic'){ _cloakTab='traffic'; showCloak(); }
       else if(p==='cloakRules'){ _cloakTab='config'; showCloak(); }
       else if(p==='cloakConfigQuery'){ showCloakConfigQuery(); }
+      else if(p==='cloakDeploy'){ showCloakDeploy(); }
     };
   });
 }
@@ -1014,6 +1015,66 @@ async function showCloakConfigQuery(){
     '<table><thead><tr><th>落地页</th><th>斗篷状态</th><th>已开启的斗篷规则</th><th>白名单IP</th><th>更新时间</th><th>操作</th></tr></thead><tbody id="cloakQueryBody"><tr><td colspan="6" class="empty">加载中...</td></tr></tbody></table></div>';
   document.getElementById('cloakQueryRefresh').onclick = loadCloakConfigQuery;
   loadCloakConfigQuery();
+}
+
+// 复制到剪贴板（clipboard API + 兼容回退）
+function copyText(text, btnId, msgId){
+  function fallback(){
+    try{
+      var ta = document.createElement('textarea');
+      ta.value = text; ta.setAttribute('readonly','');
+      ta.style.position='fixed'; ta.style.opacity='0';
+      document.body.appendChild(ta); ta.select(); ta.setSelectionRange(0, text.length);
+      var ok = document.execCommand('copy');
+      document.body.removeChild(ta);
+      return ok;
+    }catch(e){ return false; }
+  }
+  function finish(ok){
+    var btn = document.getElementById(btnId);
+    if(btn){
+      var orig = btn.textContent;
+      btn.textContent = ok ? '✅ 已复制' : '❌ 复制失败';
+      setTimeout(function(){ btn.textContent = orig; }, 2000);
+    }
+    msg(msgId, ok ? 'ok' : 'err', ok ? '✅ 已复制到剪贴板' : '复制失败，请手动选中代码复制');
+  }
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(function(){ finish(true); }, function(){ finish(fallback()); });
+  } else {
+    finish(fallback());
+  }
+}
+
+// 斗篷如何部署（面向小白的一键部署说明）
+function showCloakDeploy(){
+  var main = document.getElementById('mainContent');
+  var code = '<script src="https://url.yuhd320k.site/js/cloak.js"></script>';
+  main.innerHTML = '<div class="page-header"><h1>🕶️ 斗篷如何部署</h1></div>'+
+    '<div class="card"><h3>① 复制这行代码</h3>'+
+      '<p style="color:var(--muted);font-size:.86rem;margin-bottom:10px">这是斗篷防护的守卫脚本，只有一行。点右侧「复制代码」即可。</p>'+
+      '<div style="display:flex;gap:10px;align-items:stretch">'+
+        '<textarea id="deployCode" readonly style="flex:1;font-family:monospace;font-size:.9rem;padding:12px;background:#0d0f16;color:var(--green);border:1px solid var(--border);border-radius:8px;height:56px;resize:none;overflow:hidden">'+esc(code)+'</textarea>'+
+        '<button class="btn btn-p" id="copyDeployBtn" style="flex-shrink:0">📋 复制代码</button>'+
+      '</div>'+
+      '<div id="deployMsg"></div>'+
+    '</div>'+
+    '<div class="card"><h3>② 粘贴到落地页的 &lt;head&gt; 里</h3>'+
+      '<p style="color:var(--text);font-size:.9rem;line-height:1.9">打开你落地页的 HTML 文件，把这行代码放到 <code style="background:rgba(88,166,255,.15);color:var(--blue);padding:2px 7px;border-radius:4px;font-family:monospace">&lt;head&gt;</code> 和 <code style="background:rgba(88,166,255,.15);color:var(--blue);padding:2px 7px;border-radius:4px;font-family:monospace">&lt;/head&gt;</code> 之间，放好后大概长这样：</p>'+
+      '<pre style="background:#0d0f16;border:1px solid var(--border);border-radius:8px;padding:14px;overflow-x:auto;font-size:.84rem;line-height:1.8;color:var(--text);margin:0">'+esc('<!DOCTYPE html>\n<html>\n<head>\n  <meta charset="UTF-8">\n  <title>落地页</title>\n  <script src="https://url.yuhd320k.site/js/cloak.js"></script>   <!-- 就放这里 -->\n</head>\n<body>\n  ... 你的按钮、图片等内容 ...\n</body>\n</html>')+'</pre>'+
+    '</div>'+
+    '<div class="card"><h3>③ 部署上线，然后配置斗篷</h3>'+
+      '<ol style="padding-left:22px;color:var(--text);font-size:.9rem;line-height:2.1;margin:0">'+
+        '<li>把改好的落地页<b>部署 / 上传</b>到你的网站服务器或落地页平台。</li>'+
+        '<li>回到「<b>我的落地页</b>」→ 点「<b>➕ 新增落地页</b>」，填这个落地页的<b>真实网址</b>（浏览器地址栏里看到的完整地址）。</li>'+
+        '<li>进入「<b>斗篷规则列表</b>」，选中这个落地页，打开「<b>启用斗篷防护</b>」并勾选需要的规则，点保存。</li>'+
+        '<li>想验证有没有生效：在落地页网址后面加 <code style="background:rgba(88,166,255,.15);color:var(--blue);padding:2px 7px;border-radius:4px;font-family:monospace">?cloak_debug=1</code>，打开后左上角会出现调试面板。</li>'+
+      '</ol>'+
+      '<div style="margin-top:14px;padding:12px 14px;background:rgba(88,166,255,.08);border:1px solid rgba(88,166,255,.2);border-radius:8px;font-size:.84rem;color:var(--muted);line-height:1.8">💡 <b style="color:var(--text)">跳转按钮不用改：</b>你原来的 <code style="font-family:monospace">onclick="xxx()"</code> 保持原样，斗篷会自动在按钮点击前拦截验证，通过后照常跳转。</div>'+
+    '</div>';
+  document.getElementById('copyDeployBtn').onclick = function(){
+    copyText(code, 'copyDeployBtn', 'deployMsg');
+  };
 }
 
 async function loadCloakConfigQuery(){
