@@ -40,6 +40,18 @@ input[type=checkbox],input[type=radio]{width:auto;flex-shrink:0;accent-color:var
 .btn-d{background:var(--red);color:#fff}.btn-d:hover{opacity:.85}
 .btn-o{background:transparent;border:1px solid var(--border);color:var(--muted)}.btn-o:hover{color:var(--text)}
 .btn-sm{padding:6px 14px;font-size:.76rem}
+/* 侧边栏二级菜单 */
+.sidebar-nav .nav-parent{justify-content:flex-start}
+.sidebar-nav .nav-arrow{margin-left:auto;font-size:.7rem;transition:transform .15s}
+.sidebar-nav .nav-parent.open .nav-arrow{transform:rotate(180deg)}
+.sidebar-nav .nav-sub{display:none}
+.sidebar-nav .nav-sub.open{display:block}
+.sidebar-nav .nav-sub a{padding:8px 20px 8px 46px;font-size:.82rem;border-left:2px solid transparent}
+/* 斗篷-用户行为按钮（核心，突出） */
+.btn-core{background:rgba(240,136,62,.14);border:1px solid rgba(240,136,62,.5);color:var(--amber);font-weight:800}
+.btn-core.on{background:var(--amber);color:#1a1205;border-color:var(--amber)}
+.core-tag{display:inline-block;margin-left:6px;padding:1px 7px;border-radius:999px;background:var(--amber);color:#1a1205;font-size:.62rem;font-weight:800}
+.btn-core.on .core-tag{background:#1a1205;color:var(--amber)}
 .msg{padding:10px 14px;border-radius:8px;font-size:.84rem;margin-top:12px}
 .msg.ok{background:rgba(33,192,100,.08);color:var(--green);border:1px solid rgba(33,192,100,.15)}
 .msg.err{background:rgba(248,81,73,.08);color:var(--red);border:1px solid rgba(248,81,73,.15)}
@@ -133,13 +145,25 @@ function buildNav(){
   if(S.role==='admin'){
     nav.innerHTML = '<a class="active" data-p="accounts">📋 账户管理</a><a data-p="loginLogs">🕐 登录日志</a>';
   } else {
-    nav.innerHTML = '<a class="active" data-p="dashboard">📊 控制台</a><a data-p="landing">🌐 我的落地页</a><a data-p="visits">📈 流量访问</a><a data-p="clicks">👆 点击统计</a><a data-p="apk">📦 普通跳转地址配置</a><a data-p="pixels">📡 像素管理</a><a data-p="cloak">🕶️ 斗篷设置</a>';
+    nav.innerHTML = '<a class="active" data-p="dashboard">📊 控制台</a><a data-p="landing">🌐 我的落地页</a><a data-p="visits">📈 流量访问</a><a data-p="clicks">👆 点击统计</a><a data-p="apk">📦 普通跳转地址配置</a><a data-p="pixels">📡 像素管理</a>'+
+      '<a class="nav-parent" data-p="cloakParent">🕶️ 斗篷设置 <span class="nav-arrow">▾</span></a>'+
+      '<div class="nav-sub" id="cloakSubmenu"><a data-p="cloakTraffic">斗篷流量</a><a data-p="cloakRules">斗篷规则列表</a></div>';
   }
   nav.querySelectorAll('a').forEach(function(a){
     a.onclick = function(){
+      var p = this.getAttribute('data-p');
+      var sub = document.getElementById('cloakSubmenu');
+      var parent = nav.querySelector('[data-p="cloakParent"]');
+      if(p === 'cloakParent'){
+        if(sub) sub.classList.toggle('open');
+        this.classList.toggle('open');
+        return;
+      }
       nav.querySelectorAll('a').forEach(function(x){x.classList.remove('active')});
       this.classList.add('active');
-      var p = this.getAttribute('data-p');
+      var isCloak = (p==='cloakTraffic' || p==='cloakRules');
+      if(isCloak){ if(sub) sub.classList.add('open'); if(parent) parent.classList.add('open'); }
+      else { if(sub) sub.classList.remove('open'); if(parent) parent.classList.remove('open'); }
       if(p==='accounts') showAccounts();
       else if(p==='loginLogs') showLoginLogs();
       else if(p==='dashboard') showDashboard();
@@ -148,7 +172,8 @@ function buildNav(){
       else if(p==='apk') showApk();
       else if(p==='pixels') showPixels();
       else if(p==='clicks') showClicks();
-      else if(p==='cloak') showCloak();
+      else if(p==='cloakTraffic'){ _cloakTab='traffic'; showCloak(); }
+      else if(p==='cloakRules'){ _cloakTab='config'; showCloak(); }
     };
   });
 }
@@ -781,22 +806,24 @@ var _cloakTrafficPage = 1, _cloakTrafficSite = '', _cloakTrafficResult = '';
 function cloakSetVal(id, v){ var el=document.getElementById(id); if(el) el.value = v; }
 function cloakQuickLang(){ cloakSetVal('langList','zh-cn\nzh-tw\nen\nja\nde\nfr\nes\nit\nar\npl'); }
 function cloakQuickTz(){ cloakSetVal('tzList','+8\n+9\n-5\n-8\n0\n+1\n+5.5'); }
+function cloakSiteInput(sites){
+  var opts = (sites||[]).map(function(s){ return '<option value="'+esc(s.site)+'"></option>'; }).join('');
+  return '<input id="siteSelector" list="cloakSiteDatalist" value="'+esc(_currentSite)+'" placeholder="输入或选择落地页域名" style="padding:8px 12px;border-radius:8px;border:1px solid var(--border);background:#0d0f16;color:var(--text);font-size:.86rem;max-width:100%">'+
+         '<datalist id="cloakSiteDatalist">'+opts+'</datalist>';
+}
+function behaviorItem(id, title, desc, extra){
+  return '<div style="border:1px solid var(--border);border-radius:10px;padding:12px 14px">'+
+    '<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:600;font-size:.92rem;white-space:nowrap"><input type="checkbox" id="'+id+'"> '+title+' '+(extra||'')+'</label>'+
+    '<div style="font-size:.78rem;color:var(--muted);margin-top:6px;line-height:1.6;padding-left:24px">'+desc+'</div>'+
+    '</div>';
+}
 
 async function showCloak(){
   var main = document.getElementById('mainContent');
-  main.innerHTML = '<div class="page-header"><h1>🕶️ 斗篷设置</h1><div style="display:flex;gap:8px"><button class="btn btn-o btn-sm" id="cloakTabTraffic">斗篷流量</button><button class="btn btn-p btn-sm" id="cloakTabConfig">斗篷规则</button></div></div>'+
+  var title = _cloakTab==='traffic' ? '斗篷流量' : '斗篷规则列表';
+  main.innerHTML = '<div class="page-header"><h1>🕶️ 斗篷设置 <span style="color:var(--muted);font-size:.8rem;font-weight:400">/ '+title+'</span></h1></div>'+
     '<div id="cloakTabContent"></div>';
-  document.getElementById('cloakTabConfig').onclick = function(){ _cloakTab='config'; setCloakTab(); showCloakConfig(); };
-  document.getElementById('cloakTabTraffic').onclick = function(){ _cloakTab='traffic'; setCloakTab(); showCloakTraffic(); };
-  setCloakTab();
   if(_cloakTab==='traffic') showCloakTraffic(); else showCloakConfig();
-}
-
-function setCloakTab(){
-  var c = document.getElementById('cloakTabConfig');
-  var t = document.getElementById('cloakTabTraffic');
-  if(c) c.className = _cloakTab==='config' ? 'btn btn-p btn-sm' : 'btn btn-o btn-sm';
-  if(t) t.className = _cloakTab==='traffic' ? 'btn btn-p btn-sm' : 'btn btn-o btn-sm';
 }
 
 function setCloakSubTab(name){
@@ -806,8 +833,40 @@ function setCloakSubTab(name){
     var p = document.getElementById('cloakPanel_'+k);
     if(p) p.style.display = (k===name) ? '' : 'none';
     var b = document.getElementById(ids[k]);
-    if(b) b.className = (k===name) ? 'btn btn-p btn-sm' : 'btn btn-o btn-sm';
+    if(!b) return;
+    if(k === 'behavior'){
+      b.className = 'btn btn-sm btn-core' + (k===name ? ' on' : '');
+    } else {
+      b.className = (k===name) ? 'btn btn-p btn-sm' : 'btn btn-o btn-sm';
+    }
   });
+}
+
+// 用户行为设置的门控：需「设备环境→终端屏蔽」开启 且 勾选了手机（安卓/iOS）
+function behaviorGateOn(){
+  var dev = document.getElementById('deviceEnabled');
+  var a = document.getElementById('device_android');
+  var i = document.getElementById('device_ios');
+  return !!(dev && dev.checked && ((a && a.checked) || (i && i.checked)));
+}
+
+function updateBehaviorGate(){
+  var on = behaviorGateOn();
+  var btn = document.getElementById('cloakSubBehavior');
+  if(btn){
+    btn.disabled = !on;
+    btn.style.opacity = on ? '' : '.45';
+    btn.style.cursor = on ? '' : 'not-allowed';
+    btn.title = on ? '' : '请先在「设备环境」中启用终端屏蔽，并勾选手机（安卓/iOS）';
+  }
+  var panel = document.getElementById('cloakPanel_behavior');
+  if(panel){
+    panel.querySelectorAll('input').forEach(function(el){ el.disabled = !on; });
+  }
+  if(!on && _cloakSubTab === 'behavior'){
+    _cloakSubTab = 'basic';
+    setCloakSubTab('basic');
+  }
 }
 
 async function showCloakConfig(){
@@ -823,18 +882,22 @@ async function showCloakConfig(){
       '</ol>'+
     '</div>'+
 
-    '<div class="card" style="padding:12px 16px"><div style="display:flex;gap:8px;flex-wrap:wrap">'+
+    '<div class="card" style="padding:12px 16px"><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">'+
       '<button class="btn btn-p btn-sm" id="cloakSubBasic">基础设置</button>'+
       '<button class="btn btn-o btn-sm" id="cloakSubCrawler">爬虫屏蔽</button>'+
       '<button class="btn btn-o btn-sm" id="cloakSubDevice">设备环境</button>'+
-      '<button class="btn btn-o btn-sm" id="cloakSubBehavior">用户行为</button>'+
+      '<button class="btn btn-sm btn-core" id="cloakSubBehavior">🧠 用户行为<span class="core-tag">核心</span></button>'+
     '</div></div>'+
 
     '<div class="card" id="cloakPanel_basic">'+
-      '<h3>📍 当前落地页</h3><div style="margin-bottom:12px">'+siteInfo.html+'</div>'+
+      '<h3>📍 当前落地页</h3><div style="margin-bottom:12px">'+cloakSiteInput(siteInfo.sites)+'</div>'+
       '<h3>⚙️ 基础设置</h3>'+
       '<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:700;margin-bottom:14px;white-space:nowrap"><input type="checkbox" id="cloakEnabled"> 启用斗篷防护</label>'+
-      '<label style="font-size:.8rem;color:var(--muted)">不符合规则跳转到的地址</label><input type="text" id="cloakFallback" style="margin-bottom:12px" placeholder="https://www.google.com">'+
+      '<div style="background:rgba(240,136,62,.09);border:1px solid rgba(240,136,62,.35);border-radius:10px;padding:12px 14px;margin-bottom:14px">'+
+        '<label style="display:flex;align-items:center;gap:6px;font-weight:800;color:var(--amber);margin-bottom:8px;font-size:.92rem">🚨 不符合规则跳转到的地址</label>'+
+        '<input type="text" id="cloakFallback" placeholder="https://www.google.com" style="background:#0d0f16;border-color:rgba(240,136,62,.5);color:var(--amber);font-weight:700">'+
+        '<div style="font-size:.76rem;color:var(--muted);margin-top:6px">命中斗篷规则（爬虫/设备/语言/时区/IP/行为等）的流量，会被自动跳转到这个地址</div>'+
+      '</div>'+
       '<label style="font-size:.8rem;color:var(--muted)">白名单IP（每行一个，命中则完全放行，不受任何斗篷规则限制）</label><textarea id="cloakWhitelist" rows="2" style="margin-bottom:4px" placeholder="1.2.3.4"></textarea>'+
     '</div>'+
 
@@ -880,13 +943,13 @@ async function showCloakConfig(){
     '</div>'+
 
     '<div class="card" id="cloakPanel_behavior" style="display:none">'+
-      '<h3>🧠 模块3 · 用户行为设置</h3>'+
-      '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:600;white-space:nowrap"><input type="checkbox" id="bScrollEnabled"> 页面滚动深度</label><span style="color:var(--muted);font-size:.84rem">大于</span><input type="number" id="bScrollThreshold" min="0" max="100" style="width:90px;padding:6px 10px" value="90"><span style="color:var(--muted);font-size:.84rem">%</span></div>'+
-      '<div style="display:flex;gap:24px;flex-wrap:wrap">'+
-      '<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:.9rem;white-space:nowrap"><input type="checkbox" id="bMouseEnabled"> 鼠标/手指轨迹曲线</label>'+
-      '<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:.9rem;white-space:nowrap"><input type="checkbox" id="bTouchEnabled"> 触摸滑动连续性</label>'+
-      '<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:.9rem;white-space:nowrap"><input type="checkbox" id="bVisibilityEnabled"> 页面可见性变化</label>'+
-      '<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:.9rem;white-space:nowrap"><input type="checkbox" id="bRhythmEnabled"> 滚动非线性节奏</label>'+
+      '<h3>🧠 模块3 · 用户行为设置 <span style="font-size:.78rem;color:var(--muted);font-weight:400">（识别真人操作，机器/脚本很难模仿）</span></h3>'+
+      '<div style="display:flex;flex-direction:column;gap:12px">'+
+      behaviorItem('bScrollEnabled','页面滚动深度','检测访问者是否真的往下滚动过页面。真人会正常滑动浏览；机器秒点不滚动，就会被拦下。','<span style="color:var(--muted);font-size:.84rem;font-weight:400">大于</span><input type="number" id="bScrollThreshold" min="0" max="100" style="width:80px;padding:6px 8px" value="90"><span style="color:var(--muted);font-size:.84rem;font-weight:400">%</span>')+
+      behaviorItem('bMouseEnabled','鼠标/手指轨迹曲线','真人滑动鼠标/手指的轨迹是弯曲、不规则的；脚本走的是笔直直线，一眼就能识别。','')+
+      behaviorItem('bTouchEnabled','触摸滑动连续性','真人在手机上会连续滑动好几下；机器往往只点一下，没有连续的触摸动作。','')+
+      behaviorItem('bVisibilityEnabled','页面可见性变化','真人可能会切走再切回页面；脚本和爬虫从头到尾停留在页面，不会触发切换。','')+
+      behaviorItem('bRhythmEnabled','滚动非线性节奏','真人滚动的速度时快时慢；机器是匀速滚动，一眼就能看出是假的。','')+
       '</div>'+
     '</div>'+
 
@@ -902,6 +965,10 @@ async function showCloakConfig(){
   document.getElementById('cloakSubCrawler').onclick = function(){ setCloakSubTab('crawler'); };
   document.getElementById('cloakSubDevice').onclick = function(){ setCloakSubTab('device'); };
   document.getElementById('cloakSubBehavior').onclick = function(){ setCloakSubTab('behavior'); };
+  ['deviceEnabled','device_android','device_ios'].forEach(function(id){
+    var el = document.getElementById(id);
+    if(el) el.onchange = updateBehaviorGate;
+  });
   setCloakSubTab(_cloakSubTab);
   loadCloak();
 }
@@ -930,6 +997,7 @@ async function loadCloak(){
     var dv = rules.device || {}; setChk('deviceEnabled', dv.enabled); setRadio('deviceMode', dv.mode||'block');
     var dvList = dv.list || ['android','ios','pc','mac'];
     ['android','ios','pc','mac'].forEach(function(x){ setChk('device_'+x, dvList.indexOf(x)!==-1); });
+    updateBehaviorGate();
 
     var lg = rules.language || {}; setChk('langEnabled', lg.enabled); setRadio('langMode', lg.mode||'block'); setVal('langList', (lg.list||[]).join('\n'));
     var tz = rules.timezone || {}; setChk('tzEnabled', tz.enabled); setRadio('tzMode', tz.mode||'block'); setVal('tzList', (tz.list||[]).join('\n'));

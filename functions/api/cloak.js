@@ -137,24 +137,41 @@ async function getIpInfo(env, ip) {
 async function resolveSite(env, rawSite) {
   var username = '';
   var matchedSite = rawSite;
-  try {
-    var m = await env.DB.prepare('SELECT site, username FROM site_mappings WHERE site = ?1').bind(rawSite).first();
-    var alt = '';
-    if (!m) {
-      if (rawSite.charAt(rawSite.length - 1) === '/') alt = rawSite.slice(0, -1);
-      else if (rawSite.indexOf('/') > 0) alt = rawSite + '/';
-      if (alt) m = await env.DB.prepare('SELECT site, username FROM site_mappings WHERE site = ?1').bind(alt).first();
-    }
-    if (m) { username = m.username; matchedSite = m.site; }
-  } catch (e) {}
 
+  // —— username 反解：复用 pixels.js 的 site_mappings 多级匹配（精确 → 斜杠变体 → .html → 域名）——
+  async function findMapping(target) {
+    try {
+      var m = await env.DB.prepare('SELECT site, username FROM site_mappings WHERE site = ?1').bind(target).first();
+      if (m) return m;
+    } catch (e) {}
+    var alt = '';
+    if (target.charAt(target.length - 1) === '/') alt = target.slice(0, -1);
+    else if (target.indexOf('/') > 0) alt = target + '/';
+    if (alt) {
+      try { var m2 = await env.DB.prepare('SELECT site, username FROM site_mappings WHERE site = ?1').bind(alt).first(); if (m2) return m2; } catch (e) {}
+    }
+    if (target.indexOf('.') > 0 && target.indexOf('/') > 0 && target.indexOf('.html') === -1) {
+      try { var m3 = await env.DB.prepare('SELECT site, username FROM site_mappings WHERE site = ?1').bind(target + '.html').first(); if (m3) return m3; } catch (e) {}
+    }
+    var host = target;
+    try { host = new URL(target).hostname; } catch (e) {}
+    if (host !== target) {
+      try { var m4 = await env.DB.prepare('SELECT site, username FROM site_mappings WHERE site = ?1').bind(host).first(); if (m4) return m4; } catch (e) {}
+    }
+    return null;
+  }
+  var mapping = await findMapping(rawSite);
+  if (mapping) { username = mapping.username; matchedSite = mapping.site; }
+
+  // —— cloak_configs 解析：site 为主键，按多候选精确匹配，保证每个落地页命中各自配置 ——
   var config = null;
   var host = rawSite;
   try { host = new URL(rawSite).hostname; } catch (e) {}
   var candidates = [rawSite];
-  if (host !== rawSite) candidates.push(host);
   if (rawSite.charAt(rawSite.length - 1) === '/') candidates.push(rawSite.slice(0, -1));
   else if (rawSite.indexOf('/') > 0) candidates.push(rawSite + '/');
+  if (rawSite.indexOf('.') > 0 && rawSite.indexOf('/') > 0 && rawSite.indexOf('.html') === -1) candidates.push(rawSite + '.html');
+  if (host !== rawSite) candidates.push(host);
   var seen = {};
   for (var i = 0; i < candidates.length; i++) {
     var c = candidates[i];
