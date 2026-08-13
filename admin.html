@@ -52,6 +52,8 @@ input[type=checkbox],input[type=radio]{width:auto;flex-shrink:0;accent-color:var
 .btn-core.on{background:var(--amber);color:#1a1205;border-color:var(--amber)}
 .core-tag{display:inline-block;margin-left:6px;padding:1px 7px;border-radius:999px;background:var(--amber);color:#1a1205;font-size:.62rem;font-weight:800}
 .btn-core.on .core-tag{background:#1a1205;color:var(--amber)}
+.site-chip{padding:6px 12px;border-radius:999px;border:1px solid var(--border);background:transparent;color:var(--text);cursor:pointer;font-size:.82rem;white-space:nowrap;transition:all .12s}
+.site-chip.on{background:rgba(240,136,62,.16);border-color:var(--amber);color:var(--amber)}
 .msg{padding:10px 14px;border-radius:8px;font-size:.84rem;margin-top:12px}
 .msg.ok{background:rgba(33,192,100,.08);color:var(--green);border:1px solid rgba(33,192,100,.15)}
 .msg.err{background:rgba(248,81,73,.08);color:var(--red);border:1px solid rgba(248,81,73,.15)}
@@ -146,8 +148,8 @@ function buildNav(){
     nav.innerHTML = '<a class="active" data-p="accounts">📋 账户管理</a><a data-p="loginLogs">🕐 登录日志</a>';
   } else {
     nav.innerHTML = '<a class="active" data-p="dashboard">📊 控制台</a><a data-p="landing">🌐 我的落地页</a><a data-p="visits">📈 流量访问</a><a data-p="clicks">👆 点击统计</a><a data-p="apk">📦 普通跳转地址配置</a><a data-p="pixels">📡 像素管理</a>'+
-      '<a class="nav-parent" data-p="cloakParent">🕶️ 斗篷设置 <span class="nav-arrow">▾</span></a>'+
-      '<div class="nav-sub" id="cloakSubmenu"><a data-p="cloakTraffic">斗篷流量</a><a data-p="cloakRules">斗篷规则列表</a><a data-p="cloakConfigQuery">斗篷配置查询</a></div>';
+      '<a class="nav-parent open" data-p="cloakParent">🕶️ 斗篷设置 <span class="nav-arrow">▾</span></a>'+
+      '<div class="nav-sub open" id="cloakSubmenu"><a data-p="cloakTraffic">斗篷流量</a><a data-p="cloakRules">斗篷规则列表</a><a data-p="cloakConfigQuery">斗篷配置查询</a></div>';
   }
   nav.querySelectorAll('a').forEach(function(a){
     a.onclick = function(){
@@ -810,12 +812,78 @@ var _cloakConfig = null;
 var _cloakTrafficPage = 1, _cloakTrafficSite = '', _cloakTrafficResult = '';
 
 function cloakSetVal(id, v){ var el=document.getElementById(id); if(el) el.value = v; }
-function cloakQuickLang(){ cloakSetVal('langList','zh-cn\nzh-tw\nen\nja\nde\nfr\nes\nit\nar\npl'); }
+var CLOAK_LANGS = [
+  ['zh-cn','简体中文'],['zh-tw','繁体中文'],['en','英文'],['de','德语'],['fr','法语'],
+  ['es','西班牙语'],['ja','日语'],['ko','韩语'],['pl','波兰语'],['nl','荷兰语'],['ar','阿拉伯语']
+];
 function cloakQuickTz(){ cloakSetVal('tzList','+8\n+9\n-5\n-8\n0\n+1\n+5.5'); }
 function cloakSiteInput(sites){
-  var opts = (sites||[]).map(function(s){ return '<option value="'+esc(s.site)+'"></option>'; }).join('');
-  return '<input id="siteSelector" list="cloakSiteDatalist" value="'+esc(_currentSite)+'" placeholder="输入或选择落地页域名" style="padding:8px 12px;border-radius:8px;border:1px solid var(--border);background:#0d0f16;color:var(--text);font-size:.86rem;max-width:100%">'+
-         '<datalist id="cloakSiteDatalist">'+opts+'</datalist>';
+  var list = sites || [];
+  var opts = list.map(function(s){ return '<option value="'+esc(s.site)+'"></option>'; }).join('');
+  var chips = list.length
+    ? '<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">'+
+        '<span style="font-size:.78rem;color:var(--muted)">我的落地页：</span>'+
+        list.map(function(s){ return '<button type="button" class="site-chip'+(s.site===_currentSite?' on':'')+'" data-site="'+esc(s.site)+'">'+esc(s.site)+'</button>'; }).join('')+
+      '</div>'
+    : '';
+  return '<div style="background:rgba(240,136,62,.1);border:1px solid rgba(240,136,62,.35);border-radius:10px;padding:12px 14px;margin-bottom:14px">'+
+    '<label style="display:block;font-weight:800;color:var(--amber);margin-bottom:6px;font-size:.92rem">📍 正在配置的落地页</label>'+
+    '<input id="siteSelector" list="cloakSiteDatalist" value="'+esc(_currentSite)+'" placeholder="输入或选择落地页域名" style="padding:8px 12px;border-radius:8px;border:1px solid var(--border);background:#0d0f16;color:var(--amber);font-weight:600;font-size:.9rem;width:100%">'+
+    '<datalist id="cloakSiteDatalist">'+opts+'</datalist>'+
+    chips+
+    '<div style="font-size:.76rem;color:var(--muted);margin-top:8px">⚠️ 请确认上方显示的是你要配置的落地页，切换后下方规则会随之更新，避免改错站点</div>'+
+    '</div>';
+}
+function highlightSiteChip(site){
+  document.querySelectorAll('.site-chip').forEach(function(c){ c.classList.toggle('on', c.getAttribute('data-site')===site); });
+}
+function langSelectHtml(){
+  var opts = CLOAK_LANGS.map(function(x){
+    return '<label style="display:flex;align-items:center;gap:8px;padding:7px 12px;cursor:pointer;font-size:.86rem;white-space:nowrap"><input type="checkbox" class="langOpt" value="'+x[0]+'"> '+x[1]+'</label>';
+  }).join('');
+  return '<div style="position:relative;margin:6px 0 16px">'+
+    '<div id="langListBox" style="padding:9px 12px;border:1px solid var(--border);border-radius:8px;background:#0d0f16;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:8px">'+
+      '<span id="langListLabel" style="color:var(--muted);font-size:.86rem">点击选择要屏蔽的语言…</span><span style="color:var(--muted);font-size:.7rem">▾</span></div>'+
+    '<div id="langListMenu" style="display:none;position:absolute;top:100%;left:0;right:0;z-index:30;margin-top:4px;background:var(--card);border:1px solid var(--border);border-radius:8px;max-height:240px;overflow-y:auto;box-shadow:0 10px 28px rgba(0,0,0,.5);padding:4px">'+opts+'</div>'+
+  '</div>';
+}
+var _langDocBound = false;
+function wireLangSelect(){
+  var box = document.getElementById('langListBox');
+  var menu = document.getElementById('langListMenu');
+  if(!box || !menu) return;
+  box.onclick = function(e){ e.stopPropagation(); menu.style.display = (menu.style.display==='none') ? '' : 'none'; };
+  menu.onclick = function(e){ e.stopPropagation(); };
+  if(!_langDocBound){
+    _langDocBound = true;
+    document.addEventListener('click', function(){
+      var m = document.getElementById('langListMenu');
+      if(m && m.style.display !== 'none') m.style.display = 'none';
+    });
+  }
+  menu.querySelectorAll('.langOpt').forEach(function(cb){ cb.onchange = updateLangLabel; });
+  updateLangLabel();
+}
+function getLangSelected(){
+  var arr = [];
+  document.querySelectorAll('.langOpt').forEach(function(cb){ if(cb.checked) arr.push(cb.value); });
+  return arr;
+}
+function setLangSelected(list){
+  var set = {};
+  (list||[]).forEach(function(x){ set[x] = 1; });
+  document.querySelectorAll('.langOpt').forEach(function(cb){ cb.checked = !!set[cb.value]; });
+  updateLangLabel();
+}
+function updateLangLabel(){
+  var label = document.getElementById('langListLabel');
+  if(!label) return;
+  var sel = getLangSelected();
+  if(!sel.length){ label.textContent = '点击选择要屏蔽的语言…'; label.style.color = 'var(--muted)'; return; }
+  var names = {};
+  CLOAK_LANGS.forEach(function(x){ names[x[0]] = x[1]; });
+  label.textContent = sel.map(function(v){ return names[v] || v; }).join('、');
+  label.style.color = 'var(--text)';
 }
 function behaviorItem(id, title, desc, extra){
   return '<div style="border:1px solid var(--border);border-radius:10px;padding:12px 14px">'+
@@ -865,7 +933,9 @@ function describeCloakRules(rules){
     out.push({ name:'终端屏蔽', detail: m+(dl?('·'+dl):'') });
   }
   if(isOn(r.language)){
-    out.push({ name:'语言屏蔽', detail: (r.language.list||[]).join('/') || '全部' });
+    var ln = {};
+    CLOAK_LANGS.forEach(function(x){ ln[x[0]] = x[1]; });
+    out.push({ name:'语言屏蔽', detail: (r.language.list||[]).map(function(x){ return ln[x]||x; }).join('/') || '全部' });
   }
   if(isOn(r.timezone)){
     out.push({ name:'时区屏蔽', detail: (r.timezone.list||[]).join('/') || '全部' });
@@ -996,7 +1066,7 @@ async function showCloakConfig(){
     '</div></div>'+
 
     '<div class="card" id="cloakPanel_basic">'+
-      '<h3>📍 当前落地页</h3><div style="margin-bottom:12px">'+cloakSiteInput(siteInfo.sites)+'</div>'+
+      cloakSiteInput(siteInfo.sites)+
       '<h3>⚙️ 基础设置</h3>'+
       '<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:700;margin-bottom:14px;white-space:nowrap"><input type="checkbox" id="cloakEnabled"> 启用斗篷防护</label>'+
       '<div style="background:rgba(240,136,62,.09);border:1px solid rgba(240,136,62,.35);border-radius:10px;padding:12px 14px;margin-bottom:14px">'+
@@ -1030,13 +1100,13 @@ async function showCloakConfig(){
 
       '<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:600;margin-bottom:8px;white-space:nowrap"><input type="checkbox" id="langEnabled"> 设备语言屏蔽</label>'+
       '<div style="display:flex;gap:20px;margin:6px 0 8px"><label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:.84rem;white-space:nowrap"><input type="radio" name="langMode" value="block" checked> 屏蔽列表内</label><label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:.84rem;white-space:nowrap"><input type="radio" name="langMode" value="allow"> 仅允许列表内</label></div>'+
-      '<textarea id="langList" rows="3" placeholder="每行一个语言代码，如 ja（日文）、zh-cn（简体中文）"></textarea>'+
-      '<button class="btn btn-o btn-sm" onclick="cloakQuickLang()" style="margin:6px 0 16px">快捷填入 10 种语言</button>'+
+      langSelectHtml()+
 
       '<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:600;margin-bottom:8px;white-space:nowrap"><input type="checkbox" id="tzEnabled"> 地区时区屏蔽</label>'+
       '<div style="display:flex;gap:20px;margin:6px 0 8px"><label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:.84rem;white-space:nowrap"><input type="radio" name="tzMode" value="block" checked> 屏蔽列表内</label><label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:.84rem;white-space:nowrap"><input type="radio" name="tzMode" value="allow"> 仅允许列表内</label></div>'+
       '<textarea id="tzList" rows="3" placeholder="每行一个时区，如 +8（中国）、+9（日本）、Asia/Tokyo"></textarea>'+
-      '<button class="btn btn-o btn-sm" onclick="cloakQuickTz()" style="margin:6px 0 16px">快捷填入常用时区</button>'+
+      '<button class="btn btn-o btn-sm" onclick="cloakQuickTz()" style="margin:6px 0 8px">快捷填入常用时区</button>'+
+      '<div style="font-size:.78rem;color:var(--muted);line-height:1.7;padding:8px 12px;background:rgba(255,255,255,.04);border-radius:8px;border-left:3px solid var(--amber);margin-bottom:16px">🌍 <b style="color:var(--text)">时区是跟着访客所在国家/地区走的</b>——每台手机/电脑都会按所在地自动设置时区。例如：中国大陆 <b>+8</b>（东八区）、日本 <b>+9</b>、美国东部 <b>-5</b>、英国 <b>0</b>。屏蔽某个时区，就相当于屏蔽来自对应国家/地区的访客。</div>'+
 
       '<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:600;margin-bottom:8px;white-space:nowrap"><input type="checkbox" id="ipBlockEnabled"> 屏蔽具体IP</label>'+
       '<textarea id="ipBlockList" rows="2" placeholder="每行一个IP地址" style="margin-bottom:16px"></textarea>'+
@@ -1064,8 +1134,18 @@ async function showCloakConfig(){
     '<div class="card"><h3>📋 斗篷规则列表（开启状态）</h3><table><thead><tr><th>规则</th><th>状态</th></tr></thead><tbody id="cloakRuleBody"><tr><td colspan="2" class="empty">加载中...</td></tr></tbody></table></div>';
 
   var sel = document.getElementById('siteSelector');
-  if(sel) sel.onchange = function(){ _currentSite = this.value; sessionStorage.setItem('st_current_site', _currentSite); loadCloak(); };
+  if(sel) sel.onchange = function(){ _currentSite = this.value; sessionStorage.setItem('st_current_site', _currentSite); highlightSiteChip(_currentSite); loadCloak(); };
   if(!_currentSite && sel) _currentSite = sel.value;
+  wireLangSelect();
+  document.querySelectorAll('.site-chip').forEach(function(chip){
+    chip.onclick = function(){
+      _currentSite = chip.getAttribute('data-site');
+      sessionStorage.setItem('st_current_site', _currentSite);
+      var inp = document.getElementById('siteSelector'); if(inp) inp.value = _currentSite;
+      highlightSiteChip(_currentSite);
+      loadCloak();
+    };
+  });
   document.getElementById('cloakSaveBtn').onclick = saveCloak;
   document.getElementById('cloakSubBasic').onclick = function(){ setCloakSubTab('basic'); };
   document.getElementById('cloakSubCrawler').onclick = function(){ setCloakSubTab('crawler'); };
@@ -1105,7 +1185,7 @@ async function loadCloak(){
     ['android','ios','pc','mac'].forEach(function(x){ setChk('device_'+x, dvList.indexOf(x)!==-1); });
     updateBehaviorGate();
 
-    var lg = rules.language || {}; setChk('langEnabled', lg.enabled); setRadio('langMode', lg.mode||'block'); setVal('langList', (lg.list||[]).join('\n'));
+    var lg = rules.language || {}; setChk('langEnabled', lg.enabled); setRadio('langMode', lg.mode||'block'); setLangSelected(lg.list || []);
     var tz = rules.timezone || {}; setChk('tzEnabled', tz.enabled); setRadio('tzMode', tz.mode||'block'); setVal('tzList', (tz.list||[]).join('\n'));
     var ib = rules.block_ips || {}; setChk('ipBlockEnabled', ib.enabled); setVal('ipBlockList', (ib.list||[]).join('\n'));
     setChk('vpnEnabled', !!(rules.vpn && rules.vpn.enabled));
@@ -1155,7 +1235,7 @@ function saveCloak(){
   var rules = {
     crawler: { enabled: chk('crawlerEnabled'), engines: ['google','facebook','tiktok'].filter(function(g){ return chk('crawler_'+g); }) },
     device: { enabled: chk('deviceEnabled'), mode: radio('deviceMode'), list: ['android','ios','pc','mac'].filter(function(x){ return chk('device_'+x); }) },
-    language: { enabled: chk('langEnabled'), mode: radio('langMode'), list: lines('langList') },
+    language: { enabled: chk('langEnabled'), mode: radio('langMode'), list: getLangSelected() },
     timezone: { enabled: chk('tzEnabled'), mode: radio('tzMode'), list: lines('tzList') },
     block_ips: { enabled: chk('ipBlockEnabled'), list: lines('ipBlockList') },
     vpn: { enabled: chk('vpnEnabled') },

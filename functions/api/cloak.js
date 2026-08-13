@@ -35,7 +35,7 @@ function normLang(lang) {
     if (l.indexOf('tw') !== -1 || l.indexOf('hk') !== -1 || l.indexOf('mo') !== -1 || l.indexOf('hant') !== -1) return 'zh-tw';
     return 'zh-cn';
   }
-  var map = { en: 'en', ja: 'ja', de: 'de', fr: 'fr', es: 'es', it: 'it', ar: 'ar', pl: 'pl' };
+  var map = { en: 'en', ja: 'ja', de: 'de', fr: 'fr', es: 'es', it: 'it', ar: 'ar', pl: 'pl', ko: 'ko', nl: 'nl' };
   return map[primary] || 'other';
 }
 
