@@ -1,10 +1,17 @@
 // 超强分流链接 — 子账户/管理员管理自己的短链（跳转域名 / 短链 / 目标链接 / 跳转统计）
 // 与既有业务（斗篷/像素/跳转/下载）完全独立，全新表 rd_*、全新接口。
-// 跳转域名由管理员统一在 rd-domains.js 配置文件维护，对所有子账户生效（下拉选择）。
 // GET  ?action=domains|links|logs
 // POST body.action = link_add | link_edit | link_del | link_toggle
 
-import { RD_DOMAINS } from '../../../rd-domains.js';
+// ============ 全局跳转域名配置（管理员维护）============
+// 在此添加/修改跳转域名前缀，保存后重新部署即可生效，对所有子账户生效（下拉选择）。
+// 格式：完整跳转前缀（含协议与路径，不含末尾 8 位短链ID）。
+//   例如 https://km37acd.top/t  →  短链地址为 https://km37acd.top/t/{短链ID}
+const RD_DOMAINS = [
+  'https://km37acd.top/t',
+  // 在此追加更多域名，例如：
+  // 'https://your-second-domain.com/x',
+];
 
 async function getMyUser(request, env) {
   const auth = request.headers.get('Authorization') || '';
@@ -81,7 +88,7 @@ export async function onRequest(context) {
     // ── GET 查询类 ──
     if (request.method === 'GET') {
       if (action === 'domains') {
-        // 全局跳转域名（管理员在 rd-domains.js 配置，对所有子账户生效）
+        // 全局跳转域名（见文件顶部 RD_DOMAINS 配置，对所有子账户生效）
         var doms = (RD_DOMAINS || []).map(function(d){ return { domain: normalizeDomain(d), created_at: '' }; });
         return json({ domains: doms });
       }

@@ -1567,7 +1567,7 @@ async function loadRdLinks(){
 function openRdModal(link){
   fetch('/api/admin/my-rdlink?action=domains&_='+Date.now(),{headers:{Authorization:'Basic '+S.token}}).then(function(r){return r.json()}).then(function(d){
     var domains = d.domains || [];
-    if(!domains.length){ msg('rdResult','err','跳转域名尚未配置，请联系管理员在 rd-domains.js 中添加'); return; }
+    if(!domains.length){ msg('rdResult','err','跳转域名尚未配置，请联系管理员配置'); return; }
     renderRdModal(domains, link);
   }).catch(function(){ msg('rdResult','err','网络错误'); });
 }
