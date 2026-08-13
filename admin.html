@@ -1536,7 +1536,7 @@ function renderRdLinks(){
   c.innerHTML = '<div id="rdResult"></div>'+
     '<div class="card"><div style="display:flex;align-items:center;justify-content:space-between"><h3 style="margin:0">📋 短链列表</h3><button class="btn btn-p" id="rdAddBtn">➕ 新增短链</button></div>'+
     '<div style="font-size:.76rem;color:var(--muted);margin-top:10px;line-height:1.6">「分流链接」＝分享给访客的短链地址；「跳转后链接」＝访客最终跳转到的目标链接</div>'+
-    '<table style="margin-top:10px"><thead><tr><th>短链ID</th><th>分流链接</th><th>跳转后链接</th><th>分流方式</th><th>状态</th><th>添加时间</th><th>操作</th></tr></thead><tbody id="rdLinksBody"><tr><td colspan="7" class="empty">加载中...</td></tr></tbody></table></div>'+
+    '<table style="margin-top:10px"><thead><tr><th style="white-space:nowrap">短链ID</th><th style="white-space:nowrap">分流链接</th><th style="white-space:nowrap">跳转后链接</th><th style="white-space:nowrap">分流方式</th><th style="white-space:nowrap">状态</th><th style="white-space:nowrap">添加时间</th><th style="white-space:nowrap">操作</th></tr></thead><tbody id="rdLinksBody"><tr><td colspan="7" class="empty">加载中...</td></tr></tbody></table></div>'+
     '<div id="rdModalWrap"></div>';
   document.getElementById('rdAddBtn').onclick = function(){ openRdModal(null); };
   loadRdLinks();
@@ -1578,21 +1578,34 @@ function renderRdModal(domains, link){
   var mode = link ? link.mode : 'random';
   var selectedDomain = link ? link.domain : (domains[0] ? domains[0].domain : '');
   var domainOpts = domains.map(function(x){ return '<option value="'+esc(x.domain)+'"'+(x.domain===selectedDomain?' selected':'')+'>'+esc(x.domain)+'</option>'; }).join('');
-  var html = '<div style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.7);z-index:99;display:flex;align-items:center;justify-content:center">'+
-    '<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:28px;width:660px;max-width:96vw;max-height:92vh;overflow-y:auto">'+
-    '<h3 style="margin-bottom:16px">'+(_rdEditingId?'✏️ 编辑短链 <span style="color:var(--green)">'+esc(_rdEditingId)+'</span>':'➕ 新增短链')+'</h3>'+
-    '<label style="font-size:.8rem;color:var(--muted)">分流链接前缀（分享出去的地址，不含末尾短链ID）</label>'+
-    '<select id="rdModalDomain" style="margin-bottom:12px">'+domainOpts+'</select>'+
-    '<label style="font-size:.8rem;color:var(--muted);display:block;margin-bottom:6px">分流方式</label>'+
-    '<div style="display:flex;gap:20px;margin-bottom:14px">'+
-      '<label style="display:flex;align-items:center;gap:6px;cursor:pointer;color:var(--text)"><input type="radio" name="rdMode" value="random" '+(mode==='random'?'checked':'')+'> 🎲 随机跳转</label>'+
-      '<label style="display:flex;align-items:center;gap:6px;cursor:pointer;color:var(--text)"><input type="radio" name="rdMode" value="weighted" '+(mode==='weighted'?'checked':'')+'> ⚖️ 权重比例（如 3:7 = 30%:70%）</label>'+
-    '</div>'+
-    '<label style="font-size:.8rem;color:var(--muted);display:block;margin-bottom:6px">跳转后的目标链接（可添加多个）</label>'+
-    '<div id="rdTargets"></div>'+
-    '<button class="btn btn-o btn-sm" id="rdAddTargetBtn" style="margin-top:8px">+ 添加B链接</button>'+
-    '<div style="font-size:.74rem;color:var(--muted);margin:10px 0">💬 WhatsApp 类型只需填号码（一行一个、纯数字），自动拼成 https://wa.me/号码</div>'+
-    '<div style="display:flex;gap:10px;margin-top:14px"><button class="btn btn-p" id="rdSaveBtn">保存</button><button class="btn btn-o" id="rdCancelBtn">取消</button></div>'+
+  var stepWrap = 'display:flex;gap:10px;margin-bottom:18px;align-items:flex-start';
+  var stepNum = 'display:flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:var(--green);color:#fff;font-weight:700;font-size:.8rem;flex:0 0 22px;line-height:1';
+  var stepTitle = 'font-weight:700;margin:0 0 4px';
+  var stepHint = 'font-size:.78rem;color:var(--muted);margin:0 0 10px;line-height:1.6';
+  var modeOpt = 'display:flex;gap:10px;align-items:flex-start;border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:8px;cursor:pointer;color:var(--text)';
+  var html = '<div style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.7);z-index:99;display:flex;align-items:center;justify-content:center;padding:16px">'+
+    '<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:26px;width:700px;max-width:96vw;max-height:92vh;overflow-y:auto">'+
+    '<h3 style="margin:0 0 6px">'+(_rdEditingId?'✏️ 编辑短链 <span style="color:var(--green)">'+esc(_rdEditingId)+'</span>':'➕ 新增短链')+'</h3>'+
+    '<div style="font-size:.8rem;color:var(--muted);margin-bottom:20px;line-height:1.6">创建一个「分流短链」：访客打开这个地址后，会自动跳转到你下面配置的其中一个链接。放多个链接可轮流分流，避免单个链接失效或被风控。</div>'+
+    '<div style="'+stepWrap+'"><div style="'+stepNum+'">1</div><div style="flex:1;min-width:0">'+
+      '<div style="'+stepTitle+'">选择分流链接的前缀</div>'+
+      '<div style="'+stepHint+'">短链地址 = 前缀 + 短链ID。前缀就是你分享出去的地址开头（不含末尾 8 位短链ID）。</div>'+
+      '<select id="rdModalDomain" style="margin:0;width:100%">'+domainOpts+'</select>'+
+    '</div></div>'+
+    '<div style="'+stepWrap+'"><div style="'+stepNum+'">2</div><div style="flex:1;min-width:0">'+
+      '<div style="'+stepTitle+'">选择分流方式</div>'+
+      '<div style="'+stepHint+'">决定访客打开短链后跳到哪一个链接。</div>'+
+      '<label style="'+modeOpt+'"><input type="radio" name="rdMode" value="random" '+(mode==='random'?'checked':'')+' style="margin-top:3px"><div style="flex:1"><b>🎲 随机跳转</b><div style="font-size:.78rem;color:var(--muted);line-height:1.5">每个链接被跳到的机会一样，无需设置比例。</div></div></label>'+
+      '<label style="'+modeOpt+'"><input type="radio" name="rdMode" value="weighted" '+(mode==='weighted'?'checked':'')+' style="margin-top:3px"><div style="flex:1"><b>⚖️ 按比例分流</b><div style="font-size:.78rem;color:var(--muted);line-height:1.5">给每个链接设置权重，例如 3 和 7 → 概率 30% 和 70%。</div></div></label>'+
+    '</div></div>'+
+    '<div style="'+stepWrap+'"><div style="'+stepNum+'">3</div><div style="flex:1;min-width:0">'+
+      '<div style="'+stepTitle+'">添加跳转后的链接</div>'+
+      '<div style="'+stepHint+'">访客打开短链后，会跳到下面其中一个链接，可添加多个。</div>'+
+      '<div id="rdTargets"></div>'+
+      '<button class="btn btn-o btn-sm" id="rdAddTargetBtn">➕ 添加一个链接</button>'+
+      '<div style="font-size:.74rem;color:var(--muted);margin:8px 0 0;line-height:1.6">💬 类型选「WhatsApp」时，只填号码（一行一个、纯数字），会自动拼成 https://wa.me/号码</div>'+
+    '</div></div>'+
+    '<div style="display:flex;gap:10px;margin-top:18px"><button class="btn btn-p" id="rdSaveBtn">保存</button><button class="btn btn-o" id="rdCancelBtn">取消</button></div>'+
     '<div id="rdModalMsg"></div>'+
     '</div></div>';
   document.getElementById('rdModalWrap').innerHTML = html;
@@ -1614,13 +1627,22 @@ function addRdTargetRow(t){
   var numbers = '';
   if(type === 'whatsapp'){ numbers = (t && t.url) ? t.url.replace(/^https:\/\/wa\.me\//i,'') : ''; }
   var weight = t ? (t.weight || 1) : 1;
+  var idx = box.children.length + 1;
   var row = document.createElement('div');
-  row.style.cssText = 'display:flex;gap:8px;align-items:flex-start;margin-bottom:8px;flex-wrap:wrap';
-  row.innerHTML = '<select class="rdtt" style="flex:0 0 112px"><option value="url"'+(type==='url'?' selected':'')+'>🔗 链接</option><option value="whatsapp"'+(type==='whatsapp'?' selected':'')+'>💬 WhatsApp</option></select>'+
-    '<input class="rdtu" placeholder="https://example.com" value="'+esc(url)+'" style="flex:1;min-width:180px;'+(type==='whatsapp'?'display:none':'')+'">'+
-    '<textarea class="rdtn" placeholder="号码一行一个，纯数字" style="flex:1;min-width:180px;height:38px;'+(type==='whatsapp'?'':'display:none')+'">'+esc(numbers)+'</textarea>'+
-    '<input class="rdtw" type="number" min="1" value="'+weight+'" style="flex:0 0 70px" title="权重（相对比例）">'+
-    '<button class="btn btn-o btn-sm rdtdel" style="flex:0 0 auto">✕</button>';
+  row.style.cssText = 'border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:10px;background:rgba(255,255,255,.02)';
+  row.innerHTML = '<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">'+
+    '<span class="rdtlbl" style="font-weight:700;color:var(--green);font-size:.8rem;white-space:nowrap">跳转链接 '+idx+'</span>'+
+    '<select class="rdtt" style="flex:0 0 auto"><option value="url"'+(type==='url'?' selected':'')+'>🔗 普通链接</option><option value="whatsapp"'+(type==='whatsapp'?' selected':'')+'>💬 WhatsApp</option></select>'+
+    '<div style="flex:1"></div>'+
+    '<button class="btn btn-o btn-sm rdtdel" style="flex:0 0 auto;padding:4px 12px">✕ 删除</button>'+
+    '</div>'+
+    '<input class="rdtu" placeholder="粘贴跳转地址，例如 https://example.com" value="'+esc(url)+'" style="width:100%;box-sizing:border-box;'+(type==='whatsapp'?'display:none':'')+'">'+
+    '<textarea class="rdtn" placeholder="WhatsApp 号码，一行一个（纯数字）" style="width:100%;box-sizing:border-box;min-height:60px;'+(type==='whatsapp'?'':'display:none')+'">'+esc(numbers)+'</textarea>'+
+    '<div class="rdtwWrap" style="margin-top:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">'+
+      '<span style="font-size:.78rem;color:var(--muted);white-space:nowrap">⚖️ 权重（比例）</span>'+
+      '<input class="rdtw" type="number" min="1" value="'+weight+'" style="flex:0 0 70px" title="数值越大，被跳到的概率越高（仅「按比例分流」模式生效）">'+
+      '<span style="font-size:.74rem;color:var(--muted)">例如 3 和 7 = 30% : 70%</span>'+
+    '</div>';
   box.appendChild(row);
   var sel = row.querySelector('.rdtt');
   var uinp = row.querySelector('.rdtu');
@@ -1630,14 +1652,22 @@ function addRdTargetRow(t){
     uinp.style.display = isW ? 'none' : '';
     tinp.style.display = isW ? '' : 'none';
   };
-  row.querySelector('.rdtdel').onclick = function(){ box.removeChild(row); };
+  row.querySelector('.rdtdel').onclick = function(){ box.removeChild(row); renumberRdTargets(); };
   refreshRdTargetWeights();
+}
+
+function renumberRdTargets(){
+  var rows = document.querySelectorAll('#rdTargets > div');
+  for(var i=0;i<rows.length;i++){
+    var lbl = rows[i].querySelector('.rdtlbl');
+    if(lbl) lbl.textContent = '跳转链接 ' + (i+1);
+  }
 }
 
 function refreshRdTargetWeights(){
   var r = document.querySelector('input[name="rdMode"]:checked');
   var weighted = r ? (r.value === 'weighted') : false;
-  document.querySelectorAll('#rdTargets .rdtw').forEach(function(w){ w.style.display = weighted ? '' : 'none'; });
+  document.querySelectorAll('#rdTargets .rdtwWrap').forEach(function(w){ w.style.display = weighted ? 'flex' : 'none'; });
 }
 
 async function saveRdLink(){
@@ -1729,7 +1759,7 @@ function renderRdLogs(){
   c.innerHTML = '<div class="card"><h3>📈 跳转统计</h3>'+
     '<div class="form-row" style="margin-bottom:12px"><select id="rdLogLinkSel"><option value="">全部短链</option></select><button class="btn btn-o btn-sm" id="rdLogRefresh">刷新</button></div>'+
     '<div style="font-size:.78rem;color:var(--muted);margin-bottom:10px">跳转时间已按 +8 时区显示</div>'+
-    '<table><thead><tr><th>跳转时间(+8时区)</th><th>IP</th><th>分流链接</th><th>跳转后链接</th><th>设备</th></tr></thead><tbody id="rdLogsBody"><tr><td colspan="5" class="empty">加载中...</td></tr></tbody></table>'+
+    '<table><thead><tr><th style="white-space:nowrap">跳转时间(+8时区)</th><th style="white-space:nowrap">IP</th><th style="white-space:nowrap">分流链接</th><th style="white-space:nowrap">跳转后链接</th><th style="white-space:nowrap">设备</th></tr></thead><tbody id="rdLogsBody"><tr><td colspan="5" class="empty">加载中...</td></tr></tbody></table>'+
     '<div id="rdLogPager" style="margin-top:12px;display:flex;gap:8px;align-items:center"></div></div>';
   fetch('/api/admin/my-rdlink?action=links&_='+Date.now(),{headers:{Authorization:'Basic '+S.token}}).then(function(r){return r.json()}).then(function(d){
     var links = d.links || [];
