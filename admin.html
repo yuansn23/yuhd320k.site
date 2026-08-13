@@ -48,16 +48,16 @@ input[type=checkbox],input[type=radio]{width:auto;flex-shrink:0;accent-color:var
 .sidebar-nav .nav-sub.open{display:block}
 .sidebar-nav .nav-sub a{padding:8px 20px 8px 46px;font-size:.82rem;border-left:2px solid transparent}
 /* 斗篷-用户行为按钮（核心，突出） */
-.btn-core{background:rgba(240,136,62,.14);border:1px solid rgba(240,136,62,.5);color:var(--amber);font-weight:800}
-.btn-core.on{background:var(--amber);color:#1a1205;border-color:var(--amber)}
-.core-tag{display:inline-block;margin-left:6px;padding:1px 7px;border-radius:999px;background:var(--amber);color:#1a1205;font-size:.62rem;font-weight:800}
-.btn-core.on .core-tag{background:#1a1205;color:var(--amber)}
+.btn-core{background:rgba(88,166,255,.14);border:1px solid rgba(88,166,255,.5);color:var(--blue);font-weight:800}
+.btn-core.on{background:var(--blue);color:#0a1220;border-color:var(--blue)}
+.core-tag{display:inline-block;margin-left:6px;padding:1px 7px;border-radius:999px;background:var(--blue);color:#0a1220;font-size:.62rem;font-weight:800}
+.btn-core.on .core-tag{background:#0a1220;color:var(--blue)}
 .site-chip{padding:6px 12px;border-radius:999px;border:1px solid var(--border);background:transparent;color:var(--text);cursor:pointer;font-size:.82rem;white-space:nowrap;transition:all .12s}
-.site-chip.on{background:rgba(240,136,62,.16);border-color:var(--amber);color:var(--amber)}
+.site-chip.on{background:rgba(88,166,255,.16);border-color:var(--blue);color:var(--blue)}
 .msg{padding:10px 14px;border-radius:8px;font-size:.84rem;margin-top:12px}
 .msg.ok{background:rgba(33,192,100,.08);color:var(--green);border:1px solid rgba(33,192,100,.15)}
 .msg.err{background:rgba(248,81,73,.08);color:var(--red);border:1px solid rgba(248,81,73,.15)}
-.msg.warn{background:rgba(240,136,62,.08);color:var(--amber);border:1px solid rgba(240,136,62,.15)}
+.msg.warn{background:rgba(88,166,255,.08);color:var(--blue);border:1px solid rgba(88,166,255,.15)}
 .stat-row{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px}
 .stat-mini{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:18px 20px}
 .stat-mini .sval{font-size:1.6rem;font-weight:800;line-height:1}
@@ -337,7 +337,7 @@ async function showDashboard(){
   var main = document.getElementById('mainContent');
   main.innerHTML = '<div class="page-header"><h1>📊 控制台</h1><span style="font-size:.92rem;color:var(--green);font-weight:700;background:rgba(33,192,100,.08);padding:4px 14px;border-radius:6px">🔗 '+esc(S.site||'未绑定')+'</span></div>'+
     '<div class="stat-row"><div class="stat-mini"><div class="sval b" id="stTotal">—</div><div class="slbl">累计点击/下载 <span style="color:var(--fg-muted);font-weight:400;font-size:.68rem">仅参考</span></div></div><div class="stat-mini"><div class="sval g" id="stToday">—</div><div class="slbl">今日点击/下载 <span style="color:var(--fg-muted);font-weight:400;font-size:.68rem">仅参考</span></div></div><div class="stat-mini"><div class="sval" id="stVisitTotal" style="color:var(--violet);font-size:1.6rem;font-weight:800;line-height:1">—</div><div class="slbl">总流量访问</div></div><div class="stat-mini"><div class="sval" id="stVisitToday" style="color:var(--cyan);font-size:1.6rem;font-weight:800;line-height:1">—</div><div class="slbl">今日流量访问</div></div></div>'+
-    '<div class="card" style="margin-top:20px"><div style="display:flex;align-items:center;gap:10px;padding:18px 20px;background:rgba(240,136,62,.06);border-radius:8px;border-left:3px solid var(--amber)"><span style="font-size:1.2rem">⚠️</span><span style="color:var(--amber);font-weight:600;font-size:.92rem">重要提醒：此数据仅供参考</span></div></div>'+
+    '<div class="card" style="margin-top:20px"><div style="display:flex;align-items:center;gap:10px;padding:18px 20px;background:rgba(88,166,255,.06);border-radius:8px;border-left:3px solid var(--blue)"><span style="font-size:1.2rem">⚠️</span><span style="color:var(--blue);font-weight:600;font-size:.92rem">重要提醒：此数据仅供参考</span></div></div>'+
     '<div class="card"><h3>📈 每日点击/下载</h3><table><thead><tr><th>日期</th><th>次数</th><th style=\"width:80px\"></th></tr></thead><tbody id=\"dailyBody\"><tr><td colspan=\"3\" class=\"empty\">加载中...</td></tr></tbody></table></div>';
   loadStats();
 }
@@ -635,7 +635,7 @@ async function showApk(){
     '<label style="display:flex;align-items:center;gap:6px;cursor:pointer;color:var(--text);font-weight:600"><input type="radio" name="apkMode" value="upload" onchange="toggleApkMode()"> 上传APK文件</label>'+
     '</div>'+
     '<div id="modeUrl"><div class="form-row"><input type="text" id="apkUrlInput" placeholder="https://cdn.example.com/app.apk"><button class="btn btn-p" id="saveUrlBtn">保存</button></div><div id="urlMsg"></div></div>'+
-    '<div id="modeUpload" class="hide"><p style="color:var(--muted);font-size:.82rem;margin-bottom:8px;padding:8px 14px;background:rgba(240,136,62,.06);border-radius:6px;border-left:3px solid var(--amber)">⚠️ 上传较大，需约30秒。如上传错误请重新上传即可</p><p style="color:var(--fg-muted);font-size:.78rem;margin-bottom:12px;white-space:nowrap">APK源文件后台不支持免杀功能</p><div class="form-row"><input type="file" id="fileInput" accept=".apk"><button class="btn btn-p" id="uploadBtn">上传</button></div><div id="uploadMsg"></div></div>'+
+    '<div id="modeUpload" class="hide"><p style="color:var(--muted);font-size:.82rem;margin-bottom:8px;padding:8px 14px;background:rgba(88,166,255,.06);border-radius:6px;border-left:3px solid var(--blue)">⚠️ 上传较大，需约30秒。如上传错误请重新上传即可</p><p style="color:var(--fg-muted);font-size:.78rem;margin-bottom:12px;white-space:nowrap">APK源文件后台不支持免杀功能</p><div class="form-row"><input type="file" id="fileInput" accept=".apk"><button class="btn btn-p" id="uploadBtn">上传</button></div><div id="uploadMsg"></div></div>'+
     '</div>'+
     '<div class="card"><h3>📋 上传/配置记录</h3><table><thead><tr><th>时间</th><th>文件名</th><th>URL</th><th>操作</th></tr></thead><tbody id="historyBody"><tr><td colspan="4" class="empty">加载中...</td></tr></tbody></table></div>';
   document.getElementById('siteSelector').onchange = function(){
@@ -732,7 +732,7 @@ async function showPixels(){
   var main = document.getElementById('mainContent');
   main.innerHTML = '<div class="page-header"><h1>📡 像素管理</h1></div>'+
     '<div class="card"><h3>📍 当前落地页</h3><div style="margin-bottom:12px">'+siteInfo.html+'</div>'+
-    '<h3>➕ 新增像素</h3><div style="background:rgba(240,136,62,.08);border:1px solid rgba(240,136,62,.2);border-radius:8px;padding:14px 18px;margin-bottom:14px"><span style="color:var(--amber);font-weight:800;font-size:.85rem">投放切记：</span><br><span style="color:var(--fg);font-weight:700;font-size:.82rem">1.后台只支持【购物】加【加购】，广告组选择其他事件不会回传</span><br><span style="color:var(--fg);font-weight:700;font-size:.82rem">2.如果需要其他FB事件，请联系管理</span></div><div class="form-row"><input type="text" id="newPixelId" placeholder="输入像素ID"><button class="btn btn-p" id="addPixelBtn">新增</button></div><div id="pixelAddMsg"></div></div>'+
+    '<h3>➕ 新增像素</h3><div style="background:rgba(88,166,255,.08);border:1px solid rgba(88,166,255,.2);border-radius:8px;padding:14px 18px;margin-bottom:14px"><span style="color:var(--blue);font-weight:800;font-size:.85rem">投放切记：</span><br><span style="color:var(--fg);font-weight:700;font-size:.82rem">1.后台只支持【购物】加【加购】，广告组选择其他事件不会回传</span><br><span style="color:var(--fg);font-weight:700;font-size:.82rem">2.如果需要其他FB事件，请联系管理</span></div><div class="form-row"><input type="text" id="newPixelId" placeholder="输入像素ID"><button class="btn btn-p" id="addPixelBtn">新增</button></div><div id="pixelAddMsg"></div></div>'+
     '<div class="card"><h3>📋 像素列表 <span id="pixelCount" style="font-weight:400;font-size:.8rem;color:var(--muted)"></span></h3><table><thead><tr><th>序号</th><th>像素ID</th><th>操作</th></tr></thead><tbody id="pixelBody"><tr><td colspan="4" class="empty">加载中...</td></tr></tbody></table></div>';
   document.getElementById('siteSelector').onchange = function(){
     _currentSite = this.value;
@@ -848,13 +848,13 @@ function cloakSiteInput(sites){
   var hint = _currentSite
     ? '⚠️ 请确认上方显示的是你要配置的落地页，切换后下方规则会随之更新，避免改错站点'
     : '输入全新的落地页域名，点「➕ 添加」加入你的落地页后即可配置斗篷；也可点下方「我的落地页」标签切换已有站点';
-  return '<div style="background:rgba(240,136,62,.1);border:1px solid rgba(240,136,62,.35);border-radius:10px;padding:12px 14px;margin-bottom:14px">'+
+  return '<div style="background:rgba(88,166,255,.1);border:1px solid rgba(88,166,255,.35);border-radius:10px;padding:12px 14px;margin-bottom:14px">'+
     '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:6px">'+
-      '<label style="font-weight:800;color:var(--amber);font-size:.92rem">📍 正在配置的落地页</label>'+
-      '<button type="button" class="btn btn-sm btn-core" id="cloakNewSite">➕ 新增落地页</button>'+
+      '<label style="font-weight:800;color:var(--blue);font-size:.92rem">📍 正在配置的落地页</label>'+
+      '<button type="button" class="btn btn-p" id="cloakNewSite">➕ 新增落地页</button>'+
     '</div>'+
     '<div style="display:flex;gap:8px;align-items:center">'+
-      '<input id="siteSelector" list="cloakSiteDatalist" value="'+esc(_currentSite)+'" placeholder="输入或选择落地页域名" style="padding:8px 12px;border-radius:8px;border:1px solid var(--border);background:#0d0f16;color:var(--amber);font-weight:600;font-size:.9rem;flex:1;min-width:0">'+
+      '<input id="siteSelector" list="cloakSiteDatalist" value="'+esc(_currentSite)+'" placeholder="输入或选择落地页域名" style="padding:8px 12px;border-radius:8px;border:1px solid var(--border);background:#0d0f16;color:var(--blue);font-weight:600;font-size:.9rem;flex:1;min-width:0">'+
       addBtn+
     '</div>'+
     '<datalist id="cloakSiteDatalist">'+opts+'</datalist>'+
@@ -1100,11 +1100,11 @@ async function showCloakConfig(){
   if(_cloakNewMode){ _currentSite = ''; sessionStorage.removeItem('st_current_site'); _cloakNewMode = false; }
   var c = document.getElementById('cloakTabContent');
   c.innerHTML =
-    '<div class="card" style="background:rgba(240,136,62,.12);border:1px solid rgba(240,136,62,.45)">'+
-      '<h3 style="color:var(--amber);font-size:1.06rem">⚠️ 斗篷使用说明（必读）</h3>'+
+    '<div class="card" style="background:rgba(88,166,255,.12);border:1px solid rgba(88,166,255,.45)">'+
+      '<h3 style="color:var(--blue);font-size:1.06rem">⚠️ 斗篷使用说明（必读）</h3>'+
       '<ol style="padding-left:22px;color:var(--text);font-size:.92rem;line-height:2.1">'+
       '<li>斗篷必须<b>配合落地页</b>一起使用，防止非正常流量点击落地页上的按钮</li>'+
-      '<li>斗篷区别于其他市场上的斗篷产品，<b style="color:var(--amber)">核心是「用户行为设置」</b></li>'+
+      '<li>斗篷区别于其他市场上的斗篷产品，<b style="color:var(--blue)">核心是「用户行为设置」</b></li>'+
       '<li><b style="color:var(--red)">斗篷规则设置越多，则越严格，过滤的流量则更多</b>，请根据实际情况设置</li>'+
       '</ol>'+
     '</div>'+
@@ -1120,9 +1120,9 @@ async function showCloakConfig(){
       cloakSiteInput(siteInfo.sites)+
       '<h3>⚙️ 基础设置</h3>'+
       '<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:700;margin-bottom:14px;white-space:nowrap"><input type="checkbox" id="cloakEnabled"> 启用斗篷防护</label>'+
-      '<div style="background:rgba(240,136,62,.09);border:1px solid rgba(240,136,62,.35);border-radius:10px;padding:12px 14px;margin-bottom:14px">'+
-        '<label style="display:flex;align-items:center;gap:6px;font-weight:800;color:var(--amber);margin-bottom:8px;font-size:.92rem">🚨 不符合规则跳转到的地址</label>'+
-        '<input type="text" id="cloakFallback" placeholder="https://www.google.com" style="background:#0d0f16;border-color:rgba(240,136,62,.5);color:var(--amber);font-weight:700">'+
+      '<div style="background:rgba(88,166,255,.09);border:1px solid rgba(88,166,255,.35);border-radius:10px;padding:12px 14px;margin-bottom:14px">'+
+        '<label style="display:flex;align-items:center;gap:6px;font-weight:800;color:var(--blue);margin-bottom:8px;font-size:.92rem">🚨 不符合规则跳转到的地址</label>'+
+        '<input type="text" id="cloakFallback" placeholder="https://www.google.com" style="background:#0d0f16;border-color:rgba(88,166,255,.5);color:var(--blue);font-weight:700">'+
         '<div style="font-size:.76rem;color:var(--muted);margin-top:6px">命中斗篷规则（爬虫/设备/语言/时区/IP/行为等）的流量，会被自动跳转到这个地址</div>'+
       '</div>'+
       '<label style="font-size:.8rem;color:var(--muted)">白名单IP（每行一个，命中则完全放行，不受任何斗篷规则限制）</label><textarea id="cloakWhitelist" rows="2" style="margin-bottom:4px" placeholder="1.2.3.4"></textarea>'+
@@ -1157,7 +1157,7 @@ async function showCloakConfig(){
       '<div style="display:flex;gap:20px;margin:6px 0 8px"><label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:.84rem;white-space:nowrap"><input type="radio" name="tzMode" value="block" checked> 屏蔽列表内</label><label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:.84rem;white-space:nowrap"><input type="radio" name="tzMode" value="allow"> 仅允许列表内</label></div>'+
       '<textarea id="tzList" rows="3" placeholder="每行一个时区，如 +8（中国）、+9（日本）、Asia/Tokyo"></textarea>'+
       '<button class="btn btn-o btn-sm" onclick="cloakQuickTz()" style="margin:6px 0 8px">快捷填入常用时区</button>'+
-      '<div style="font-size:.78rem;color:var(--muted);line-height:1.7;padding:8px 12px;background:rgba(255,255,255,.04);border-radius:8px;border-left:3px solid var(--amber);margin-bottom:16px">🌍 <b style="color:var(--text)">时区是跟着访客所在国家/地区走的</b>——每台手机/电脑都会按所在地自动设置时区。例如：中国大陆 <b>+8</b>（东八区）、日本 <b>+9</b>、美国东部 <b>-5</b>、英国 <b>0</b>。屏蔽某个时区，就相当于屏蔽来自对应国家/地区的访客。</div>'+
+      '<div style="font-size:.78rem;color:var(--muted);line-height:1.7;padding:8px 12px;background:rgba(255,255,255,.04);border-radius:8px;border-left:3px solid var(--blue);margin-bottom:16px">🌍 <b style="color:var(--text)">时区是跟着访客所在国家/地区走的</b>——每台手机/电脑都会按所在地自动设置时区。例如：中国大陆 <b>+8</b>（东八区）、日本 <b>+9</b>、美国东部 <b>-5</b>、英国 <b>0</b>。屏蔽某个时区，就相当于屏蔽来自对应国家/地区的访客。</div>'+
 
       '<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:600;margin-bottom:8px;white-space:nowrap"><input type="checkbox" id="ipBlockEnabled"> 屏蔽具体IP</label>'+
       '<textarea id="ipBlockList" rows="2" placeholder="每行一个IP地址" style="margin-bottom:16px"></textarea>'+
