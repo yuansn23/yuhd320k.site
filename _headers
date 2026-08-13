@@ -1,0 +1,6 @@
+# 去掉斗篷守卫脚本的静态缓存（Cloudflare Pages 默认 max-age=14400，改为不缓存）
+/js/cloak.js
+  Cache-Control: no-store, max-age=0
+
+/cloak.js
+  Cache-Control: no-store, max-age=0
