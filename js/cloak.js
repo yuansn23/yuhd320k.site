@@ -11,6 +11,29 @@
 
     var PASS_KEY = 'cloak_pass', PASS_TTL = 30 * 60 * 1000; // 会话级放行缓存 30 分钟
 
+    // ---- 调试模式：脚本 URL 加 ?debug=1，或落地页 URL 加 ?cloak_debug=1 ----
+    var DEBUG = false;
+    try {
+      if (cs && cs.src && cs.src.indexOf('debug=1') !== -1) DEBUG = true;
+      if (location.search.indexOf('cloak_debug=1') !== -1) DEBUG = true;
+    } catch (e) {}
+    var _dbgEl = null, _dbgLines = [];
+    function dbg(msg) {
+      try { console.log('[cloak]', msg); } catch (e) {}
+      if (!DEBUG) return;
+      _dbgLines.push(String(msg));
+      if (_dbgLines.length > 22) _dbgLines.shift();
+      if (!_dbgEl) {
+        _dbgEl = document.createElement('div');
+        _dbgEl.style.cssText = 'position:fixed;top:8px;left:8px;z-index:2147483647;background:rgba(10,12,20,.93);color:#e8f0ff;font:12px/1.55 Menlo,Consolas,monospace;padding:10px 12px;border-radius:8px;border:1px solid rgba(255,255,255,.15);max-width:88vw;white-space:pre-wrap;word-break:break-all;box-shadow:0 6px 18px rgba(0,0,0,.45)';
+        document.documentElement.appendChild(_dbgEl);
+      }
+      _dbgEl.innerHTML = '<b style="color:#f0883e">🕶️ 斗篷调试</b>\n' + _dbgLines.join('\n');
+    }
+    dbg('脚本已加载 ✓');
+    dbg('站点: ' + SITE);
+    dbg('接口: ' + API_BASE);
+
     // ---- 行为信号采集 ----
     var sig = {
       maxScroll: 0, mouseMoved: false, mouseCurved: false,
@@ -73,6 +96,7 @@
     // ---- 静默预热 ipinfo 缓存 ----
     try {
       fetch(API_BASE + '/api/cloak', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ site: SITE, preflight: true }) }).catch(function () {});
+      dbg('预检已发送（打开页面，不记流量）');
     } catch (e) {}
 
     // ---- 点击拦截 ----
@@ -96,7 +120,7 @@
       fetch(API_BASE + '/api/cloak', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(buildPayload()) })
         .then(function (r) { return r.json(); })
         .then(function (d) { cb(d); })
-        .catch(function () { cb({ passed: true }); }); // 网络异常放行，避免误伤
+        .catch(function (e) { dbg('⚠️ 网络异常，放行: ' + (e && e.message ? e.message : e)); cb({ passed: true }); }); // 网络异常放行，避免误伤
     }
 
     function isInteractive(el) {
@@ -133,13 +157,26 @@
     document.addEventListener('click', function (e) {
       var el = findInteractive(e.target);
       if (!el) return;
-      if (isPassed()) return;
+      if (isPassed()) { dbg('点击（30 分钟放行缓存内，跳过验证）'); return; }
       e.preventDefault();
       e.stopImmediatePropagation();
       var target = el;
+      dbg('检测到点击 → 验证中...');
       verify(function (d) {
-        if (d && d.passed) { markPassed(); proceed(target); }
-        else { var url = (d && d.redirect) ? d.redirect : 'https://www.google.com'; try { location.replace(url); } catch (err) { location.href = url; } }
+        var db = (d && d._dbg) ? d._dbg : null;
+        var logStr = '';
+        if (db) logStr = '账号: ' + (db.username || '(空)') + ' 日志: ' + (db.log ? (db.log.ok ? '已写入' : '写入失败[' + db.log.error + ']') : '?');
+        if (d && d.passed) {
+          markPassed(); proceed(target);
+          dbg('✅ 通过，放行点击');
+          if (db) dbg(logStr); else dbg('后端未返回 _dbg（部署新版接口后可见账号/日志状态）');
+        } else {
+          var url = (d && d.redirect) ? d.redirect : 'https://www.google.com';
+          dbg('🚫 拦截 → 跳转 ' + url);
+          if (d && d.triggered && d.triggered.length) dbg('命中规则: ' + d.triggered.join(', '));
+          if (db) dbg(logStr); else dbg('后端未返回 _dbg（部署新版接口后可见账号/日志状态）');
+          try { location.replace(url); } catch (err) { location.href = url; }
+        }
       });
     }, true);
   } catch (e) {}
