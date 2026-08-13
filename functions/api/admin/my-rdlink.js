@@ -1,7 +1,10 @@
-// 超强分流链接 — 子账户/管理员管理自己的短链（a域名 / 短链 / 目标 b链接 / 跳转统计）
+// 超强分流链接 — 子账户/管理员管理自己的短链（跳转域名 / 短链 / 目标链接 / 跳转统计）
 // 与既有业务（斗篷/像素/跳转/下载）完全独立，全新表 rd_*、全新接口。
+// 跳转域名由管理员统一在 rd-domains.js 配置文件维护，对所有子账户生效（下拉选择）。
 // GET  ?action=domains|links|logs
-// POST body.action = domain_add | domain_del | link_add | link_edit | link_del | link_toggle
+// POST body.action = link_add | link_edit | link_del | link_toggle
+
+import { RD_DOMAINS } from '../../../rd-domains.js';
 
 async function getMyUser(request, env) {
   const auth = request.headers.get('Authorization') || '';
@@ -78,8 +81,9 @@ export async function onRequest(context) {
     // ── GET 查询类 ──
     if (request.method === 'GET') {
       if (action === 'domains') {
-        var dr = await env.DB.prepare('SELECT domain, created_at FROM rd_domains WHERE username = ?1 ORDER BY id ASC').bind(me.user).all();
-        return json({ domains: (dr && dr.results) || [] });
+        // 全局跳转域名（管理员在 rd-domains.js 配置，对所有子账户生效）
+        var doms = (RD_DOMAINS || []).map(function(d){ return { domain: normalizeDomain(d), created_at: '' }; });
+        return json({ domains: doms });
       }
       if (action === 'links') {
         var lr = await env.DB.prepare('SELECT id, domain, mode, enabled, created_at, updated_at FROM rd_links WHERE username = ?1 ORDER BY created_at DESC').bind(me.user).all();
@@ -115,20 +119,6 @@ export async function onRequest(context) {
       var body = {};
       try { body = await request.json(); } catch (e) { body = {}; }
       const act = body.action || '';
-
-      if (act === 'domain_add') {
-        var domain = normalizeDomain(body.domain);
-        if (!domain || domain.indexOf('://') === -1 || domain.indexOf('.') === -1) return json({ error: '请输入正确的跳转前缀（如 https://km37acd.top/t/index.html）' }, 400);
-        try {
-          await env.DB.prepare('INSERT INTO rd_domains (username, domain, created_at) VALUES (?1,?2,?3)').bind(me.user, domain, new Date().toISOString()).run();
-        } catch (e) { return json({ error: '该域名已存在' }, 400); }
-        return json({ ok: true });
-      }
-      if (act === 'domain_del') {
-        var ddel = normalizeDomain(body.domain);
-        await env.DB.prepare('DELETE FROM rd_domains WHERE username = ?1 AND domain = ?2').bind(me.user, ddel).run();
-        return json({ ok: true });
-      }
 
       if (act === 'link_add' || act === 'link_edit') {
         var isEdit = (act === 'link_edit');
