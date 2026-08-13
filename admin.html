@@ -183,7 +183,7 @@ function buildNav(){
   if(S.role==='admin'){
     nav.innerHTML = '<a class="active" data-p="accounts">📋 账户管理</a><a data-p="loginLogs">🕐 登录日志</a>';
   } else {
-    nav.innerHTML = '<a class="active" data-p="dashboard">📊 控制台</a><a data-p="landing">🌐 我的落地页</a><a data-p="visits">📈 流量访问</a><a data-p="clicks">👆 点击统计</a><a data-p="apk">📦 普通跳转地址配置</a><a data-p="pixels">📡 像素管理</a>'+
+    nav.innerHTML = '<a class="active" data-p="dashboard">📊 控制台</a><a data-p="landing">🌐 我的落地页</a><a data-p="visits">📈 流量访问</a><a data-p="clicks">👆 点击统计</a><a data-p="apk">📦 普通跳转地址配置</a><a data-p="pixels">📡 像素管理</a><a data-p="rdlink">🔀 超强分流链接</a>'+
       '<a class="nav-parent open" data-p="cloakParent">🕶️ 斗篷设置 <span class="nav-arrow">▾</span></a>'+
       '<div class="nav-sub open" id="cloakSubmenu"><a data-p="cloakDeploy">斗篷如何部署</a><a data-p="cloakTraffic">斗篷流量</a><a data-p="cloakRules">斗篷规则列表</a><a data-p="cloakConfigQuery">斗篷配置查询</a></div>';
   }
@@ -209,6 +209,7 @@ function buildNav(){
       else if(p==='visits') showVisits();
       else if(p==='apk') showApk();
       else if(p==='pixels') showPixels();
+      else if(p==='rdlink') showRdlink();
       else if(p==='clicks') showClicks();
       else if(p==='cloakTraffic'){ _cloakTab='traffic'; showCloak(); }
       else if(p==='cloakRules'){ _cloakTab='config'; showCloak(); }
@@ -1506,6 +1507,270 @@ async function loadCloakTraffic(){
 }
 
 // ========== UTILS ==========
+// ========== USER: 超强分流链接 ==========
+var _rdTab = 'links';
+var _rdLinks = [];
+var _rdEditingId = '';
+var _rdLogPage = 1;
+var _rdLogLink = '';
+
+function showRdlink(){
+  _rdTab = _rdTab || 'links';
+  var main = document.getElementById('mainContent');
+  main.innerHTML = '<div class="page-header"><h1>🔀 超强分流链接</h1></div>'+
+    '<div style="margin-bottom:16px;display:flex;gap:8px">'+
+      '<button class="btn '+( _rdTab==='links'?'btn-p':'btn-o')+'" id="rdTabLinks">短链管理</button>'+
+      '<button class="btn '+( _rdTab==='domains'?'btn-p':'btn-o')+'" id="rdTabDomains">跳转域名</button>'+
+      '<button class="btn '+( _rdTab==='logs'?'btn-p':'btn-o')+'" id="rdTabLogs">跳转统计</button>'+
+    '</div><div id="rdContent"></div>';
+  document.getElementById('rdTabLinks').onclick = function(){ _rdTab='links'; showRdlink(); };
+  document.getElementById('rdTabDomains').onclick = function(){ _rdTab='domains'; showRdlink(); };
+  document.getElementById('rdTabLogs').onclick = function(){ _rdTab='logs'; showRdlink(); };
+  if(_rdTab==='links') renderRdLinks();
+  else if(_rdTab==='domains') renderRdDomains();
+  else renderRdLogs();
+}
+
+function renderRdLinks(){
+  var c = document.getElementById('rdContent');
+  c.innerHTML = '<div id="rdResult"></div>'+
+    '<div class="card"><div style="display:flex;align-items:center;justify-content:space-between"><h3 style="margin:0">📋 短链列表</h3><button class="btn btn-p" id="rdAddBtn">➕ 新增短链</button></div>'+
+    '<table style="margin-top:14px"><thead><tr><th>短链ID</th><th>跳转前a链接</th><th>跳转后b链接</th><th>分流方式</th><th>状态</th><th>添加时间</th><th>操作</th></tr></thead><tbody id="rdLinksBody"><tr><td colspan="7" class="empty">加载中...</td></tr></tbody></table></div>'+
+    '<div id="rdModalWrap"></div>';
+  document.getElementById('rdAddBtn').onclick = function(){ openRdModal(null); };
+  loadRdLinks();
+}
+
+async function loadRdLinks(){
+  var tbody = document.getElementById('rdLinksBody');
+  try{
+    var r = await fetch('/api/admin/my-rdlink?action=links&_='+Date.now(),{headers:{Authorization:'Basic '+S.token}});
+    var d = await r.json();
+    _rdLinks = d.links || [];
+    if(!_rdLinks.length){ tbody.innerHTML='<tr><td colspan="7" class="empty">暂无短链，点击右上角「新增短链」创建</td></tr>'; return; }
+    tbody.innerHTML = _rdLinks.map(function(l){
+      var modeTxt = l.mode==='weighted' ? '⚖️ 权重' : '🎲 随机';
+      var targets = (l.targets||[]).map(function(t){ return esc(t.url); });
+      var bTxt = targets.length ? targets.slice(0,2).join('<br>') + (targets.length>2 ? '<br>…等'+targets.length+'个' : '') : '<span class="empty">未配置</span>';
+      var short = 'https://'+esc(l.domain)+'/rd/'+esc(l.id);
+      var st = l.enabled===1 ? '<span class="badge green">启用</span>' : '<span class="badge red">禁用</span>';
+      var btn = l.enabled===1 ? '<button class="btn btn-o btn-sm" onclick="rdToggle(\''+l.id+'\',0)">禁用</button>' : '<button class="btn btn-p btn-sm" onclick="rdToggle(\''+l.id+'\',1)">启用</button>';
+      return '<tr><td style="font-family:monospace">'+esc(l.id)+'</td>'+
+        '<td style="word-break:break-all;font-family:monospace;max-width:240px">'+short+'</td>'+
+        '<td style="word-break:break-all;font-family:monospace;max-width:260px">'+bTxt+'</td>'+
+        '<td>'+modeTxt+'</td><td>'+st+'</td><td style="white-space:nowrap">'+fmtTime(l.created_at)+'</td>'+
+        '<td style="white-space:nowrap"><button class="btn btn-o btn-sm" onclick="rdEdit(\''+l.id+'\')">修改</button> <button class="btn btn-o btn-sm" style="color:var(--red)" onclick="rdDel(\''+l.id+'\')">删除</button> '+btn+'</td></tr>';
+    }).join('');
+  }catch(e){ tbody.innerHTML='<tr><td colspan="7" class="empty">加载失败: '+esc(e.message)+'</td></tr>'; }
+}
+
+function openRdModal(link){
+  fetch('/api/admin/my-rdlink?action=domains&_='+Date.now(),{headers:{Authorization:'Basic '+S.token}}).then(function(r){return r.json()}).then(function(d){
+    var domains = d.domains || [];
+    if(!domains.length){ msg('rdResult','err','请先在「跳转域名」标签页添加跳转域名'); return; }
+    renderRdModal(domains, link);
+  }).catch(function(){ msg('rdResult','err','网络错误'); });
+}
+
+function renderRdModal(domains, link){
+  _rdEditingId = link ? link.id : '';
+  var mode = link ? link.mode : 'random';
+  var selectedDomain = link ? link.domain : (domains[0] ? domains[0].domain : '');
+  var domainOpts = domains.map(function(x){ return '<option value="'+esc(x.domain)+'"'+(x.domain===selectedDomain?' selected':'')+'>'+esc(x.domain)+'</option>'; }).join('');
+  var html = '<div style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.7);z-index:99;display:flex;align-items:center;justify-content:center">'+
+    '<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:28px;width:660px;max-width:96vw;max-height:92vh;overflow-y:auto">'+
+    '<h3 style="margin-bottom:16px">'+(_rdEditingId?'✏️ 编辑短链 <span style="color:var(--green)">'+esc(_rdEditingId)+'</span>':'➕ 新增短链')+'</h3>'+
+    '<label style="font-size:.8rem;color:var(--muted)">跳转域名（a域名）</label>'+
+    '<select id="rdModalDomain" style="margin-bottom:12px">'+domainOpts+'</select>'+
+    '<label style="font-size:.8rem;color:var(--muted);display:block;margin-bottom:6px">分流方式</label>'+
+    '<div style="display:flex;gap:20px;margin-bottom:14px">'+
+      '<label style="display:flex;align-items:center;gap:6px;cursor:pointer;color:var(--text)"><input type="radio" name="rdMode" value="random" '+(mode==='random'?'checked':'')+'> 🎲 随机跳转</label>'+
+      '<label style="display:flex;align-items:center;gap:6px;cursor:pointer;color:var(--text)"><input type="radio" name="rdMode" value="weighted" '+(mode==='weighted'?'checked':'')+'> ⚖️ 权重比例（如 3:7 = 30%:70%）</label>'+
+    '</div>'+
+    '<label style="font-size:.8rem;color:var(--muted);display:block;margin-bottom:6px">目标链接（b链接，b1/b2/b3...）</label>'+
+    '<div id="rdTargets"></div>'+
+    '<button class="btn btn-o btn-sm" id="rdAddTargetBtn" style="margin-top:8px">+ 添加B链接</button>'+
+    '<div style="font-size:.74rem;color:var(--muted);margin:10px 0">💬 WhatsApp 类型只需填号码（一行一个、纯数字），自动拼成 https://wa.me/号码</div>'+
+    '<div style="display:flex;gap:10px;margin-top:14px"><button class="btn btn-p" id="rdSaveBtn">保存</button><button class="btn btn-o" id="rdCancelBtn">取消</button></div>'+
+    '<div id="rdModalMsg"></div>'+
+    '</div></div>';
+  document.getElementById('rdModalWrap').innerHTML = html;
+  var targets = link ? (link.targets||[]) : [];
+  targets.forEach(function(t){ addRdTargetRow(t); });
+  if(!targets.length) addRdTargetRow();
+  document.getElementById('rdAddTargetBtn').onclick = function(){ addRdTargetRow(); };
+  document.getElementById('rdCancelBtn').onclick = function(){ document.getElementById('rdModalWrap').innerHTML=''; };
+  document.getElementById('rdSaveBtn').onclick = saveRdLink;
+  var radios = document.querySelectorAll('input[name="rdMode"]');
+  radios.forEach(function(r){ r.onchange = refreshRdTargetWeights; });
+  refreshRdTargetWeights();
+}
+
+function addRdTargetRow(t){
+  var box = document.getElementById('rdTargets');
+  var type = t ? t.type : 'url';
+  var url = t ? t.url : '';
+  var numbers = '';
+  if(type === 'whatsapp'){ numbers = (t && t.url) ? t.url.replace(/^https:\/\/wa\.me\//i,'') : ''; }
+  var weight = t ? (t.weight || 1) : 1;
+  var row = document.createElement('div');
+  row.style.cssText = 'display:flex;gap:8px;align-items:flex-start;margin-bottom:8px;flex-wrap:wrap';
+  row.innerHTML = '<select class="rdtt" style="flex:0 0 112px"><option value="url"'+(type==='url'?' selected':'')+'>🔗 链接</option><option value="whatsapp"'+(type==='whatsapp'?' selected':'')+'>💬 WhatsApp</option></select>'+
+    '<input class="rdtu" placeholder="https://example.com" value="'+esc(url)+'" style="flex:1;min-width:180px;'+(type==='whatsapp'?'display:none':'')+'">'+
+    '<textarea class="rdtn" placeholder="号码一行一个，纯数字" style="flex:1;min-width:180px;height:38px;'+(type==='whatsapp'?'':'display:none')+'">'+esc(numbers)+'</textarea>'+
+    '<input class="rdtw" type="number" min="1" value="'+weight+'" style="flex:0 0 70px" title="权重（相对比例）">'+
+    '<button class="btn btn-o btn-sm rdtdel" style="flex:0 0 auto">✕</button>';
+  box.appendChild(row);
+  var sel = row.querySelector('.rdtt');
+  var uinp = row.querySelector('.rdtu');
+  var tinp = row.querySelector('.rdtn');
+  sel.onchange = function(){
+    var isW = sel.value === 'whatsapp';
+    uinp.style.display = isW ? 'none' : '';
+    tinp.style.display = isW ? '' : 'none';
+  };
+  row.querySelector('.rdtdel').onclick = function(){ box.removeChild(row); };
+  refreshRdTargetWeights();
+}
+
+function refreshRdTargetWeights(){
+  var r = document.querySelector('input[name="rdMode"]:checked');
+  var weighted = r ? (r.value === 'weighted') : false;
+  document.querySelectorAll('#rdTargets .rdtw').forEach(function(w){ w.style.display = weighted ? '' : 'none'; });
+}
+
+async function saveRdLink(){
+  var domain = document.getElementById('rdModalDomain').value;
+  var modeR = document.querySelector('input[name="rdMode"]:checked');
+  var mode = modeR ? modeR.value : 'random';
+  var targets = [];
+  document.querySelectorAll('#rdTargets > div').forEach(function(row){
+    var type = row.querySelector('.rdtt').value;
+    var weight = parseInt(row.querySelector('.rdtw').value, 10) || 1;
+    if(type === 'whatsapp'){
+      var numbers = row.querySelector('.rdtn').value;
+      if(numbers.trim()) targets.push({ type:'whatsapp', numbers:numbers, weight:weight });
+    } else {
+      var u = row.querySelector('.rdtu').value.trim();
+      if(u) targets.push({ type:'url', url:u, weight:weight });
+    }
+  });
+  var body = { action: _rdEditingId ? 'link_edit' : 'link_add', domain: domain, mode: mode, targets: targets };
+  if(_rdEditingId) body.id = _rdEditingId;
+  msg('rdModalMsg','ok','保存中...');
+  try{
+    var r = await fetch('/api/admin/my-rdlink',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Basic '+S.token},body:JSON.stringify(body)});
+    var d = await r.json();
+    if(d.ok){
+      document.getElementById('rdModalWrap').innerHTML='';
+      msg('rdResult','ok','✅ 已保存，跳转链接：<code style="word-break:break-all">'+esc(d.url||'')+'</code>');
+      loadRdLinks();
+    } else msg('rdModalMsg','err', d.error || '保存失败');
+  }catch(e){ msg('rdModalMsg','err','网络错误'); }
+}
+
+function rdEdit(id){
+  var l = null;
+  for(var i=0;i<_rdLinks.length;i++){ if(_rdLinks[i].id===id){ l=_rdLinks[i]; break; } }
+  openRdModal(l);
+}
+
+function rdDel(id){
+  if(!confirm('删除该短链及其所有目标链接？')) return;
+  fetch('/api/admin/my-rdlink',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Basic '+S.token},body:JSON.stringify({action:'link_del',id:id})}).then(function(r){return r.json()}).then(function(d){ if(d.ok){ msg('rdResult','ok','✅ 已删除'); loadRdLinks(); } else msg('rdResult','err', d.error||'删除失败'); });
+}
+
+function rdToggle(id, en){
+  fetch('/api/admin/my-rdlink',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Basic '+S.token},body:JSON.stringify({action:'link_toggle',id:id,enabled:en})}).then(function(r){return r.json()}).then(function(d){ if(d.ok) loadRdLinks(); });
+}
+
+function renderRdDomains(){
+  var c = document.getElementById('rdContent');
+  c.innerHTML = '<div class="card"><h3>➕ 新增跳转域名</h3><div class="form-row"><input type="text" id="rdDomainInput" placeholder="如 xxx.com（不带 https://）"><button class="btn btn-p" id="rdDomainAddBtn">新增</button></div><div style="font-size:.78rem;color:var(--muted);margin-top:6px">跳转域名即短链前缀域名，需将该域名解析/路由到本系统才能生效</div><div id="rdDomainMsg"></div></div>'+
+    '<div class="card"><h3>📋 跳转域名列表</h3><table><thead><tr><th>#</th><th>域名</th><th>添加时间</th><th>操作</th></tr></thead><tbody id="rdDomainsBody"><tr><td colspan="4" class="empty">加载中...</td></tr></tbody></table></div>';
+  document.getElementById('rdDomainAddBtn').onclick = addRdDomain;
+  loadRdDomains();
+}
+
+async function addRdDomain(){
+  var inp = document.getElementById('rdDomainInput');
+  var domain = (inp.value||'').trim();
+  if(!domain){ msg('rdDomainMsg','err','请输入域名'); return; }
+  msg('rdDomainMsg','ok','新增中...');
+  try{
+    var r = await fetch('/api/admin/my-rdlink',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Basic '+S.token},body:JSON.stringify({action:'domain_add',domain:domain})});
+    var d = await r.json();
+    if(d.ok){ msg('rdDomainMsg','ok','✅ 已新增'); inp.value=''; loadRdDomains(); }
+    else msg('rdDomainMsg','err', d.error || '新增失败');
+  }catch(e){ msg('rdDomainMsg','err','网络错误'); }
+}
+
+async function loadRdDomains(){
+  var tbody = document.getElementById('rdDomainsBody');
+  try{
+    var r = await fetch('/api/admin/my-rdlink?action=domains&_='+Date.now(),{headers:{Authorization:'Basic '+S.token}});
+    var d = await r.json();
+    var domains = d.domains || [];
+    if(!domains.length){ tbody.innerHTML='<tr><td colspan="4" class="empty">暂无跳转域名</td></tr>'; return; }
+    tbody.innerHTML = domains.map(function(x,i){ return '<tr><td>'+(i+1)+'</td><td style="font-family:monospace">'+esc(x.domain)+'</td><td>'+fmtTime(x.created_at)+'</td><td><button class="btn btn-o btn-sm" style="color:var(--red)" onclick="rdDelDomain(\''+esc(x.domain)+'\')">删除</button></td></tr>'; }).join('');
+  }catch(e){ tbody.innerHTML='<tr><td colspan="4" class="empty">加载失败</td></tr>'; }
+}
+
+function rdDelDomain(domain){
+  if(!confirm('删除跳转域名 '+domain+' ？（该域名下已创建的短链仍保留）')) return;
+  fetch('/api/admin/my-rdlink',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Basic '+S.token},body:JSON.stringify({action:'domain_del',domain:domain})}).then(function(r){return r.json()}).then(function(d){ if(d.ok) loadRdDomains(); });
+}
+
+function renderRdLogs(){
+  _rdLogPage = 1;
+  var c = document.getElementById('rdContent');
+  c.innerHTML = '<div class="card"><h3>📈 跳转统计</h3>'+
+    '<div class="form-row" style="margin-bottom:12px"><select id="rdLogLinkSel"><option value="">全部短链</option></select><button class="btn btn-o btn-sm" id="rdLogRefresh">刷新</button></div>'+
+    '<div style="font-size:.78rem;color:var(--muted);margin-bottom:10px">跳转时间已按 +8 时区显示</div>'+
+    '<table><thead><tr><th>跳转时间(+8)</th><th>IP</th><th>跳转前a链接</th><th>跳转后b链接</th><th>设备</th></tr></thead><tbody id="rdLogsBody"><tr><td colspan="5" class="empty">加载中...</td></tr></tbody></table>'+
+    '<div id="rdLogPager" style="margin-top:12px;display:flex;gap:8px;align-items:center"></div></div>';
+  fetch('/api/admin/my-rdlink?action=links&_='+Date.now(),{headers:{Authorization:'Basic '+S.token}}).then(function(r){return r.json()}).then(function(d){
+    var links = d.links || [];
+    var sel = document.getElementById('rdLogLinkSel');
+    links.forEach(function(l){ var o=document.createElement('option'); o.value=l.id; o.textContent=l.id+' ('+l.domain+')'; sel.appendChild(o); });
+    sel.value = _rdLogLink;
+  });
+  document.getElementById('rdLogLinkSel').onchange = function(){ _rdLogLink = this.value; _rdLogPage = 1; loadRdLogs(); };
+  document.getElementById('rdLogRefresh').onclick = function(){ _rdLogPage=1; loadRdLogs(); };
+  loadRdLogs();
+}
+
+function fmt8(t){
+  if(!t) return '—';
+  var d = new Date(t);
+  d.setHours(d.getHours()+8);
+  return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+' '+pad(d.getHours())+':'+pad(d.getMinutes())+':'+pad(d.getSeconds());
+}
+
+async function loadRdLogs(){
+  var tbody = document.getElementById('rdLogsBody');
+  try{
+    var q = '/api/admin/my-rdlink?action=logs&page='+_rdLogPage+'&limit=20'+(_rdLogLink?'&link_id='+encodeURIComponent(_rdLogLink):'')+'&_='+Date.now();
+    var r = await fetch(q,{headers:{Authorization:'Basic '+S.token}});
+    var d = await r.json();
+    var logs = d.logs || [];
+    var total = d.total || 0;
+    if(!logs.length){ tbody.innerHTML='<tr><td colspan="5" class="empty">暂无跳转记录</td></tr>'; }
+    else {
+      var devMap = { android:'🤖 安卓', ios:'🍎 苹果', pc:'💻 电脑', mac:'🖥️ Mac', other:'❓ 其他' };
+      tbody.innerHTML = logs.map(function(l){
+        var dev = devMap[l.device] || l.device || '—';
+        return '<tr><td style="white-space:nowrap">'+fmt8(l.created_at)+'</td><td style="font-family:monospace">'+esc(l.ip||'—')+'</td><td style="word-break:break-all;font-family:monospace;max-width:240px">'+esc(l.from_url||'')+'</td><td style="word-break:break-all;font-family:monospace;max-width:260px">'+esc(l.to_url||'')+'</td><td>'+dev+'</td></tr>';
+      }).join('');
+    }
+    var pages = Math.max(1, Math.ceil(total/20));
+    document.getElementById('rdLogPager').innerHTML = '<button class="btn btn-o btn-sm" '+( _rdLogPage<=1?'disabled':'')+' id="rdLogPrev">上一页</button><span style="color:var(--muted);font-size:.8rem">第 '+_rdLogPage+' / '+pages+' 页（共 '+total+' 条）</span><button class="btn btn-o btn-sm" '+(_rdLogPage>=pages?'disabled':'')+' id="rdLogNext">下一页</button>';
+    var pb = document.getElementById('rdLogPrev'), nb = document.getElementById('rdLogNext');
+    if(pb) pb.onclick = function(){ _rdLogPage--; loadRdLogs(); };
+    if(nb) nb.onclick = function(){ _rdLogPage++; loadRdLogs(); };
+  }catch(e){ tbody.innerHTML='<tr><td colspan="5" class="empty">加载失败</td></tr>'; }
+}
+
 function esc(s){ var d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
 function fmtTime(t){ if(!t)return'—'; var d=new Date(t); return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+' '+pad(d.getHours())+':'+pad(d.getMinutes()); }
 function pad(n){ return n<10?'0'+n:''+n; }
