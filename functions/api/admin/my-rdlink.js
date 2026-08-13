@@ -20,11 +20,12 @@ async function getMyUser(request, env) {
   } catch (e) { return null; }
 }
 
-// 域名归一化：去掉协议与路径，保留纯域名，统一小写
+// 跳转前缀归一化：补齐协议、去掉末尾斜杠，保留完整路径（如 https://km37acd.top/t/index.html）
 function normalizeDomain(d) {
-  var s = String(d || '').trim().toLowerCase();
-  s = s.replace(/^https?:\/\//, '');
-  s = s.replace(/\/.*$/, '');
+  var s = String(d || '').trim();
+  if (!s) return '';
+  if (!/^https?:\/\//i.test(s)) s = 'https://' + s;
+  s = s.replace(/\/+$/, '');
   return s;
 }
 
@@ -117,7 +118,7 @@ export async function onRequest(context) {
 
       if (act === 'domain_add') {
         var domain = normalizeDomain(body.domain);
-        if (!domain || domain.indexOf('.') === -1) return json({ error: '请输入正确的域名（如 xxx.com）' }, 400);
+        if (!domain || domain.indexOf('://') === -1 || domain.indexOf('.') === -1) return json({ error: '请输入正确的跳转前缀（如 https://km37acd.top/t/index.html）' }, 400);
         try {
           await env.DB.prepare('INSERT INTO rd_domains (username, domain, created_at) VALUES (?1,?2,?3)').bind(me.user, domain, new Date().toISOString()).run();
         } catch (e) { return json({ error: '该域名已存在' }, 400); }
@@ -169,7 +170,7 @@ export async function onRequest(context) {
         for (var k = 0; k < targets.length; k++) {
           await env.DB.prepare('INSERT INTO rd_targets (link_id, type, url, weight, sort, created_at) VALUES (?1,?2,?3,?4,?5,?6)').bind(linkId, targets[k].type, targets[k].url, targets[k].weight, k, new Date().toISOString()).run();
         }
-        return json({ ok: true, id: linkId, url: 'https://' + d + '/rd/' + linkId });
+        return json({ ok: true, id: linkId, url: d + '/' + linkId });
       }
 
       if (act === 'link_del') {

@@ -1552,7 +1552,7 @@ async function loadRdLinks(){
       var modeTxt = l.mode==='weighted' ? '⚖️ 权重' : '🎲 随机';
       var targets = (l.targets||[]).map(function(t){ return esc(t.url); });
       var bTxt = targets.length ? targets.slice(0,2).join('<br>') + (targets.length>2 ? '<br>…等'+targets.length+'个' : '') : '<span class="empty">未配置</span>';
-      var short = 'https://'+esc(l.domain)+'/rd/'+esc(l.id);
+      var short = esc(l.domain)+'/'+esc(l.id);
       var st = l.enabled===1 ? '<span class="badge green">启用</span>' : '<span class="badge red">禁用</span>';
       var btn = l.enabled===1 ? '<button class="btn btn-o btn-sm" onclick="rdToggle(\''+l.id+'\',0)">禁用</button>' : '<button class="btn btn-p btn-sm" onclick="rdToggle(\''+l.id+'\',1)">启用</button>';
       return '<tr><td style="font-family:monospace">'+esc(l.id)+'</td>'+
@@ -1580,7 +1580,7 @@ function renderRdModal(domains, link){
   var html = '<div style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.7);z-index:99;display:flex;align-items:center;justify-content:center">'+
     '<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:28px;width:660px;max-width:96vw;max-height:92vh;overflow-y:auto">'+
     '<h3 style="margin-bottom:16px">'+(_rdEditingId?'✏️ 编辑短链 <span style="color:var(--green)">'+esc(_rdEditingId)+'</span>':'➕ 新增短链')+'</h3>'+
-    '<label style="font-size:.8rem;color:var(--muted)">跳转域名（a域名）</label>'+
+    '<label style="font-size:.8rem;color:var(--muted)">跳转链接前缀（a链接，不含 id）</label>'+
     '<select id="rdModalDomain" style="margin-bottom:12px">'+domainOpts+'</select>'+
     '<label style="font-size:.8rem;color:var(--muted);display:block;margin-bottom:6px">分流方式</label>'+
     '<div style="display:flex;gap:20px;margin-bottom:14px">'+
@@ -1686,8 +1686,9 @@ function rdToggle(id, en){
 
 function renderRdDomains(){
   var c = document.getElementById('rdContent');
-  c.innerHTML = '<div class="card"><h3>➕ 新增跳转域名</h3><div class="form-row"><input type="text" id="rdDomainInput" placeholder="如 xxx.com（不带 https://）"><button class="btn btn-p" id="rdDomainAddBtn">新增</button></div><div style="font-size:.78rem;color:var(--muted);margin-top:6px">跳转域名即短链前缀域名，需将该域名解析/路由到本系统才能生效</div><div id="rdDomainMsg"></div></div>'+
-    '<div class="card"><h3>📋 跳转域名列表</h3><table><thead><tr><th>#</th><th>域名</th><th>添加时间</th><th>操作</th></tr></thead><tbody id="rdDomainsBody"><tr><td colspan="4" class="empty">加载中...</td></tr></tbody></table></div>';
+  c.innerHTML = '<div class="card"><h3>➕ 新增跳转链接前缀</h3><div class="form-row"><input type="text" id="rdDomainInput" placeholder="如 https://km37acd.top/t"><button class="btn btn-p" id="rdDomainAddBtn">新增</button></div><div style="font-size:.78rem;color:var(--muted);margin-top:6px">填入完整跳转前缀，生成短链为「前缀/短链ID」。需在该地址部署跳转脚本（见下方说明）才能跳转</div><div id="rdDomainMsg"></div></div>'+
+    '<div class="card"><h3>📋 跳转前缀列表</h3><table><thead><tr><th>#</th><th>跳转前缀</th><th>添加时间</th><th>操作</th></tr></thead><tbody id="rdDomainsBody"><tr><td colspan="4" class="empty">加载中...</td></tr></tbody></table></div>'+
+    '<div class="card"><h3>📄 跳转脚本部署说明</h3><div style="font-size:.82rem;color:var(--muted);line-height:1.8">1. 跳转脚本文件见项目根目录 <code>redirect-script.html</code>。<br>2. 把它重命名为 <code>index.html</code>，放到跳转前缀对应目录（如 <code>/t/index.html</code>）。<br>3. 分享短链格式：<code>前缀/短链ID</code>，例如 <code>https://km37acd.top/t/smd76and</code>。<br>4. 需让 <code>/t/任意ID</code> 命中该脚本：Cloudflare Pages 在 <code>_redirects</code> 加 <code>/t/*  /t/index.html  200</code>（nginx 用 try_files，Apache 用 RewriteRule）。<br>5. 访客打开后，脚本转发到后端做 302 分流并记录跳转统计。</div></div>';
   document.getElementById('rdDomainAddBtn').onclick = addRdDomain;
   loadRdDomains();
 }

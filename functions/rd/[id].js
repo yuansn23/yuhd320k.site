@@ -68,7 +68,7 @@ export async function onRequest(context) {
     var ip = request.headers.get('CF-Connecting-IP') || '';
     var ua = request.headers.get('User-Agent') || '';
     var device = detectDevice(ua);
-    var fromUrl = 'https://' + (link.domain || '') + '/rd/' + id;
+    var fromUrl = (link.domain || '') + '/' + id;
 
     // 记录跳转统计（不阻塞 302，失败静默）
     try {
