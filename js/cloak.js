@@ -9,8 +9,6 @@
     if (cs && cs.src) { var k = cs.src.indexOf('/', 8); if (k > 0) API_BASE = cs.src.slice(0, k); }
     var SITE = location.origin + location.pathname;
 
-    var PASS_KEY = 'cloak_pass', PASS_TTL = 30 * 60 * 1000; // 会话级放行缓存 30 分钟
-
     // ---- 调试模式：脚本 URL 加 ?debug=1，或落地页 URL 加 ?cloak_debug=1 ----
     var DEBUG = false;
     try {
@@ -100,8 +98,7 @@
     } catch (e) {}
 
     // ---- 点击拦截 ----
-    function isPassed() { try { var v = sessionStorage.getItem(PASS_KEY); if (!v) return false; return (Date.now() - parseInt(v, 10)) < PASS_TTL; } catch (e) { return false; } }
-    function markPassed() { try { sessionStorage.setItem(PASS_KEY, String(Date.now())); } catch (e) {} }
+    var _proceeding = false; // 重触发的合成 click 标记，防止验证死循环（不缓存放行状态，每次点击都实时校验）
 
     function buildPayload() {
       return {
@@ -142,7 +139,7 @@
     function proceed(target) {
       var a = (target.closest) ? target.closest('a[href]') : null;
       var hasOnclick = !!(target.getAttribute && target.getAttribute('onclick'));
-      // 重触发 click，让原 onclick（如 k2()）正常执行；markPassed 后不会再被拦截
+      // 重触发 click，让原 onclick（如 k2()）正常执行；_proceeding 标记避免再次被拦截
       try { target.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true })); } catch (e) {}
       // 纯 <a href>（无 onclick）合成事件不会自动跟随，手动跳转
       if (a && !hasOnclick) {
@@ -157,7 +154,7 @@
     document.addEventListener('click', function (e) {
       var el = findInteractive(e.target);
       if (!el) return;
-      if (isPassed()) { dbg('点击（30 分钟放行缓存内，跳过验证）'); return; }
+      if (_proceeding) { _proceeding = false; return; } // 放过 proceed() 重触发的合成 click
       e.preventDefault();
       e.stopImmediatePropagation();
       var target = el;
@@ -167,7 +164,7 @@
         var logStr = '';
         if (db) logStr = '账号: ' + (db.username || '(空)') + ' 日志: ' + (db.log ? (db.log.ok ? '已写入' : '写入失败[' + db.log.error + ']') : '?');
         if (d && d.passed) {
-          markPassed(); proceed(target);
+          _proceeding = true; proceed(target);
           dbg('✅ 通过，放行点击');
           if (db) dbg(logStr); else dbg('后端未返回 _dbg（部署新版接口后可见账号/日志状态）');
         } else {
