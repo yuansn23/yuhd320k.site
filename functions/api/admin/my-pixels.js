@@ -72,12 +72,15 @@ export async function onRequest(context) {
 
       if (site) {
         // 写入 account_sites（按站点隔离，不污染 accounts 共享表）
+        // 不用 ON CONFLICT 上插（表若无 (site,username) 唯一约束会报错被吞，导致新账户写不进去），改为显式「查→更/插」
         try {
-          await env.DB.prepare('INSERT INTO account_sites (site, username, pixel_ids, apk_url, apk_history) VALUES (?1, ?2, ?3, ?4, ?5) ON CONFLICT(site, username) DO UPDATE SET pixel_ids = ?3')
-            .bind(site, me.user, idsJson, '', '[]').run();
-        } catch (e1) {
-          try { await env.DB.prepare('UPDATE account_sites SET pixel_ids = ?1 WHERE site = ?2 AND username = ?3').bind(idsJson, site, me.user).run(); } catch (e2) {}
-        }
+          var existingRow = await env.DB.prepare('SELECT 1 AS found FROM account_sites WHERE site = ?1 AND username = ?2').bind(site, me.user).first();
+          if (existingRow) {
+            await env.DB.prepare('UPDATE account_sites SET pixel_ids = ?1 WHERE site = ?2 AND username = ?3').bind(idsJson, site, me.user).run();
+          } else {
+            await env.DB.prepare('INSERT INTO account_sites (site, username, pixel_ids, apk_url, apk_history) VALUES (?1, ?2, ?3, ?4, ?5)').bind(site, me.user, idsJson, '', '[]').run();
+          }
+        } catch (e) {}
       }
 
       return new Response(JSON.stringify({ ok: true, ids: ids, count: ids.length }), {
