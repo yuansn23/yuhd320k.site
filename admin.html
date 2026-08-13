@@ -111,6 +111,7 @@ async function login(){
     if(d.ok){
       S.token = d.token; S.user = d.user; S.role = d.role; S.site = d.site||'';
       ['st_token','st_user','st_role','st_site'].forEach(function(k,i){ sessionStorage.setItem(k,[S.token,S.user,S.role,S.site][i]); });
+      sessionStorage.removeItem('st_current_site'); // 登录后重置站点选择，避免沿用上一个账户的站点
       document.getElementById('loginPage').classList.add('hide');
       document.getElementById('adminPage').classList.remove('hide');
       document.getElementById('sidebarUser').innerHTML = '👤 '+S.user + (S.role==='admin'?' <span class=\"badge green\">管理员</span>':' <span class=\"badge red\">子账户</span>');
@@ -121,7 +122,7 @@ async function login(){
 }
 
 document.getElementById('logoutBtn').onclick = function(){
-  ['st_token','st_user','st_role','st_site'].forEach(function(k){ sessionStorage.removeItem(k); });
+  ['st_token','st_user','st_role','st_site','st_current_site'].forEach(function(k){ sessionStorage.removeItem(k); });
   location.reload();
 };
 
@@ -666,6 +667,8 @@ async function loadSiteSelector(){
     var sites = d.sites||[];
     if(!sites.length && d.site) sites = [{site:d.site}];
     if(!_currentSite && sites.length){ _currentSite = sites[0].site; sessionStorage.setItem('st_current_site', _currentSite); }
+    // 若 _currentSite 是旧账户/旧站点的残留（不在当前站点列表里），重置为第一个站点，避免保存到错误站点
+    if(_currentSite && sites.length && !sites.some(function(s){ return s.site===_currentSite; })){ _currentSite = sites[0].site; sessionStorage.setItem('st_current_site', _currentSite); }
     var sel = '<select id="siteSelector" style="padding:8px 12px;border-radius:8px;border:1px solid var(--border);background:#0d0f16;color:var(--text);font-size:.86rem;max-width:100%">'+
       sites.map(function(s){ return '<option value="'+esc(s.site)+'"'+(s.site===_currentSite?' selected':'')+'>'+esc(s.site)+'</option>'; }).join('')+'</select>';
     return { html:sel, sites:sites };

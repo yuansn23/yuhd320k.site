@@ -80,7 +80,11 @@ export async function onRequest(context) {
           } else {
             await env.DB.prepare('INSERT INTO account_sites (site, username, pixel_ids, apk_url, apk_history, config_version) VALUES (?1, ?2, ?3, ?4, ?5, 1)').bind(site, me.user, idsJson, '', '[]').run();
           }
-        } catch (e) {}
+        } catch (e) {
+          return new Response(JSON.stringify({ ok: false, error: '像素保存失败: ' + (e && e.message ? e.message : String(e)) }), {
+            status: 500, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+          });
+        }
       }
 
       return new Response(JSON.stringify({ ok: true, ids: ids, count: ids.length }), {

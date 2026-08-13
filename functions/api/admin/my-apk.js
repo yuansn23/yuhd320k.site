@@ -87,7 +87,11 @@ export async function onRequest(context) {
             } else {
               await env.DB.prepare('INSERT INTO account_sites (site, username, pixel_ids, apk_url, apk_history, config_version) VALUES (?1, ?2, ?3, ?4, ?5, 1)').bind(qSite, me.user, '[]', '', JSON.stringify(body.history)).run();
             }
-          } catch (e) {}
+          } catch (e) {
+            return new Response(JSON.stringify({ ok: false, error: '历史保存失败: ' + (e && e.message ? e.message : String(e)) }), {
+              status: 500, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+            });
+          }
           return new Response(JSON.stringify({ ok: true, msg: '历史已更新' }), {
             headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
           });
@@ -129,7 +133,11 @@ export async function onRequest(context) {
           } else {
             await env.DB.prepare('INSERT INTO account_sites (site, username, pixel_ids, apk_url, apk_history, config_version) VALUES (?1, ?2, ?3, ?4, ?5, 1)').bind(qSite, me.user, '[]', apkUrl, histJson).run();
           }
-        } catch (e) {}
+        } catch (e) {
+          return new Response(JSON.stringify({ ok: false, error: '跳转地址保存失败: ' + (e && e.message ? e.message : String(e)) }), {
+            status: 500, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+          });
+        }
         // 只写 account_sites，不污染其他站点
         return new Response(JSON.stringify({ ok: true, url: apkUrl }), {
           headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
