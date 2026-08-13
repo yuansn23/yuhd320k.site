@@ -147,7 +147,7 @@ function buildNav(){
   } else {
     nav.innerHTML = '<a class="active" data-p="dashboard">📊 控制台</a><a data-p="landing">🌐 我的落地页</a><a data-p="visits">📈 流量访问</a><a data-p="clicks">👆 点击统计</a><a data-p="apk">📦 普通跳转地址配置</a><a data-p="pixels">📡 像素管理</a>'+
       '<a class="nav-parent" data-p="cloakParent">🕶️ 斗篷设置 <span class="nav-arrow">▾</span></a>'+
-      '<div class="nav-sub" id="cloakSubmenu"><a data-p="cloakTraffic">斗篷流量</a><a data-p="cloakRules">斗篷规则列表</a></div>';
+      '<div class="nav-sub" id="cloakSubmenu"><a data-p="cloakTraffic">斗篷流量</a><a data-p="cloakRules">斗篷规则列表</a><a data-p="cloakConfigQuery">斗篷配置查询</a></div>';
   }
   nav.querySelectorAll('a').forEach(function(a){
     a.onclick = function(){
@@ -161,7 +161,7 @@ function buildNav(){
       }
       nav.querySelectorAll('a').forEach(function(x){x.classList.remove('active')});
       this.classList.add('active');
-      var isCloak = (p==='cloakTraffic' || p==='cloakRules');
+      var isCloak = (p==='cloakTraffic' || p==='cloakRules' || p==='cloakConfigQuery');
       if(isCloak){ if(sub) sub.classList.add('open'); if(parent) parent.classList.add('open'); }
       else { if(sub) sub.classList.remove('open'); if(parent) parent.classList.remove('open'); }
       if(p==='accounts') showAccounts();
@@ -174,6 +174,7 @@ function buildNav(){
       else if(p==='clicks') showClicks();
       else if(p==='cloakTraffic'){ _cloakTab='traffic'; showCloak(); }
       else if(p==='cloakRules'){ _cloakTab='config'; showCloak(); }
+      else if(p==='cloakConfigQuery'){ showCloakConfigQuery(); }
     };
   });
 }
@@ -840,6 +841,85 @@ function setCloakSubTab(name){
       b.className = (k===name) ? 'btn btn-p btn-sm' : 'btn btn-o btn-sm';
     }
   });
+}
+
+// 斗篷配置查询：列出所有落地页各自开启了哪些斗篷规则（只读总览）
+function describeCloakRules(rules){
+  var out = [];
+  var r = rules || {};
+  function isOn(t){ return !!(t && t.enabled); }
+  var engName = { google:'谷歌', facebook:'Facebook', tiktok:'TikTok' };
+  var devName = { android:'安卓', ios:'iOS', pc:'电脑端', mac:'Mac' };
+  if(isOn(r.crawler)){
+    var e = (r.crawler.engines||[]).map(function(x){return engName[x]||x;}).join('/');
+    out.push({ name:'爬虫屏蔽', detail: e || '全部引擎' });
+  }
+  if(isOn(r.device)){
+    var m = (r.device.mode==='allow') ? '仅允许' : '屏蔽';
+    var dl = (r.device.list||[]).map(function(x){return devName[x]||x;}).join('/');
+    out.push({ name:'终端屏蔽', detail: m+(dl?('·'+dl):'') });
+  }
+  if(isOn(r.language)){
+    out.push({ name:'语言屏蔽', detail: (r.language.list||[]).join('/') || '全部' });
+  }
+  if(isOn(r.timezone)){
+    out.push({ name:'时区屏蔽', detail: (r.timezone.list||[]).join('/') || '全部' });
+  }
+  if(isOn(r.block_ips)){
+    out.push({ name:'IP屏蔽', detail: (r.block_ips.list||[]).join('、') });
+  }
+  if(isOn(r.vpn)) out.push({ name:'VPN屏蔽', detail:'' });
+  if(isOn(r.proxy)) out.push({ name:'代理屏蔽', detail:'' });
+  if(r.behavior){
+    var bh = r.behavior, sub = [];
+    if(bh.scroll_depth && bh.scroll_depth.enabled) sub.push('滚动深度'+(typeof bh.scroll_depth.threshold==='number'?bh.scroll_depth.threshold+'%':''));
+    if(bh.mouse_curve && bh.mouse_curve.enabled) sub.push('轨迹曲线');
+    if(bh.touch_continuity && bh.touch_continuity.enabled) sub.push('触摸连续性');
+    if(bh.visibility && bh.visibility.enabled) sub.push('可见性变化');
+    if(bh.scroll_rhythm && bh.scroll_rhythm.enabled) sub.push('滚动节奏');
+    if(sub.length) out.push({ name:'用户行为', detail: sub.join('/') });
+  }
+  return out;
+}
+
+async function showCloakConfigQuery(){
+  var main = document.getElementById('mainContent');
+  main.innerHTML = '<div class="page-header"><h1>🕶️ 斗篷配置查询</h1><button class="btn btn-o btn-sm" id="cloakQueryRefresh">刷新</button></div>'+
+    '<div class="card"><h3>📋 各落地页斗篷规则配置 <span id="cloakQueryCount" style="font-weight:400;font-size:.8rem;color:var(--muted)"></span></h3>'+
+    '<table><thead><tr><th>落地页</th><th>斗篷状态</th><th>已开启的斗篷规则</th><th>白名单IP</th><th>更新时间</th></tr></thead><tbody id="cloakQueryBody"><tr><td colspan="5" class="empty">加载中...</td></tr></tbody></table></div>';
+  document.getElementById('cloakQueryRefresh').onclick = loadCloakConfigQuery;
+  loadCloakConfigQuery();
+}
+
+async function loadCloakConfigQuery(){
+  var tb = document.getElementById('cloakQueryBody');
+  if(!tb) return;
+  try{
+    var r = await fetch('/api/admin/my-cloak?_='+Date.now(),{headers:{'Authorization':'Basic '+S.token}});
+    var d = await r.json();
+    if(d.error){ tb.innerHTML='<tr><td colspan="5" class="empty">'+esc(d.error)+'</td></tr>'; return; }
+    var configs = d.configs||[];
+    document.getElementById('cloakQueryCount').textContent = '共 '+configs.length+' 个落地页';
+    if(!configs.length){ tb.innerHTML='<tr><td colspan="5" class="empty">暂无落地页</td></tr>'; return; }
+    var html = configs.map(function(c){
+      var rules = describeCloakRules(c.rules);
+      var ruleHtml = rules.length
+        ? rules.map(function(x){ return '<span class="badge green" style="margin:2px 4px 2px 0" title="'+esc(x.detail||'')+'">'+esc(x.name)+(x.detail?' · '+esc(x.detail):'')+'</span>'; }).join('')
+        : '<span class="badge" style="background:rgba(255,255,255,.06);color:var(--muted)">未开启任何规则</span>';
+      var status = (!c.updated_at)
+        ? '<span class="badge" style="background:rgba(255,255,255,.06);color:var(--muted)">未配置</span>'
+        : (c.enabled ? '<span class="badge green">已启用</span>' : '<span class="badge red">已停用</span>');
+      var wl = (c.whitelist_ips||[]).length;
+      var ts = '';
+      if(c.updated_at){
+        var dt = new Date(c.updated_at);
+        var d8 = new Date(dt.getTime() + 8*3600000);
+        ts = d8.getUTCFullYear()+'-'+pad(d8.getUTCMonth()+1)+'-'+pad(d8.getUTCDate())+' '+pad(d8.getUTCHours())+':'+pad(d8.getUTCMinutes());
+      }
+      return '<tr><td style="font-family:monospace;font-size:.86rem">'+esc(c.site)+'</td><td>'+status+'</td><td style="max-width:420px">'+ruleHtml+'</td><td>'+(wl?wl+' 个':'—')+'</td><td style="color:var(--muted);font-size:.82rem">'+(ts||'—')+'</td></tr>';
+    }).join('');
+    tb.innerHTML = html;
+  }catch(e){ tb.innerHTML='<tr><td colspan="5" class="empty">加载失败: '+esc(e.message)+'</td></tr>'; }
 }
 
 // 用户行为设置的门控：需「设备环境→终端屏蔽」开启 且 勾选了手机（安卓/iOS）
