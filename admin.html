@@ -338,6 +338,22 @@ async function showDashboard(){
   var main = document.getElementById('mainContent');
   main.innerHTML = '<div class="page-header"><h1>📊 控制台</h1><span style="font-size:.92rem;color:var(--green);font-weight:700;background:rgba(33,192,100,.08);padding:4px 14px;border-radius:6px">🔗 '+esc(S.site||'未绑定')+'</span></div>'+
     '<div class="stat-row"><div class="stat-mini"><div class="sval b" id="stTotal">—</div><div class="slbl">累计点击/下载 <span style="color:var(--fg-muted);font-weight:400;font-size:.68rem">仅参考</span></div></div><div class="stat-mini"><div class="sval g" id="stToday">—</div><div class="slbl">今日点击/下载 <span style="color:var(--fg-muted);font-weight:400;font-size:.68rem">仅参考</span></div></div><div class="stat-mini"><div class="sval" id="stVisitTotal" style="color:var(--violet);font-size:1.6rem;font-weight:800;line-height:1">—</div><div class="slbl">总流量访问</div></div><div class="stat-mini"><div class="sval" id="stVisitToday" style="color:var(--cyan);font-size:1.6rem;font-weight:800;line-height:1">—</div><div class="slbl">今日流量访问</div></div></div>'+
+    '<div class="card"><h3>🕶️ 系统介绍</h3>'+
+      '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px;margin-top:2px">'+
+        '<div style="background:rgba(88,166,255,.08);border:1px solid rgba(88,166,255,.32);border-radius:10px;padding:14px 16px">'+
+          '<div style="font-weight:800;color:var(--blue);margin-bottom:6px;font-size:.92rem">🕶️ 斗篷防护</div>'+
+          '<div style="font-size:.82rem;color:var(--text);line-height:1.7">自动识别并拦截<b>爬虫、审核机、VPN/代理</b>等非正常流量，只放行真实用户，守护落地页转化。</div>'+
+        '</div>'+
+        '<div style="background:rgba(88,166,255,.14);border:1px solid rgba(88,166,255,.55);border-radius:10px;padding:14px 16px">'+
+          '<div style="font-weight:800;color:var(--blue);margin-bottom:6px;font-size:.92rem">🧠 用户行为分析 <span class="core-tag">全网唯一</span></div>'+
+          '<div style="font-size:.82rem;color:var(--text);line-height:1.7">通过<b>滚动深度、鼠标轨迹曲线、触摸连续性、页面可见性、滚动节奏</b>五项真人行为指纹，精准识别真人操作，机器和脚本几乎无法模仿。</div>'+
+        '</div>'+
+        '<div style="background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:10px;padding:14px 16px">'+
+          '<div style="font-weight:800;color:var(--text);margin-bottom:6px;font-size:.92rem">⚙️ 规则可配置</div>'+
+          '<div style="font-size:.82rem;color:var(--text);line-height:1.7">爬虫、设备、语言、时区、IP、VPN、代理、行为等规则<b>按需开启</b>，命中即跳转到你指定的兜底地址。</div>'+
+        '</div>'+
+      '</div>'+
+    '</div>'+
     '<div class="card" style="margin-top:20px"><div style="display:flex;align-items:center;gap:10px;padding:18px 20px;background:rgba(88,166,255,.06);border-radius:8px;border-left:3px solid var(--blue)"><span style="font-size:1.2rem">⚠️</span><span style="color:var(--blue);font-weight:600;font-size:.92rem">重要提醒：此数据仅供参考</span></div></div>'+
     '<div class="card"><h3>📈 每日点击/下载</h3><table><thead><tr><th>日期</th><th>次数</th><th style=\"width:80px\"></th></tr></thead><tbody id=\"dailyBody\"><tr><td colspan=\"3\" class=\"empty\">加载中...</td></tr></tbody></table></div>';
   loadStats();
@@ -1174,6 +1190,7 @@ async function showCloakConfig(){
       '<button class="btn btn-o btn-sm" id="cloakSubCrawler">爬虫屏蔽</button>'+
       '<button class="btn btn-o btn-sm" id="cloakSubDevice">设备环境</button>'+
       '<button class="btn btn-sm btn-core" id="cloakSubBehavior">🧠 用户行为<span class="core-tag">核心</span></button>'+
+      '<span style="font-size:.74rem;color:var(--blue);font-weight:600">⚠️ 必须开启手机端的设置才可使用（设备环境 → 终端屏蔽 → 勾选安卓/iOS）</span>'+
     '</div></div>'+
 
     '<div class="card" id="cloakPanel_basic">'+
