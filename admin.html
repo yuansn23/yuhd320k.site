@@ -1535,7 +1535,8 @@ function renderRdLinks(){
   var c = document.getElementById('rdContent');
   c.innerHTML = '<div id="rdResult"></div>'+
     '<div class="card"><div style="display:flex;align-items:center;justify-content:space-between"><h3 style="margin:0">📋 短链列表</h3><button class="btn btn-p" id="rdAddBtn">➕ 新增短链</button></div>'+
-    '<table style="margin-top:14px"><thead><tr><th>短链ID</th><th>跳转前a链接</th><th>跳转后b链接</th><th>分流方式</th><th>状态</th><th>添加时间</th><th>操作</th></tr></thead><tbody id="rdLinksBody"><tr><td colspan="7" class="empty">加载中...</td></tr></tbody></table></div>'+
+    '<div style="font-size:.76rem;color:var(--muted);margin-top:10px;line-height:1.6">「分流链接」＝分享给访客的短链地址；「跳转后链接」＝访客最终跳转到的目标链接</div>'+
+    '<table style="margin-top:10px"><thead><tr><th>短链ID</th><th>分流链接</th><th>跳转后链接</th><th>分流方式</th><th>状态</th><th>添加时间</th><th>操作</th></tr></thead><tbody id="rdLinksBody"><tr><td colspan="7" class="empty">加载中...</td></tr></tbody></table></div>'+
     '<div id="rdModalWrap"></div>';
   document.getElementById('rdAddBtn').onclick = function(){ openRdModal(null); };
   loadRdLinks();
@@ -1580,14 +1581,14 @@ function renderRdModal(domains, link){
   var html = '<div style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.7);z-index:99;display:flex;align-items:center;justify-content:center">'+
     '<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:28px;width:660px;max-width:96vw;max-height:92vh;overflow-y:auto">'+
     '<h3 style="margin-bottom:16px">'+(_rdEditingId?'✏️ 编辑短链 <span style="color:var(--green)">'+esc(_rdEditingId)+'</span>':'➕ 新增短链')+'</h3>'+
-    '<label style="font-size:.8rem;color:var(--muted)">跳转链接前缀（a链接，不含 id）</label>'+
+    '<label style="font-size:.8rem;color:var(--muted)">分流链接前缀（分享出去的地址，不含末尾短链ID）</label>'+
     '<select id="rdModalDomain" style="margin-bottom:12px">'+domainOpts+'</select>'+
     '<label style="font-size:.8rem;color:var(--muted);display:block;margin-bottom:6px">分流方式</label>'+
     '<div style="display:flex;gap:20px;margin-bottom:14px">'+
       '<label style="display:flex;align-items:center;gap:6px;cursor:pointer;color:var(--text)"><input type="radio" name="rdMode" value="random" '+(mode==='random'?'checked':'')+'> 🎲 随机跳转</label>'+
       '<label style="display:flex;align-items:center;gap:6px;cursor:pointer;color:var(--text)"><input type="radio" name="rdMode" value="weighted" '+(mode==='weighted'?'checked':'')+'> ⚖️ 权重比例（如 3:7 = 30%:70%）</label>'+
     '</div>'+
-    '<label style="font-size:.8rem;color:var(--muted);display:block;margin-bottom:6px">目标链接（b链接，b1/b2/b3...）</label>'+
+    '<label style="font-size:.8rem;color:var(--muted);display:block;margin-bottom:6px">跳转后的目标链接（可添加多个）</label>'+
     '<div id="rdTargets"></div>'+
     '<button class="btn btn-o btn-sm" id="rdAddTargetBtn" style="margin-top:8px">+ 添加B链接</button>'+
     '<div style="font-size:.74rem;color:var(--muted);margin:10px 0">💬 WhatsApp 类型只需填号码（一行一个、纯数字），自动拼成 https://wa.me/号码</div>'+
@@ -1728,7 +1729,7 @@ function renderRdLogs(){
   c.innerHTML = '<div class="card"><h3>📈 跳转统计</h3>'+
     '<div class="form-row" style="margin-bottom:12px"><select id="rdLogLinkSel"><option value="">全部短链</option></select><button class="btn btn-o btn-sm" id="rdLogRefresh">刷新</button></div>'+
     '<div style="font-size:.78rem;color:var(--muted);margin-bottom:10px">跳转时间已按 +8 时区显示</div>'+
-    '<table><thead><tr><th>跳转时间(+8)</th><th>IP</th><th>跳转前a链接</th><th>跳转后b链接</th><th>设备</th></tr></thead><tbody id="rdLogsBody"><tr><td colspan="5" class="empty">加载中...</td></tr></tbody></table>'+
+    '<table><thead><tr><th>跳转时间(+8时区)</th><th>IP</th><th>分流链接</th><th>跳转后链接</th><th>设备</th></tr></thead><tbody id="rdLogsBody"><tr><td colspan="5" class="empty">加载中...</td></tr></tbody></table>'+
     '<div id="rdLogPager" style="margin-top:12px;display:flex;gap:8px;align-items:center"></div></div>';
   fetch('/api/admin/my-rdlink?action=links&_='+Date.now(),{headers:{Authorization:'Basic '+S.token}}).then(function(r){return r.json()}).then(function(d){
     var links = d.links || [];
@@ -1743,9 +1744,9 @@ function renderRdLogs(){
 
 function fmt8(t){
   if(!t) return '—';
-  var d = new Date(t);
-  d.setHours(d.getHours()+8);
-  return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+' '+pad(d.getHours())+':'+pad(d.getMinutes())+':'+pad(d.getSeconds());
+  // created_at 存的是 UTC（ISO Z），统一转 +8 时区显示，不依赖浏览器本地时区
+  var x = new Date(new Date(t).getTime() + 8*3600*1000);
+  return x.getUTCFullYear()+'-'+pad(x.getUTCMonth()+1)+'-'+pad(x.getUTCDate())+' '+pad(x.getUTCHours())+':'+pad(x.getUTCMinutes())+':'+pad(x.getUTCSeconds());
 }
 
 async function loadRdLogs(){
