@@ -88,6 +88,12 @@ input[type=checkbox],input[type=radio]{width:auto;flex-shrink:0;accent-color:var
 .login-box label{display:block;text-align:left;font-size:.8rem;font-weight:600;color:var(--muted);margin-bottom:4px}
 .login-box input{margin-bottom:14px}
 .login-box .btn{width:100%;padding:13px;margin-top:6px}
+/* 登录页右上角 */
+.login-topright{position:fixed;top:18px;right:18px;z-index:60;display:flex;gap:10px;align-items:center}
+.login-topright a,.login-topright button{display:inline-flex;align-items:center;gap:6px;padding:9px 16px;border-radius:8px;font-size:.84rem;font-weight:700;cursor:pointer;text-decoration:none;transition:all .2s;white-space:nowrap;border:1px solid var(--border);background:rgba(255,255,255,.03);color:var(--muted);font-family:inherit}
+.login-topright a:hover,.login-topright button:hover{color:var(--text);background:rgba(255,255,255,.06)}
+.login-topright .kf{background:rgba(88,166,255,.14);border-color:rgba(88,166,255,.5);color:var(--blue)}
+.login-topright .kf:hover{background:rgba(88,166,255,.22);color:var(--blue)}
 @media(max-width:900px){.stat-row{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:720px){.sidebar{width:60px;padding:16px 0}.sidebar-logo span,.sidebar-nav a span,.sidebar-user span{display:none}.sidebar-logo{padding:0 12px 16px;justify-content:center}.sidebar-nav a{justify-content:center;padding:12px}.main{margin-left:60px;padding:20px 16px}.stat-row{grid-template-columns:1fr}}
 </style>
@@ -96,6 +102,10 @@ input[type=checkbox],input[type=radio]{width:auto;flex-shrink:0;accent-color:var
 
 <!-- 登录 -->
 <div id="loginPage" class="login-wrap">
+  <div class="login-topright">
+    <a href="/">🏠 回到首页</a>
+    <button class="kf" onclick="window.open('https://t.me/snvtr2','_blank')">💬 客服</button>
+  </div>
   <div class="login-intro">
     <h1>天御系统</h1>
     <p class="lead">智能流量防护平台——在用户点击的瞬间完成身份判定，自动过滤爬虫、审核机、VPN/代理等非正常流量，让每一次转化都来自真实用户。</p>
@@ -1595,7 +1605,7 @@ function renderRdModal(domains, link){
       '<div style="'+stepTitle+'">选择分流方式</div>'+
       '<div style="'+stepHint+'">决定访客打开短链后跳到哪一个链接。</div>'+
       '<label style="'+modeOpt+'"><input type="radio" name="rdMode" value="random" '+(mode==='random'?'checked':'')+' style="margin-top:3px"><div style="flex:1"><b>🎲 随机跳转</b><div style="font-size:.78rem;color:var(--muted);line-height:1.5">每个链接被跳到的机会一样，无需设置比例。</div></div></label>'+
-      '<label style="'+modeOpt+'"><input type="radio" name="rdMode" value="weighted" '+(mode==='weighted'?'checked':'')+' style="margin-top:3px"><div style="flex:1"><b>⚖️ 按比例分流</b><div style="font-size:.78rem;color:var(--muted);line-height:1.5">给每个链接设置权重，例如 3 和 7 → 概率 30% 和 70%。</div></div></label>'+
+      '<label style="'+modeOpt+'"><input type="radio" name="rdMode" value="weighted" '+(mode==='weighted'?'checked':'')+' style="margin-top:3px"><div style="flex:1"><b>⚖️ 按比例分流</b><div style="font-size:.78rem;color:var(--muted);line-height:1.5">给每个链接设置权重（范围 1-9），例如 3 和 7 → 概率 30% 和 70%。</div></div></label>'+
     '</div></div>'+
     '<div style="'+stepWrap+'"><div style="'+stepNum+'">3</div><div style="flex:1;min-width:0">'+
       '<div style="'+stepTitle+'">添加跳转后的链接</div>'+
@@ -1645,8 +1655,8 @@ function addRdTargetRow(t){
     '<input class="rdtext" placeholder="营销话术（选填），例如：你好，想咨询一下" value="'+esc(text)+'" style="width:100%;box-sizing:border-box;margin-top:8px;'+(type==='whatsapp'?'':'display:none')+'">'+
     '<div class="rdtwWrap" style="margin-top:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">'+
       '<span style="font-size:.78rem;color:var(--muted);white-space:nowrap">⚖️ 权重（比例）</span>'+
-      '<input class="rdtw" type="number" min="1" value="'+weight+'" style="flex:0 0 70px" title="数值越大，被跳到的概率越高（仅「按比例分流」模式生效）">'+
-      '<span style="font-size:.74rem;color:var(--muted)">例如 3 和 7 = 30% : 70%</span>'+
+      '<input class="rdtw" type="number" min="1" max="9" step="1" value="'+weight+'" style="flex:0 0 70px" title="权重范围 1-9，数值越大被跳到的概率越高（仅「按比例分流」模式生效）">'+
+      '<span style="font-size:.74rem;color:var(--muted)">范围 1-9，例如 1 和 9 = 10% : 90%</span>'+
     '</div>';
   box.appendChild(row);
   var sel = row.querySelector('.rdtt');
@@ -1684,7 +1694,7 @@ async function saveRdLink(){
   var targets = [];
   document.querySelectorAll('#rdTargets > div').forEach(function(row){
     var type = row.querySelector('.rdtt').value;
-    var weight = parseInt(row.querySelector('.rdtw').value, 10) || 1;
+    var weight = Math.min(9, Math.max(1, parseInt(row.querySelector('.rdtw').value, 10) || 1));
     if(type === 'whatsapp'){
       var numbers = row.querySelector('.rdtn').value;
       var text = row.querySelector('.rdtext').value.trim();

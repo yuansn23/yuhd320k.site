@@ -3,52 +3,83 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>天御系统 · 智能斗篷流量防护</title>
+<title>天御系统 · 超强斗篷分流</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
+<script>
+// 联系我申请开通：打开 Telegram
+function opens(){
+  window.open('https://t.me/snvtr2', '_blank');
+}
+// 复制 TG 账号
+function copyTg(){
+  var btn = document.getElementById('tgCopyBtn');
+  function ok(){ if(btn){ btn.textContent = '已复制 ✓'; setTimeout(function(){ btn.textContent = '复制账号'; }, 1500); } }
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText('@snvtr2').then(ok, function(){ legacyCopy(ok); });
+  } else {
+    legacyCopy(ok);
+  }
+}
+function legacyCopy(cb){
+  var ta = document.createElement('textarea');
+  ta.value = '@snvtr2';
+  ta.style.position = 'fixed'; ta.style.opacity = '0';
+  document.body.appendChild(ta); ta.focus(); ta.select();
+  try{ document.execCommand('copy'); if(cb) cb(); }catch(e){}
+  document.body.removeChild(ta);
+}
+</script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
-body{font-family:'Inter',system-ui,-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;background:#080612;color:#EEECF2;line-height:1.6;-webkit-font-smoothing:antialiased;overflow-x:hidden;min-height:100vh}
+body{font-family:'Inter',system-ui,-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;background:#0A0F1C;color:#E9EEF6;line-height:1.6;-webkit-font-smoothing:antialiased;overflow-x:hidden;min-height:100vh}
 a{color:inherit;text-decoration:none}
+button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit;font-size:inherit}
 code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.78rem;background:var(--bg-surface);border:1px solid var(--border-mid);border-radius:5px;padding:1px 6px;color:var(--cyan)}
 
 :root{
-  --bg-root:#080612;--bg-card:#110E1E;--bg-surface:#1A1530;--bg-press:#1F1938;
-  --border-soft:rgba(255,255,255,.06);--border-mid:rgba(255,255,255,.10);
-  --fg:#EEECF2;--fg-dim:#A099B8;--fg-muted:#6B6380;
-  --pink:#FF4672;--pink-soft:rgba(255,70,114,.12);--pink-glow:rgba(255,70,114,.3);
-  --violet:#A259FF;--violet-soft:rgba(162,89,255,.12);--violet-glow:rgba(162,89,255,.25);
-  --cyan:#00E4B8;--cyan-soft:rgba(0,228,184,.1);
-  --amber:#FFB443;--amber-soft:rgba(255,180,67,.12);
+  --bg-root:#0A0F1C;--bg-card:#101725;--bg-surface:#182237;--bg-press:#1E2A44;
+  --border-soft:rgba(255,255,255,.06);--border-mid:rgba(255,255,255,.11);
+  --fg:#E9EEF6;--fg-dim:#9AA6BD;--fg-muted:#62718A;
+  --blue:#3B82F6;--blue-soft:rgba(59,130,246,.13);--blue-glow:rgba(59,130,246,.30);
+  --cyan:#22D3EE;--cyan-soft:rgba(34,211,238,.12);
+  --teal:#14B8A6;--teal-soft:rgba(20,184,166,.12);
+  --emerald:#34D399;--emerald-soft:rgba(52,211,153,.13);
+  --grad:linear-gradient(135deg,#22D3EE,#3B82F6);
   --radius:12px;--radius-lg:18px;--radius-xl:24px;--radius-full:9999px;
   --ease-smooth:cubic-bezier(.22,.61,.36,1);
 }
 
 .ambient-layer{position:fixed;inset:0;pointer-events:none;z-index:0;overflow:hidden}
-.ambient-spot{position:absolute;border-radius:50%;filter:blur(100px);opacity:.32}
-.ambient-spot.a1{width:340px;height:340px;background:radial-gradient(circle,rgba(255,70,114,.22),transparent 70%);top:-10%;left:-15%}
-.ambient-spot.a2{width:300px;height:300px;background:radial-gradient(circle,rgba(162,89,255,.2),transparent 70%);top:30%;right:-15%}
-.ambient-spot.a3{width:240px;height:240px;background:radial-gradient(circle,rgba(0,228,184,.14),transparent 70%);bottom:5%;left:8%}
+.ambient-spot{position:absolute;border-radius:50%;filter:blur(100px);opacity:.30}
+.ambient-spot.a1{width:340px;height:340px;background:radial-gradient(circle,rgba(59,130,246,.20),transparent 70%);top:-10%;left:-15%}
+.ambient-spot.a2{width:300px;height:300px;background:radial-gradient(circle,rgba(34,211,238,.16),transparent 70%);top:30%;right:-15%}
+.ambient-spot.a3{width:240px;height:240px;background:radial-gradient(circle,rgba(20,184,166,.12),transparent 70%);bottom:5%;left:8%}
 
-.wrap{max-width:880px;margin:0 auto;padding:0 24px;position:relative;z-index:1}
+.wrap{max-width:920px;margin:0 auto;padding:0 24px;position:relative;z-index:1}
 
-.nav{display:flex;align-items:center;justify-content:space-between;padding:22px 0}
-.logo{font-weight:800;font-size:1.1rem;display:flex;align-items:center;gap:9px}
-.logo .dot{width:9px;height:9px;border-radius:50%;background:linear-gradient(135deg,var(--pink),var(--violet));box-shadow:0 0 12px var(--pink-glow)}
-.nav-cta{padding:9px 18px;border-radius:var(--radius-full);background:var(--bg-surface);border:1px solid var(--border-mid);font-size:.8rem;font-weight:700;color:var(--fg);transition:all .2s}
-.nav-cta:hover{border-color:var(--violet);color:var(--violet)}
+/* 顶部导航（吸顶 + 锚文本菜单） */
+.nav-bar{position:sticky;top:0;z-index:50;background:rgba(10,15,28,.86);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-bottom:1px solid var(--border-soft)}
+.nav-inner{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:16px 0}
+.logo{font-weight:800;font-size:1.1rem;display:flex;align-items:center;gap:9px;white-space:nowrap}
+.logo .dot{width:9px;height:9px;border-radius:50%;background:var(--grad);box-shadow:0 0 12px var(--blue-glow)}
+.nav-links{display:flex;gap:20px;align-items:center}
+.nav-links a{font-size:.84rem;font-weight:600;color:var(--fg-dim);transition:color .15s;white-space:nowrap}
+.nav-links a:hover{color:var(--fg)}
+.nav-cta{padding:9px 18px;border-radius:var(--radius-full);background:var(--bg-surface);border:1px solid var(--border-mid);font-size:.8rem;font-weight:700;color:var(--fg);transition:all .2s;white-space:nowrap}
+.nav-cta:hover{border-color:var(--blue);color:var(--cyan)}
 
 .hero{padding:64px 0 44px;text-align:center}
-.hero-badge{display:inline-flex;align-items:center;gap:7px;padding:6px 14px;border-radius:var(--radius-full);background:var(--pink-soft);border:1px solid rgba(255,70,114,.22);font-size:.7rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--pink);margin-bottom:26px}
-.hero-badge-dot{width:6px;height:6px;border-radius:50%;background:var(--pink);box-shadow:0 0 8px var(--pink-glow);animation:blink 1.6s ease-in-out infinite}
+.hero-badge{display:inline-flex;align-items:center;gap:7px;padding:6px 14px;border-radius:var(--radius-full);background:var(--blue-soft);border:1px solid rgba(59,130,246,.24);font-size:.72rem;font-weight:700;letter-spacing:.05em;color:var(--cyan);margin-bottom:26px}
+.hero-badge-dot{width:6px;height:6px;border-radius:50%;background:var(--cyan);box-shadow:0 0 8px var(--blue-glow);animation:blink 1.6s ease-in-out infinite}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
-.hero-title{font-family:'DM Serif Display',serif;font-size:clamp(2.6rem,7vw,4.2rem);font-weight:400;line-height:1.05;letter-spacing:-.02em;margin-bottom:16px}
-.hero-title em{font-style:italic;background:linear-gradient(135deg,var(--pink),var(--violet));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
-.hero-subtitle{font-size:1.02rem;color:var(--fg-dim);line-height:1.65;max-width:560px;margin:0 auto 34px}
-.hero-cta{display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:58px;padding:0 40px;border-radius:var(--radius-full);background:linear-gradient(135deg,var(--pink),#E8325E);color:#fff;font-size:1rem;font-weight:700;box-shadow:0 8px 32px var(--pink-glow),0 0 0 4px rgba(255,70,114,.08);transition:all .2s var(--ease-smooth)}
-.hero-cta:hover{transform:translateY(-2px);box-shadow:0 12px 40px var(--pink-glow)}
+.hero-title{font-family:'DM Serif Display',serif;font-size:clamp(2.6rem,7vw,4.1rem);font-weight:400;line-height:1.05;letter-spacing:-.02em;margin-bottom:18px}
+.hero-title em{font-style:italic;background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.hero-subtitle{font-size:1.02rem;color:var(--fg-dim);line-height:1.7;max-width:600px;margin:0 auto 34px}
+.hero-cta{display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:58px;padding:0 40px;border-radius:var(--radius-full);background:linear-gradient(135deg,#3B82F6,#2563EB);color:#fff;font-size:1rem;font-weight:700;box-shadow:0 8px 32px var(--blue-glow),0 0 0 4px rgba(59,130,246,.08);transition:all .2s var(--ease-smooth)}
+.hero-cta:hover{transform:translateY(-2px);box-shadow:0 12px 40px var(--blue-glow)}
 .hero-cta:active{transform:scale(.97)}
 .hero-footnote{text-align:center;margin-top:16px;font-size:.75rem;color:var(--fg-muted)}
 
@@ -56,103 +87,211 @@ code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.78rem;backgrou
 .metric{flex:1;text-align:center;padding:26px 10px}
 .metric+.metric{border-left:1px solid var(--border-soft)}
 .metric-value{font-family:'DM Serif Display',serif;font-size:2rem;line-height:1;margin-bottom:4px}
-.metric-value.pink{color:var(--pink)}.metric-value.violet{color:var(--violet)}.metric-value.cyan{color:var(--cyan)}
+.metric-value.blue{color:var(--blue)}.metric-value.teal{color:var(--teal)}.metric-value.emerald{color:var(--emerald)}
 .metric-label{font-size:.72rem;font-weight:500;color:var(--fg-muted);text-transform:uppercase;letter-spacing:.05em}
 
-.section{padding:40px 0}
-.section-line{width:38px;height:3px;border-radius:2px;background:linear-gradient(90deg,var(--pink),var(--violet));margin-bottom:22px}
-.section-kicker{font-size:.72rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--pink);margin-bottom:8px}
+.section{padding:44px 0;scroll-margin-top:90px}
+.section-line{width:38px;height:3px;border-radius:2px;background:var(--grad);margin-bottom:22px}
+.section-kicker{font-size:.72rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--cyan);margin-bottom:8px}
 .section-heading{font-family:'DM Serif Display',serif;font-size:2.2rem;font-weight:400;line-height:1.15;letter-spacing:-.01em;margin-bottom:10px}
-.section-heading em{font-style:italic;color:var(--violet)}
-.section-desc{font-size:.95rem;color:var(--fg-dim);line-height:1.65;margin-bottom:30px;max-width:600px}
+.section-heading em{font-style:italic;color:var(--blue)}
+.section-desc{font-size:.95rem;color:var(--fg-dim);line-height:1.65;margin-bottom:30px;max-width:640px}
 
 .features{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
 .feature{display:flex;gap:16px;padding:22px;border-radius:var(--radius-lg);background:var(--bg-card);border:1px solid var(--border-soft);transition:all .2s var(--ease-smooth)}
 .feature:hover{border-color:var(--border-mid);transform:translateY(-2px)}
 .feature-icon{width:48px;height:48px;min-width:48px;border-radius:var(--radius);display:flex;align-items:center;justify-content:center;font-size:22px}
-.feature-icon.pink{background:var(--pink-soft)}.feature-icon.violet{background:var(--violet-soft)}.feature-icon.cyan{background:var(--cyan-soft)}.feature-icon.amber{background:var(--amber-soft)}
+.feature-icon.blue{background:var(--blue-soft)}.feature-icon.cyan{background:var(--cyan-soft)}.feature-icon.teal{background:var(--teal-soft)}.feature-icon.emerald{background:var(--emerald-soft)}
 .feature-info h4{font-size:1rem;font-weight:700;margin-bottom:4px;letter-spacing:-.01em;display:flex;align-items:center;gap:8px}
 .feature-info p{font-size:.84rem;color:var(--fg-dim);line-height:1.55}
-.tag-unique{display:inline-block;padding:1px 7px;border-radius:999px;background:var(--pink);color:#fff;font-size:.6rem;font-weight:800;letter-spacing:.03em}
+.tag-unique{display:inline-block;padding:1px 7px;border-radius:999px;background:var(--teal);color:#04201B;font-size:.6rem;font-weight:800;letter-spacing:.03em}
 
 .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
 .step{padding:22px;border-radius:var(--radius-lg);background:var(--bg-card);border:1px solid var(--border-soft)}
-.step-num{font-family:'DM Serif Display',serif;font-size:2rem;line-height:1;margin-bottom:10px;color:var(--violet)}
+.step-num{font-family:'DM Serif Display',serif;font-size:2rem;line-height:1;margin-bottom:10px;color:var(--blue)}
 .step h4{font-size:.95rem;font-weight:700;margin-bottom:6px}
 .step p{font-size:.82rem;color:var(--fg-dim);line-height:1.55}
 
-.cta-banner{margin:40px 0;padding:48px 28px;border-radius:var(--radius-xl);background:linear-gradient(145deg,var(--bg-surface),#1F1540);border:1px solid rgba(162,89,255,.18);position:relative;overflow:hidden;text-align:center}
-.cta-banner-glow{position:absolute;top:-40px;right:-40px;width:180px;height:180px;border-radius:50%;background:radial-gradient(circle,rgba(162,89,255,.22),transparent 70%);pointer-events:none}
+/* 关于我们 */
+.about p{font-size:.95rem;color:var(--fg-dim);line-height:1.85;margin-bottom:14px;max-width:780px}
+.about p b{color:var(--fg)}
+
+/* 用户评价 */
+.reviews{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.review{padding:22px;border-radius:var(--radius-lg);background:var(--bg-card);border:1px solid var(--border-soft);display:flex;flex-direction:column}
+.review .quote{font-size:.86rem;color:var(--fg);line-height:1.65;margin-bottom:16px;flex:1}
+.review .stars{color:var(--emerald);font-size:.8rem;letter-spacing:2px;margin-bottom:12px}
+.review .who{display:flex;align-items:center;gap:10px;font-size:.78rem;color:var(--fg-dim)}
+.review .avatar{width:34px;height:34px;border-radius:50%;background:var(--blue-soft);display:flex;align-items:center;justify-content:center;font-weight:800;color:var(--cyan);font-size:.82rem;flex:0 0 34px}
+
+/* 常见问题 */
+.faq-item{border:1px solid var(--border-soft);border-radius:var(--radius-lg);background:var(--bg-card);margin-bottom:10px;overflow:hidden}
+.faq-item summary{padding:18px 20px;cursor:pointer;font-weight:700;font-size:.95rem;list-style:none;display:flex;align-items:center;justify-content:space-between;gap:12px;color:var(--fg)}
+.faq-item summary::-webkit-details-marker{display:none}
+.faq-item summary::after{content:'+';font-size:1.4rem;color:var(--cyan);font-weight:500;transition:transform .2s;line-height:1}
+.faq-item[open] summary::after{transform:rotate(45deg)}
+.faq-item .faq-body{padding:0 20px 18px;font-size:.88rem;color:var(--fg-dim);line-height:1.7}
+
+.cta-banner{margin:40px 0;padding:48px 28px;border-radius:var(--radius-xl);background:linear-gradient(145deg,var(--bg-surface),#16233E);border:1px solid rgba(59,130,246,.20);position:relative;overflow:hidden;text-align:center}
+.cta-banner-glow{position:absolute;top:-40px;right:-40px;width:180px;height:180px;border-radius:50%;background:radial-gradient(circle,rgba(59,130,246,.22),transparent 70%);pointer-events:none}
 .cta-banner h3{font-family:'DM Serif Display',serif;font-size:2rem;font-weight:400;margin-bottom:10px;position:relative}
 .cta-banner p{font-size:.92rem;color:var(--fg-dim);margin-bottom:28px;position:relative}
 .cta-banner .hero-cta{position:relative}
 
-.footer{padding:40px 0 60px;text-align:center;border-top:1px solid var(--border-soft);margin-top:40px}
+/* 联系我们 */
+.contact-box{margin-top:8px;padding:36px 28px;border-radius:var(--radius-xl);background:var(--bg-card);border:1px solid var(--border-soft);text-align:center}
+.contact-box .label{font-size:.78rem;color:var(--fg-muted);letter-spacing:.06em;text-transform:uppercase}
+.contact-tg{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:1.7rem;font-weight:700;color:var(--cyan);margin:12px 0 6px;letter-spacing:.02em}
+.contact-hint{font-size:.88rem;color:var(--fg-dim);margin-bottom:22px}
+.contact-box .btn-copy{display:inline-flex;align-items:center;gap:8px;padding:10px 22px;border-radius:var(--radius-full);background:var(--bg-surface);border:1px solid var(--border-mid);font-size:.84rem;font-weight:700;color:var(--fg);transition:all .2s}
+.contact-box .btn-copy:hover{border-color:var(--cyan);color:var(--cyan)}
+
+.footer{padding:36px 0 60px;text-align:center;border-top:1px solid var(--border-soft);margin-top:40px}
 .footer p{font-size:.78rem;color:var(--fg-muted)}
+.footer .login-link{display:inline-block;margin-top:10px;font-size:.8rem;color:var(--fg-dim);transition:color .15s}
+.footer .login-link:hover{color:var(--fg)}
 
 @media(max-width:680px){
+  .nav-links{display:none}
   .features{grid-template-columns:1fr}
   .steps{grid-template-columns:1fr}
+  .reviews{grid-template-columns:1fr}
 }
 </style>
 </head>
 <body>
 <div class="ambient-layer"><div class="ambient-spot a1"></div><div class="ambient-spot a2"></div><div class="ambient-spot a3"></div></div>
 
-<nav class="wrap nav">
-  <div class="logo"><span class="dot"></span>天御系统</div>
-  <a class="nav-cta" href="https://url.yuhd320k.site/admin">登录后台</a>
+<nav class="nav-bar">
+  <div class="wrap nav-inner">
+    <div class="logo"><span class="dot"></span>天御系统</div>
+    <div class="nav-links">
+      <a href="#features">核心能力</a>
+      <a href="#advantages">系统特点</a>
+      <a href="#reviews">用户评价</a>
+      <a href="#faq">常见问题</a>
+      <a href="#contact">联系我们</a>
+    </div>
+    <button class="nav-cta" onclick="opens()">联系我申请开通</button>
+  </div>
 </nav>
 
 <header class="wrap hero">
-  <div class="hero-badge"><span class="hero-badge-dot"></span> 智能流量防护 · 全网唯一行为分析</div>
-  <h1 class="hero-title">让每一次转化<br>都来自<em>真实用户</em></h1>
-  <p class="hero-subtitle">天御系统融合设备、语言、时区、IP 与用户行为分析等多维度信号，在点击发生的瞬间完成身份判定，自动过滤爬虫、审核机、VPN/代理等非正常流量。</p>
-  <a class="hero-cta" href="https://url.yuhd320k.site/admin">进入后台 →</a>
-  <div class="hero-footnote">多维度规则可配置 · 命中即跳转兜底地址</div>
+  <div class="hero-badge"><span class="hero-badge-dot"></span> 超强斗篷分流 · 权重比例分流</div>
+  <h1 class="hero-title">超强斗篷分流<br>让真实流量<em>按比例精准落位</em></h1>
+  <p class="hero-subtitle">天御系统以「权重比例分流 + 用户行为轨迹分析」为核心。一个短链即可按比例分流到多个落地页；再通过行为指纹识别真实用户，把水军和无效流量挡在门外。</p>
+  <button class="hero-cta" onclick="opens()">联系我申请开通</button>
+  <div class="hero-footnote">权重比例分流 · 行为轨迹分析 · 实时规则即改生效</div>
 </header>
 
 <section class="wrap metrics">
-  <div class="metric"><div class="metric-value pink">7+</div><div class="metric-label">拦截维度</div></div>
-  <div class="metric"><div class="metric-value violet">5 项</div><div class="metric-label">行为指纹</div></div>
-  <div class="metric"><div class="metric-value cyan">100%</div><div class="metric-label">按需配置</div></div>
+  <div class="metric"><div class="metric-value blue">按比例</div><div class="metric-label">权重分流</div></div>
+  <div class="metric"><div class="metric-value teal">5 项</div><div class="metric-label">行为轨迹指纹</div></div>
+  <div class="metric"><div class="metric-value emerald">实时</div><div class="metric-label">云规则即改生效</div></div>
 </section>
 
-<section class="wrap section">
+<section class="wrap section" id="features">
   <div class="section-line"></div>
   <div class="section-kicker">核心能力</div>
-  <h2 class="section-heading">斗篷防护，<em>不止于设备</em></h2>
-  <p class="section-desc">市面上的斗篷产品大多只看设备或 UA。天御系统更进一步——用真实行为识别真人，让机器和脚本无处遁形。</p>
+  <h2 class="section-heading">分流 + 行为分析，<em>双引擎驱动</em></h2>
+  <p class="section-desc">先把流量按比例分到多个目标，再用行为指纹识别真人——传统设备屏蔽做不到的事，天御系统一次到位。</p>
   <div class="features">
-    <div class="feature"><div class="feature-icon pink">🕶️</div><div class="feature-info"><h4>斗篷防护</h4><p>识别并拦截爬虫、审核机、VPN/代理等非正常流量，只放行真实用户，守护落地页转化。</p></div></div>
-    <div class="feature"><div class="feature-icon violet">🧠</div><div class="feature-info"><h4>用户行为分析 <span class="tag-unique">全网唯一</span></h4><p>滚动深度、鼠标轨迹曲线、触摸连续性、页面可见性、滚动节奏——五项真人行为指纹，机器几乎无法模仿。</p></div></div>
-    <div class="feature"><div class="feature-icon cyan">⚙️</div><div class="feature-info"><h4>规则可配置</h4><p>爬虫、设备、语言、时区、IP、VPN、代理、行为等规则按需开启，命中即跳转到你指定的地址。</p></div></div>
-    <div class="feature"><div class="feature-icon amber">📱</div><div class="feature-info"><h4>多维度识别</h4><p>设备环境、语言、时区、IP 归属综合判断，精准定位访客身份，越精细越严格。</p></div></div>
+    <div class="feature"><div class="feature-icon blue">🔀</div><div class="feature-info"><h4>超强斗篷分流</h4><p>一个短链同时分流到多个落地页或账号，随机或按权重比例分配流量，谁多谁少、去哪不去哪，你说了算。</p></div></div>
+    <div class="feature"><div class="feature-icon cyan">⚖️</div><div class="feature-info"><h4>权重比例分流</h4><p>为每个目标设置权重，3 : 7 就是 30% : 70%。流量按比例精准落位，A/B 测试与多账号运营一链搞定。</p></div></div>
+    <div class="feature"><div class="feature-icon teal">🧠</div><div class="feature-info"><h4>用户行为轨迹分析 <span class="tag-unique">全网唯一</span></h4><p>滚动深度、鼠标轨迹、触摸连续性、页面可见性、滚动节奏——五项真人行为指纹。相比传统设备屏蔽更高效，机器几乎无法模仿，有效过滤水军与无效流量。</p></div></div>
+    <div class="feature"><div class="feature-icon emerald">🕶️</div><div class="feature-info"><h4>斗篷防护</h4><p>识别爬虫、审核机、VPN / 代理等非正常流量，命中即跳转兜底地址，只放行真实用户，守护每一次转化。</p></div></div>
+    <div class="feature"><div class="feature-icon blue">🎯</div><div class="feature-info"><h4>多维度识别</h4><p>设备、语言、时区、IP、来路等多维度综合判定，精准定位访客身份，越精细越严格，不放行一个异常访客。</p></div></div>
+    <div class="feature"><div class="feature-icon cyan">📊</div><div class="feature-info"><h4>实时流量统计</h4><p>每一次跳转都记录时间、IP、设备与来路，数据实时可查，转化效果与分流去向一目了然。</p></div></div>
   </div>
 </section>
 
-<section class="wrap section">
+<section class="wrap section" id="advantages">
+  <div class="section-line"></div>
+  <div class="section-kicker">系统特点</div>
+  <h2 class="section-heading">为什么选择<em>天御系统</em></h2>
+  <p class="section-desc">市面上的防护工具大多只看设备与 UA，机器换个环境就能绕过。天御系统从「分流」与「行为」两个维度重新定义流量防护。</p>
+  <div class="features">
+    <div class="feature"><div class="feature-icon teal">🧠</div><div class="feature-info"><h4>行为级识别，机器难模仿</h4><p>传统设备屏蔽只判断设备和 UA；天御分析滚动、鼠标、触摸等真人行为指纹，机器几乎无法伪装。</p></div></div>
+    <div class="feature"><div class="feature-icon blue">⚖️</div><div class="feature-info"><h4>权重比例分流</h4><p>一条短链按比例分流多个目标，谁多谁少你说了算，A/B 测试、多账号运营一链搞定。</p></div></div>
+    <div class="feature"><div class="feature-icon emerald">🚫</div><div class="feature-info"><h4>过滤水军与无效流量</h4><p>精准识别批量脚本、水军与审核机，把每一分预算都花在真实用户身上。</p></div></div>
+    <div class="feature"><div class="feature-icon cyan">⚡</div><div class="feature-info"><h4>毫秒级判定</h4><p>边缘计算在点击瞬间返回结果，对落地页响应速度几乎零影响，不影响用户正常转化。</p></div></div>
+    <div class="feature"><div class="feature-icon blue">🌍</div><div class="feature-info"><h4>全球边缘节点</h4><p>部署于全球边缘网络，就近响应，跨越地域与网络限制，稳定在线不宕机。</p></div></div>
+    <div class="feature"><div class="feature-icon teal">🔄</div><div class="feature-info"><h4>实时云规则</h4><p>规则云端即改即生效，无需重新部署，随时应对突发流量与突发情况。</p></div></div>
+  </div>
+</section>
+
+<section class="wrap section" id="how">
   <div class="section-line"></div>
   <div class="section-kicker">三步接入</div>
   <h2 class="section-heading">部署，<em>一行代码</em></h2>
   <div class="steps">
-    <div class="step"><div class="step-num">01</div><h4>接入脚本</h4><p>在落地页 <code>&lt;head&gt;</code> 里加入一行斗篷守卫脚本。</p></div>
-    <div class="step"><div class="step-num">02</div><h4>配置规则</h4><p>在后台开启斗篷防护，勾选设备、语言、行为等规则，设置兜底跳转地址。</p></div>
-    <div class="step"><div class="step-num">03</div><h4>自动防护</h4><p>用户点击按钮时实时判定，非正常流量自动跳转，真实用户正常通过。</p></div>
+    <div class="step"><div class="step-num">01</div><h4>接入脚本</h4><p>在落地页 <code>&lt;head&gt;</code> 里加入一行斗篷分流脚本。</p></div>
+    <div class="step"><div class="step-num">02</div><h4>配置规则</h4><p>后台创建短链，设置目标与权重比例，按需开启行为、设备等防护规则。</p></div>
+    <div class="step"><div class="step-num">03</div><h4>自动分流</h4><p>点击瞬间完成判定：真实流量按比例分流到目标，异常流量自动拦截跳转。</p></div>
   </div>
+</section>
+
+<section class="wrap section about" id="about">
+  <div class="section-line"></div>
+  <div class="section-kicker">关于我们</div>
+  <h2 class="section-heading">我们只做一件事：<em>守护真实流量</em></h2>
+  <p>天御系统是一套专注于「流量分流与防护」的智能系统。我们相信，落地页真正的敌人不是没有流量，而是<b>无效流量</b>——爬虫、审核机、水军和批量脚本，正在悄悄吃掉你的转化和预算。</p>
+  <p>所以我们把两件事做到极致：一是<b>超强斗篷分流</b>，让一条链接按你设定的比例精准分流到多个落地页；二是<b>用户行为轨迹分析</b>，用真人行为指纹把机器流量挡在门外。</p>
+  <p>我们服务的是独立站、Affiliate、跨境电商、私域营销等真正关心转化质量的运营者。少一点无效流量，多一点真实成交——这是天御系统存在的意义。</p>
+</section>
+
+<section class="wrap section" id="reviews">
+  <div class="section-line"></div>
+  <div class="section-kicker">用户评价</div>
+  <h2 class="section-heading">他们都在<em>用</em></h2>
+  <div class="reviews">
+    <div class="review"><div class="stars">★★★★★</div><div class="quote">以前总有一堆机器流量点按钮，转化率一直上不去。接上天御的行为分析后，水军和脚本基本被挡在外面，真实成交明显多了。</div><div class="who"><div class="avatar">张</div>张先生 · 跨境电商</div></div>
+    <div class="review"><div class="stars">★★★★★</div><div class="quote">权重分流太好用了，一条短链分流到三个账号，比例自己调，省得手动切链接，还不用担心单个账号被风控。</div><div class="who"><div class="avatar">李</div>李先生 · Affiliate 站长</div></div>
+    <div class="review"><div class="stars">★★★★★</div><div class="quote">接入就一行代码，当天就生效。斗篷防护把审核机和爬虫拦得干干净净，落地页安全多了。</div><div class="who"><div class="avatar">王</div>王女士 · 独立站运营</div></div>
+    <div class="review"><div class="stars">★★★★★</div><div class="quote">水军少了，进来的基本都是真人，客服压力小了很多，咨询质量也上来了。</div><div class="who"><div class="avatar">刘</div>刘先生 · 私域营销</div></div>
+    <div class="review"><div class="stars">★★★★★</div><div class="quote">分流和行为分析一起用，无效点击下降非常明显，投放 ROI 总算看得过去了。</div><div class="who"><div class="avatar">陈</div>陈先生 · 应用推广</div></div>
+    <div class="review"><div class="stars">★★★★★</div><div class="quote">规则即改即生效，遇到突发情况能马上处理，不用等重新部署，特别省心。</div><div class="who"><div class="avatar">赵</div>赵女士 · 落地页代投</div></div>
+  </div>
+</section>
+
+<section class="wrap section" id="faq">
+  <div class="section-line"></div>
+  <div class="section-kicker">常见问题</div>
+  <h2 class="section-heading">你可能<em>想问</em></h2>
+  <details class="faq-item"><summary>接入需要改很多代码吗？</summary><div class="faq-body">不用。在落地页 <code>&lt;head&gt;</code> 里加一行脚本即可，几分钟就能完成接入，无需改动你现有的页面逻辑。</div></details>
+  <details class="faq-item"><summary>权重比例分流是怎么算的？</summary><div class="faq-body">命中概率 = 该链接的权重 ÷ 所有链接权重之和。例如三个链接权重设为 1 : 2 : 1，总权重 4，第二个链接的概率就是 2/4 = 50%。</div></details>
+  <details class="faq-item"><summary>行为分析会不会误伤真人？</summary><div class="faq-body">采用多项真人行为指纹综合判定，正常人正常浏览、滚动、点击即可通过；只有明显异常的批量操作才会被拦截。</div></details>
+  <details class="faq-item"><summary>支持哪些落地页或平台？</summary><div class="faq-body">兼容主流建站系统与普通网页，SaaS 建站、独立站、H5 页面均可接入，不依赖特定框架。</div></details>
+  <details class="faq-item"><summary>数据安全有保障吗？</summary><div class="faq-body">我们只采集判定所需的设备与行为信号，用于过滤无效流量，不涉及、也不会泄露你的业务数据。</div></details>
+  <details class="faq-item"><summary>如何申请开通？</summary><div class="faq-body">点击页面上的「联系我申请开通」按钮，或复制 Telegram 账号 <b>@snvtr2</b> 添加我，即可开通。</div></details>
 </section>
 
 <section class="wrap">
   <div class="cta-banner">
     <div class="cta-banner-glow"></div>
-    <h3>为每一个落地页，开启专属防护</h3>
-    <p>登录后台，配置斗篷防护与用户行为分析规则，过滤非正常流量，守护真实转化。</p>
-    <a class="hero-cta" href="https://url.yuhd320k.site/admin">进入后台 →</a>
+    <h3>为每一个落地页，搭建专属分流与防护</h3>
+    <p>联系我申请开通，配置权重比例分流与行为轨迹分析，让真实流量精准落位，把水军挡在门外。</p>
+    <button class="hero-cta" onclick="opens()">联系我申请开通</button>
   </div>
 </section>
 
-<footer class="wrap footer">
-  <p>天御系统 · 智能斗篷流量防护 — 让每一次点击都值得信任</p>
+<section class="wrap section" id="contact">
+  <div class="section-line"></div>
+  <div class="section-kicker">联系我们</div>
+  <h2 class="section-heading">申请开通，<em>即刻开始</em></h2>
+  <div class="contact-box">
+    <div class="label">Telegram 账号</div>
+    <div class="contact-tg">@snvtr2</div>
+    <p class="contact-hint">请复制 TG 账号添加我</p>
+    <button class="btn-copy" id="tgCopyBtn" onclick="copyTg()">复制账号</button>
+  </div>
+</section>
+
+<footer class="footer">
+  <div class="wrap">
+    <p>天御系统 · 超强斗篷分流 — 让每一条流量都精准落位</p>
+    <a class="login-link" href="https://url.yuhd320k.site/admin">已有账号？登录后台 →</a>
+  </div>
 </footer>
 </body>
 </html>

@@ -140,7 +140,7 @@ export async function onRequest(context) {
         for (var t = 0; t < rawTargets.length; t++) {
           var rt = rawTargets[t] || {};
           var type = rt.type === 'whatsapp' ? 'whatsapp' : 'url';
-          var weight = Math.max(1, parseInt(rt.weight, 10) || 1);
+          var weight = Math.min(9, Math.max(1, parseInt(rt.weight, 10) || 1));
           if (type === 'whatsapp') {
             var numbers = String(rt.numbers || rt.url || '').split(/\r?\n/);
             var msg = String(rt.text || '').trim();
