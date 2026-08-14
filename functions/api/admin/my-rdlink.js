@@ -143,9 +143,10 @@ export async function onRequest(context) {
           var weight = Math.max(1, parseInt(rt.weight, 10) || 1);
           if (type === 'whatsapp') {
             var numbers = String(rt.numbers || rt.url || '').split(/\r?\n/);
+            var msg = String(rt.text || '').trim();
             for (var n = 0; n < numbers.length; n++) {
               var num = cleanNumber(numbers[n]);
-              if (num) targets.push({ type: 'whatsapp', url: 'https://wa.me/' + num, weight: weight });
+              if (num) targets.push({ type: 'whatsapp', url: 'https://wa.me/' + num + (msg ? '?text=' + encodeURIComponent(msg) : ''), weight: weight });
             }
           } else {
             var u = String(rt.url || '').trim();

@@ -1602,7 +1602,7 @@ function renderRdModal(domains, link){
       '<div style="'+stepHint+'">访客打开短链后，会跳到下面其中一个链接，可添加多个。</div>'+
       '<div id="rdTargets"></div>'+
       '<button class="btn btn-o btn-sm" id="rdAddTargetBtn">➕ 添加一个链接</button>'+
-      '<div style="font-size:.74rem;color:var(--muted);margin:8px 0 0;line-height:1.6">💬 类型选「WhatsApp」时，只填号码（一行一个、纯数字），会自动拼成 https://wa.me/号码</div>'+
+      '<div style="font-size:.74rem;color:var(--muted);margin:8px 0 0;line-height:1.6">💬 类型选「WhatsApp」时：只填号码（一行一个、纯数字，<b>不要带国家区号</b>）；可选填「营销话术」，生成 https://wa.me/号码?text=话术</div>'+
     '</div></div>'+
     '<div style="display:flex;gap:10px;margin-top:18px"><button class="btn btn-p" id="rdSaveBtn">保存</button><button class="btn btn-o" id="rdCancelBtn">取消</button></div>'+
     '<div id="rdModalMsg"></div>'+
@@ -1624,7 +1624,12 @@ function addRdTargetRow(t){
   var type = t ? t.type : 'url';
   var url = t ? t.url : '';
   var numbers = '';
-  if(type === 'whatsapp'){ numbers = (t && t.url) ? t.url.replace(/^https:\/\/wa\.me\//i,'') : ''; }
+  var text = '';
+  if(type === 'whatsapp'){
+    var m = url.match(/^https:\/\/wa\.me\/(\d+)(?:\?text=(.*))?$/i);
+    numbers = m ? m[1] : url.replace(/^https:\/\/wa\.me\//i,'').replace(/\?.*$/,'');
+    if(m && m[2]){ try{ text = decodeURIComponent(m[2]); }catch(e){ text = m[2]; } }
+  }
   var weight = t ? (t.weight || 1) : 1;
   var idx = box.children.length + 1;
   var row = document.createElement('div');
@@ -1636,7 +1641,8 @@ function addRdTargetRow(t){
     '<button class="btn btn-o btn-sm rdtdel" style="flex:0 0 auto;padding:4px 12px">✕ 删除</button>'+
     '</div>'+
     '<input class="rdtu" placeholder="粘贴跳转地址，例如 https://example.com" value="'+esc(url)+'" style="width:100%;box-sizing:border-box;'+(type==='whatsapp'?'display:none':'')+'">'+
-    '<textarea class="rdtn" placeholder="WhatsApp 号码，一行一个（纯数字）" style="width:100%;box-sizing:border-box;min-height:60px;'+(type==='whatsapp'?'':'display:none')+'">'+esc(numbers)+'</textarea>'+
+    '<textarea class="rdtn" placeholder="WhatsApp 号码，一行一个（纯数字，不要带国家区号）" style="width:100%;box-sizing:border-box;min-height:60px;'+(type==='whatsapp'?'':'display:none')+'">'+esc(numbers)+'</textarea>'+
+    '<input class="rdtext" placeholder="营销话术（选填），例如：你好，想咨询一下" value="'+esc(text)+'" style="width:100%;box-sizing:border-box;margin-top:8px;'+(type==='whatsapp'?'':'display:none')+'">'+
     '<div class="rdtwWrap" style="margin-top:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">'+
       '<span style="font-size:.78rem;color:var(--muted);white-space:nowrap">⚖️ 权重（比例）</span>'+
       '<input class="rdtw" type="number" min="1" value="'+weight+'" style="flex:0 0 70px" title="数值越大，被跳到的概率越高（仅「按比例分流」模式生效）">'+
@@ -1646,10 +1652,12 @@ function addRdTargetRow(t){
   var sel = row.querySelector('.rdtt');
   var uinp = row.querySelector('.rdtu');
   var tinp = row.querySelector('.rdtn');
+  var textinp = row.querySelector('.rdtext');
   sel.onchange = function(){
     var isW = sel.value === 'whatsapp';
     uinp.style.display = isW ? 'none' : '';
     tinp.style.display = isW ? '' : 'none';
+    textinp.style.display = isW ? '' : 'none';
   };
   row.querySelector('.rdtdel').onclick = function(){ box.removeChild(row); renumberRdTargets(); };
   refreshRdTargetWeights();
@@ -1679,7 +1687,8 @@ async function saveRdLink(){
     var weight = parseInt(row.querySelector('.rdtw').value, 10) || 1;
     if(type === 'whatsapp'){
       var numbers = row.querySelector('.rdtn').value;
-      if(numbers.trim()) targets.push({ type:'whatsapp', numbers:numbers, weight:weight });
+      var text = row.querySelector('.rdtext').value.trim();
+      if(numbers.trim()) targets.push({ type:'whatsapp', numbers:numbers, text:text, weight:weight });
     } else {
       var u = row.querySelector('.rdtu').value.trim();
       if(u) targets.push({ type:'url', url:u, weight:weight });
