@@ -63,6 +63,9 @@
         // 跟踪转化事件
         fbq('track', 'AddToCart');
         fbq('track', 'Contact');
+        fbq('track', 'Lead');
+        fbq('track', 'Lead');
+         fbq('trackCustom', '下载');
         fbq('track', 'Purchase');
 
         try {
