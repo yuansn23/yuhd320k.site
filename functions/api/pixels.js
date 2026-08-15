@@ -1,5 +1,5 @@
 // GET /api/pixels?site=k924uu.site — 返回对应站点的像素ID
-// v5: 不缓存，D1 + KV 并行读取，优先返回数据更多的一方
+// v5: 不缓存，只读 account_sites 按站点隔离的像素（无跨站/共享回退）
 export async function onRequest(context) {
   const { request, env } = context;
   try {
@@ -52,9 +52,8 @@ export async function onRequest(context) {
     var ids = [];
     var version = 0;
 
-    // 并行读 D1(account_sites → accounts) + KV
+    // 只读 account_sites（按站点隔离）
     var d1Result = null;
-    var kvResult = null;
 
     if (username) {
       // 标准化 matchedSite：site_mappings 可能存完整URL，account_sites 存纯域名，需要对齐
@@ -80,39 +79,25 @@ export async function onRequest(context) {
       var foundAnySite = false;
       for (var ci = 0; ci < candidates.length && (!d1Row || !d1Row.pixel_ids || d1Row.pixel_ids === '[]'); ci++) {
         try {
-          var row = await env.DB.prepare('SELECT pixel_ids FROM account_sites WHERE site = ?1 AND username = ?2').bind(candidates[ci], username).first();
+          var row = await env.DB.prepare('SELECT pixel_ids, config_version FROM account_sites WHERE site = ?1 AND username = ?2').bind(candidates[ci], username).first();
           if (row) { d1Row = row; foundAnySite = true; }
         } catch (e) {}
       }
 
-      // 回退 accounts 表 — 仅当 account_sites 完全没记录时才回退（有记录但为空 = 该站点未配置，不回退）
-      if (!foundAnySite) {
-        try { d1Row = await env.DB.prepare('SELECT pixel_ids, config_version FROM accounts WHERE username = ?1').bind(username).first(); } catch (e) {}
-      }
-
-      try { kvResult = await env.kvadmin.get(username + ':pixel_ids'); } catch (e) {}
-
+      // 像素按站点隔离：只认 account_sites 里该站点自己的配置。
+      // 该站点没配置像素（无记录或为空）就返回空，绝不回退到 accounts/KV 的共享数据，
+      // 避免「A 站点没配像素时，误用 B 站点或其他共享像素」。
       d1Result = d1Row;
     }
 
-    // 合并：D1 优先（按站点隔离的最新数据），KV 仅做回退
+    // 合并：只认 account_sites 里该站点的数据（按站点隔离，不做跨站回退）
     var d1Ids = [];
-    var kvIds = [];
     if (d1Result && d1Result.pixel_ids) {
       try { d1Ids = JSON.parse(d1Result.pixel_ids); } catch (e) {}
       version = d1Result.config_version || 1;
     }
-    if (kvResult) {
-      try { kvIds = JSON.parse(kvResult); } catch (e) {}
-    }
-
-    if (d1Ids.length > 0) {
-      ids = d1Ids;                // D1 有数据，永远用它（按站点隔离，最新）
-    } else if (kvIds.length > 0) {
-      ids = kvIds;                // D1 无数据，回退 KV
-      version = Math.max(version, 1);
-    }
-    // 两边都没数据 → ids = []，version = 0
+    ids = d1Ids;
+    // 该站点没配置像素 → ids = []
 
     // 记录访问日志（非阻塞）
     if (username && matchedSite) {
@@ -125,7 +110,7 @@ export async function onRequest(context) {
       );
     }
 
-    return new Response(JSON.stringify({ ids: ids, version: version, _site: site, _dbg: { rawSite: rawSite, site: site, foundMapping: !!siteRow, username: username, matchedSite: matchedSite, matchedHost: typeof matchedHost !== 'undefined' ? matchedHost : '', fromD1: !!d1Result, fromKV: !!kvResult } }), {
+    return new Response(JSON.stringify({ ids: ids, version: version, _site: site, _dbg: { rawSite: rawSite, site: site, foundMapping: !!siteRow, username: username, matchedSite: matchedSite, matchedHost: typeof matchedHost !== 'undefined' ? matchedHost : '', fromD1: !!d1Result } }), {
       headers: {
         'Content-Type': 'application/json',
         'Access-Control-Allow-Origin': '*',
