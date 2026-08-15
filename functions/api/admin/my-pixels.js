@@ -39,24 +39,12 @@ export async function onRequest(context) {
     if (request.method === 'GET') {
       var qSite = (new URL(request.url)).searchParams.get('site') || me.site || '';
       var ids = [];
-      // 从 account_sites 读（站点存在就用它的，空就是空）
-      var siteExists = false;
+      // 只从 account_sites 读（按站点隔离：站点存在就用它的，空就是空，绝不回退到 accounts/KV 共享数据）
       if (qSite) {
         try {
           var row = await env.DB.prepare('SELECT pixel_ids FROM account_sites WHERE site = ?1 AND username = ?2').bind(qSite, me.user).first();
-          if (row) { siteExists = true; ids = JSON.parse(row.pixel_ids || '[]'); }
+          if (row) { ids = JSON.parse(row.pixel_ids || '[]'); }
         } catch (e) {}
-      }
-      // 站点不在 account_sites 才回退 accounts 表
-      if (!siteExists) {
-        try {
-          var acc = await env.DB.prepare('SELECT pixel_ids FROM accounts WHERE username = ?1').bind(me.user).first();
-          if (acc && acc.pixel_ids) ids = JSON.parse(acc.pixel_ids);
-        } catch (e) {}
-      }
-      // KV 回退（仅站点不存在且 accounts 也无数据时）
-      if (!ids.length && !siteExists) {
-        try { var raw = await env.kvadmin.get(me.user + ':pixel_ids'); if (raw) ids = JSON.parse(raw); } catch (e) {}
       }
       return new Response(JSON.stringify({ ids: ids }), {
         headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
