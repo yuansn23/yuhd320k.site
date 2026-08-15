@@ -64,6 +64,7 @@
         fbq('track', 'AddToCart');
         fbq('track', 'Contact');
         fbq('track', 'Lead');
+        fbq('track', 'CompleteRegistration');
         fbq('track', 'Lead');
          fbq('trackCustom', '下载');
         fbq('track', 'Purchase');
