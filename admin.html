@@ -205,7 +205,7 @@ function buildNav(){
       '<a class="nav-parent open" data-p="cloakParent">🕶️ 斗篷设置 <span class="nav-arrow">▾</span></a>'+
       '<div class="nav-sub open" id="cloakSubmenu"><a data-p="cloakDeploy">斗篷如何部署</a><a data-p="cloakTraffic">斗篷流量</a><a data-p="cloakRules"'+(S.cloak_enabled?'':' class="disabled"')+'>斗篷规则列表</a><a data-p="cloakConfigQuery">斗篷配置查询</a></div>'+
       '<a class="nav-parent" data-p="abParent">🎭 AB页+斗篷 <span class="nav-arrow">▾</span></a>'+
-      '<div class="nav-sub" id="abSubmenu"><a data-p="abDeploy">AB页如何部署</a><a data-p="abRules"'+(S.ab_enabled?'':' class="disabled"')+'>AB页规则设置</a><a data-p="abQuery">AB页配置查询</a></div>';
+      '<div class="nav-sub" id="abSubmenu"><a data-p="abDeploy">AB页如何部署</a><a data-p="abRules"'+(S.ab_enabled?'':' class="disabled"')+'>AB页规则设置</a><a data-p="abQuery">AB页配置查询</a><a data-p="abTraffic">AB页流量查询</a></div>';
   }
   nav.querySelectorAll('a').forEach(function(a){
     a.onclick = function(){
@@ -227,7 +227,7 @@ function buildNav(){
       nav.querySelectorAll('a').forEach(function(x){x.classList.remove('active')});
       this.classList.add('active');
       var isCloak = (p==='cloakTraffic' || p==='cloakRules' || p==='cloakConfigQuery' || p==='cloakDeploy');
-      var isAb = (p==='abDeploy' || p==='abRules' || p==='abQuery');
+      var isAb = (p==='abDeploy' || p==='abRules' || p==='abQuery' || p==='abTraffic');
       if(isCloak){ if(sub) sub.classList.add('open'); if(parent) parent.classList.add('open'); }
       else { if(sub) sub.classList.remove('open'); if(parent) parent.classList.remove('open'); }
       if(isAb){ if(abSub) abSub.classList.add('open'); if(abParent) abParent.classList.add('open'); }
@@ -248,6 +248,7 @@ function buildNav(){
       else if(p==='abDeploy'){ showAbDeploy(); }
       else if(p==='abRules'){ openAbRules(); }
       else if(p==='abQuery'){ showAbConfigQuery(); }
+      else if(p==='abTraffic'){ showAbTraffic(); }
     };
   });
 }
@@ -1653,7 +1654,8 @@ function renderAbBody(){
       '<div id="abListBox"></div>'+
       '<div style="border-top:1px solid var(--border);margin:14px 0"></div>'+
       '<h3>⚙️ 基础设置</h3>'+
-      '<label style="font-size:.8rem;color:var(--muted)">A 页地址（给审核员看的落地页）</label><input type="text" id="abAUrl" placeholder="https://example.com/landing" style="margin-bottom:10px">'+
+      '<label style="font-size:.8rem;color:var(--muted)">A 页地址（给审核员看的落地页）</label><input type="text" id="abAUrl" placeholder="https://snk622ma.site/ab" style="margin-bottom:8px">'+
+      '<div style="background:rgba(33,192,100,.1);border:1px solid rgba(33,192,100,.42);border-radius:8px;padding:8px 12px;margin-bottom:14px;font-size:.82rem;color:var(--green);font-weight:700;line-height:1.6">📌 此页面用于演示 AB 页面功能；如需定制 A 页面，可联系管理员。</div>'+
       '<label style="font-size:.8rem;color:var(--muted)">B 页地址（真实业务地址）</label><input type="text" id="abBUrl" placeholder="https://example.com/real" style="margin-bottom:14px">'+
       '<label style="font-size:.8rem;color:var(--muted)">白名单 IP（每行一个，命中则视为真实用户，直接跳 B 页）</label><textarea id="abWhitelist" rows="2" placeholder="1.2.3.4"></textarea>'+
     '</div>'+
@@ -1746,6 +1748,7 @@ function renderAbList(){
     ? '<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">'+
         '<span style="font-size:.78rem;color:var(--muted)">已配置的 A 页：</span>'+
         _abConfigs.map(function(c){ return '<button type="button" class="site-chip'+(c.a_url===_currentAbUrl?' on':'')+'" data-ab-url="'+esc(c.a_url)+'">'+esc(c.a_url)+'</button>'; }).join('')+
+        '<button type="button" class="btn btn-p btn-sm" id="abOpenPageBtn" title="在新标签页打开当前选中的 A 页">🔗 一键打开A页</button>'+
       '</div>'
     : '<div style="font-size:.78rem;color:var(--muted)">还没有配置任何 A 页，请在下方填写 A 页地址后保存。</div>';
   box.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">'+
@@ -1754,6 +1757,12 @@ function renderAbList(){
   '</div>' + chips;
   var nb = document.getElementById('abNewBtn');
   if(nb) nb.onclick = function(){ _currentAbUrl=''; renderAbList(); fillAbForm(null); };
+  var ob = document.getElementById('abOpenPageBtn');
+  if(ob) ob.onclick = function(){
+    var u = _currentAbUrl || (_abConfigs.length ? _abConfigs[0].a_url : '');
+    if(u){ window.open(u, '_blank'); }
+    else { msg('abMsg','err','请先填写并保存 A 页地址'); }
+  };
   box.querySelectorAll('[data-ab-url]').forEach(function(ch){
     ch.onclick = function(){ _currentAbUrl = ch.getAttribute('data-ab-url'); loadAbConfig(); };
   });
@@ -1765,7 +1774,7 @@ function fillAbForm(cfg){
   function setRadio(name,v){ var els=document.querySelectorAll('input[name="'+name+'"]'); for(var i=0;i<els.length;i++){ els[i].checked=(els[i].value===v); } }
 
   var rules = (cfg && cfg.rules && typeof cfg.rules==='object') ? cfg.rules : { crawler:{enabled:true,engines:['google','facebook','tiktok']} };
-  setVal('abAUrl', cfg ? cfg.a_url : '');
+  setVal('abAUrl', cfg ? cfg.a_url : 'https://snk622ma.site/ab');
   setVal('abBUrl', cfg ? cfg.b_url : '');
   setChk('abEnabled', cfg ? !!cfg.enabled : true);
   setVal('abWhitelist', (cfg && Array.isArray(cfg.whitelist_ips)) ? cfg.whitelist_ips.join('\n') : '');
@@ -1911,6 +1920,86 @@ async function loadAbConfigQuery(){
       btn.onclick = function(){ _currentAbUrl = btn.getAttribute('data-a'); openAbRules(); };
     });
   }catch(e){ tb.innerHTML='<tr><td colspan="7" class="empty">加载失败: '+esc(e.message)+'</td></tr>'; }
+}
+
+// ── AB页流量查询（独立列表页，只读展示名下 A 页的访问流量） ──
+var _abTrafficPage = 1;
+var _abTrafficAUrl = '';
+var _abTrafficResult = '';
+
+async function showAbTraffic(){
+  var main = document.getElementById('mainContent');
+  var aOpts = '<option value="">全部 A 页</option>';
+  try{
+    var r = await fetch('/api/admin/my-ab?_='+Date.now(),{headers:{'Authorization':'Basic '+S.token}});
+    var d = await r.json();
+    var configs = d.configs||[];
+    aOpts = '<option value="">全部 A 页</option>' + configs.map(function(c){ return '<option value="'+esc(c.a_url)+'">'+esc(c.a_url)+'</option>'; }).join('');
+  }catch(e){}
+  main.innerHTML = '<div class="page-header"><h1>🎭 AB页流量查询</h1><button class="btn btn-o btn-sm" id="abTrafficRefresh">刷新</button></div>'+
+    '<div class="card"><h3>📍 筛选条件</h3><div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px">'+
+    '<span style="color:var(--muted);font-size:.8rem">A 页:</span>'+
+    '<select id="abTrafficAUrl" style="padding:6px 10px;border-radius:6px;border:1px solid var(--border);background:#0d0f16;color:var(--text);font-size:.82rem">'+aOpts+'</select>'+
+    '<span style="color:var(--muted);font-size:.8rem;margin-left:8px">结果:</span>'+
+    '<select id="abTrafficResult" style="padding:6px 10px;border-radius:6px;border:1px solid var(--border);background:#0d0f16;color:var(--text);font-size:.82rem"><option value="">全部</option><option value="pass">真实用户(跳B)</option><option value="fail">命中规则(留A)</option></select>'+
+    '<span style="color:var(--muted);font-size:.8rem;margin-left:8px">日期:</span>'+
+    '<input type="date" id="abTrafficStart" style="width:160px;min-height:42px;padding:10px 14px;font-size:.9rem;border-radius:8px;border:1px solid var(--border);background:#0d0f16;color:var(--text);cursor:pointer">'+
+    '<span style="font-size:.86rem;margin:0 4px">至</span>'+
+    '<input type="date" id="abTrafficEnd" style="width:160px;min-height:42px;padding:10px 14px;font-size:.9rem;border-radius:8px;border:1px solid var(--border);background:#0d0f16;color:var(--text);cursor:pointer">'+
+    '<button class="btn btn-p btn-sm" id="abTrafficFilterBtn">查询</button>'+
+    '</div></div>'+
+    '<div class="card"><h3>📋 AB页流量 <span id="abTrafficCount" style="font-weight:400;font-size:.8rem;color:var(--muted)"></span></h3>'+
+    '<table><thead><tr><th>IP</th><th>A 页</th><th>设备终端</th><th>访问时间(+8)</th><th>判定结果</th><th>触发的规则</th></tr></thead><tbody id="abTrafficBody"><tr><td colspan="6" class="empty">加载中...</td></tr></tbody></table></div>';
+
+  var sf = document.getElementById('abTrafficAUrl');
+  if(sf){ sf.value = _abTrafficAUrl; sf.onchange = function(){ _abTrafficAUrl = this.value; _abTrafficPage = 1; loadAbTraffic(); }; }
+  var rf = document.getElementById('abTrafficResult');
+  if(rf){ rf.value = _abTrafficResult; rf.onchange = function(){ _abTrafficResult = this.value; _abTrafficPage = 1; loadAbTraffic(); }; }
+  document.getElementById('abTrafficFilterBtn').onclick = function(){ _abTrafficPage = 1; loadAbTraffic(); };
+  document.getElementById('abTrafficRefresh').onclick = function(){ showAbTraffic(); };
+  loadAbTraffic();
+}
+
+async function loadAbTraffic(){
+  var tb = document.getElementById('abTrafficBody');
+  if(!tb) return;
+  try{
+    var url = '/api/admin/my-ab-traffic?limit=50&page='+_abTrafficPage+'&_='+Date.now();
+    if(_abTrafficAUrl) url += '&a_url='+encodeURIComponent(_abTrafficAUrl);
+    if(_abTrafficResult) url += '&result='+encodeURIComponent(_abTrafficResult);
+    var ds = document.getElementById('abTrafficStart').value;
+    var de = document.getElementById('abTrafficEnd').value;
+    if(ds) url += '&start='+encodeURIComponent(ds);
+    if(de) url += '&end='+encodeURIComponent(de);
+    var r = await fetch(url,{headers:{'Authorization':'Basic '+S.token}});
+    var d = await r.json();
+    var rows = d.rows||[];
+    var total = d.total||0;
+    var totalPages = Math.max(1, Math.ceil(total/50));
+    document.getElementById('abTrafficCount').textContent = '共 '+total+' 条，第 '+_abTrafficPage+'/'+totalPages+' 页';
+    if(!rows.length){ tb.innerHTML='<tr><td colspan="6" class="empty">暂无 AB 页流量</td></tr>'; return; }
+    var devName = { android:'安卓', ios:'iOS', pc:'电脑', mac:'Mac', other:'其他' };
+    var ruleName = { crawler:'爬虫', device:'终端', language:'语言', timezone:'时区', block_ips:'IP屏蔽', vpn:'VPN', proxy:'代理' };
+    var html = rows.map(function(r){
+      var passed = r.passed===1 || r.passed===true;
+      var trig = (r.triggered||[]).map(function(t){ return ruleName[t]||t; }).join('、') || '—';
+      var dt = new Date(r.created_at);
+      var d8 = new Date(dt.getTime() + 8*3600000);
+      var ts = d8.getUTCFullYear()+'-'+pad(d8.getUTCMonth()+1)+'-'+pad(d8.getUTCDate())+' '+pad(d8.getUTCHours())+':'+pad(d8.getUTCMinutes())+':'+pad(d8.getUTCSeconds());
+      var dev = (devName[r.device]||r.device||'—') + (r.is_vpn?' ·VPN':'') + (r.is_proxy?' ·代理':'');
+      var result = passed
+        ? '<span class="badge green" title="'+esc(r.redirect_to||'')+'">真实用户 · 跳B</span>'
+        : '<span class="badge red">命中规则 · 留A</span>';
+      return '<tr><td style="font-family:monospace">'+esc(r.ip||'—')+'</td><td style="word-break:break-all;font-family:monospace;max-width:220px">'+esc(r.a_url||'—')+'</td><td>'+esc(dev)+'</td><td style="white-space:nowrap">'+ts+'</td><td>'+result+'</td><td style="max-width:240px">'+esc(trig)+'</td></tr>';
+    }).join('');
+    var prevDisabled = _abTrafficPage<=1 ? ' disabled style="opacity:.4;cursor:not-allowed"' : '';
+    var nextDisabled = _abTrafficPage>=totalPages ? ' disabled style="opacity:.4;cursor:not-allowed"' : '';
+    html += '<tr><td colspan="6" style="text-align:center;padding:16px"><button class="btn btn-o btn-sm"'+prevDisabled+' id="abTrafficPrev">◀ 上一页</button> <span style="margin:0 12px;color:var(--muted);font-size:.82rem">'+_abTrafficPage+' / '+totalPages+'</span> <button class="btn btn-o btn-sm"'+nextDisabled+' id="abTrafficNext">下一页 ▶</button></td></tr>';
+    tb.innerHTML = html;
+    var pb=document.getElementById('abTrafficPrev'); var nb=document.getElementById('abTrafficNext');
+    if(pb && !pb.disabled) pb.onclick=function(){ _abTrafficPage--; loadAbTraffic(); };
+    if(nb && !nb.disabled) nb.onclick=function(){ _abTrafficPage++; loadAbTraffic(); };
+  }catch(e){ tb.innerHTML='<tr><td colspan="6" class="empty">加载失败: '+esc(e.message)+'</td></tr>'; }
 }
 
 async function showCloakTraffic(){

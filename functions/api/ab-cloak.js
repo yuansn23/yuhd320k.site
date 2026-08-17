@@ -135,6 +135,16 @@ async function getIpInfo(env, ip) {
   } catch (e) { return null; }
 }
 
+async function logTraffic(env, t) {
+  try {
+    await env.DB.prepare('INSERT INTO ab_traffic (a_url, username, ip, device, lang, timezone, is_vpn, is_proxy, passed, redirect_to, triggered_rules, ua, created_at) VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13)')
+      .bind(t.a_url || '', t.username || '', t.ip || '', t.device || '', t.lang || '', t.timezone || '', t.isVpn ? 1 : 0, t.isProxy ? 1 : 0, t.passed ? 1 : 0, t.redirect || '', JSON.stringify(t.triggered || []), (t.ua || '').substring(0, 500), new Date().toISOString()).run();
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: (e && e.message) ? e.message : String(e) };
+  }
+}
+
 // 反解 A 页地址 → AB 配置 + 账号权限（多级匹配：精确 → 斜杠变体 → .html → 域名）
 async function resolveConfig(env, rawSite) {
   var host = rawSite;
@@ -229,6 +239,9 @@ export async function onRequest(context) {
     var passed = triggered.length === 0;
     // 真实用户 → B 页；爬虫/被屏蔽（命中规则）→ 留在 A 页（不跳转）
     var redirect = passed ? (config.b_url || null) : null;
+
+    // 记录流量（异步，不阻塞跳转响应；ab_traffic 表未建时静默跳过）
+    context.waitUntil(logTraffic(env, { a_url: config.a_url, username: config.username || '', ip: ip, device: device, lang: clientLang, timezone: tzIANA || (tzOffset !== null ? String(tzOffset) : ''), isVpn: isVpn, isProxy: isProxy, passed: passed, redirect: redirect, triggered: triggered, ua: ua }));
 
     return new Response(JSON.stringify({ redirect: redirect, passed: passed, triggered: triggered, whitelisted: whitelisted, _dbg: { a_url: config.a_url, username: config.username, device: device, ip: ip } }), { headers: jsonHeaders });
   } catch (e) {
