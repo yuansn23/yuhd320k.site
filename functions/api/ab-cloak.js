@@ -172,14 +172,18 @@ function evaluateRules(rules, ctx) {
     var ips = r.block_ips.list || [];
     if (ctx.ip && ips.indexOf(ctx.ip) !== -1) triggered.push('block_ips');
   }
-  // 代理 / VPN / 数据中心机房：主判定=时区偏移一致性，辅助判定=WebRTC 泄露
-  // 时区相差 > 1 小时，或 WebRTC 泄露了与真实出口不同的公网 IP → 疑似代理/VPN/机房
+  // 代理 / VPN / 数据中心机房：三路信号任一命中即拦 ——
+  // ① 时区偏移一致性（IP 时区 vs 浏览器时区相差 > 1 小时）
+  // ② WebRTC 泄露（本机暴露了与出口不同的公网 IP）
+  // ③ IP 情报（ipinfo：机房 hosting / VPN / 代理 / Tor / 中继）
   if (on(r.privacy) || on(r.vpn) || on(r.proxy)) {
-    var ipOff = ianaOffset(ctx.ipTz);
+    var info = ctx.ipInfo || {};
+    var ipOff = ianaOffset(info.timezone);
     var clientOff = (typeof ctx.tzOffset === 'number') ? ctx.tzOffset : null;
     var tzBad = (ipOff !== null && clientOff !== null && Math.abs(clientOff - ipOff) > 1);
     var webrtcBad = webrtcLeak(ctx.ip, ctx.webrtcIps);
-    if (tzBad || webrtcBad) triggered.push('privacy');
+    var intelBad = !!(info.vpn || info.proxy || info.tor || info.relay || info.hosting);
+    if (tzBad || webrtcBad || intelBad) triggered.push('privacy');
   }
 
   // 行为模块（AB 页默认不启用，保留逻辑供扩展，落地即跳时无行为信号）
@@ -205,7 +209,7 @@ function evaluateRules(rules, ctx) {
 
 async function getIpInfo(env, ip) {
   if (!ip || ip === '127.0.0.1' || ip === '::1') return null;
-  var cacheKey = 'ab:ipinfo:v2:' + ip;
+  var cacheKey = 'ab:ipinfo:v3:' + ip;
   try {
     var cached = await env.kvadmin.get(cacheKey);
     if (cached) return JSON.parse(cached);
@@ -219,7 +223,18 @@ async function getIpInfo(env, ip) {
     clearTimeout(timer);
     if (!res.ok) return null;
     var data = await res.json();
-    var out = { timezone: data.timezone || '', country: data.country || '', region: data.region || '' };
+    var p = data.privacy || {};
+    var asn = data.asn || {};
+    var out = {
+      timezone: data.timezone || '',
+      country: data.country || '',
+      region: data.region || '',
+      vpn: !!p.vpn,
+      proxy: !!p.proxy,
+      tor: !!p.tor,
+      relay: !!p.relay,
+      hosting: !!(p.hosting || asn.type === 'hosting') // 机房：privacy.hosting 或 ASN 类型为 hosting
+    };
     try { await env.kvadmin.put(cacheKey, JSON.stringify(out), { expirationTtl: 600 }); } catch (e) {}
     return out;
   } catch (e) { return null; }
@@ -316,15 +331,14 @@ export async function onRequest(context) {
     var whitelisted = Array.isArray(whitelist) && ip && whitelist.indexOf(ip) !== -1;
 
     var triggered = [];
-    var ipTz = '';
+    var ipInfo = null;
     if (!whitelisted) {
       var rules = config.rules || {};
       var needIp = on(rules.privacy) || on(rules.vpn) || on(rules.proxy);
       if (needIp) {
-        var ipInfo = await getIpInfo(env, ip);
-        if (ipInfo) { ipTz = ipInfo.timezone || ''; }
+        ipInfo = await getIpInfo(env, ip);
       }
-      triggered = evaluateRules(rules, { ip: ip, ua: ua, device: device, lang: clientLang, tzOffset: tzOffset, tzIANA: tzIANA, ipTz: ipTz, webrtcIps: webrtcIps });
+      triggered = evaluateRules(rules, { ip: ip, ua: ua, device: device, lang: clientLang, tzOffset: tzOffset, tzIANA: tzIANA, ipInfo: ipInfo, webrtcIps: webrtcIps });
     }
 
     var passed = triggered.length === 0;
@@ -332,7 +346,7 @@ export async function onRequest(context) {
     var redirect = passed ? (config.b_url || null) : null;
 
     // 记录流量（异步，不阻塞跳转响应；ab_traffic 表未建时静默跳过）
-    context.waitUntil(logTraffic(env, { a_url: config.a_url, username: config.username || '', ip: ip, device: device, lang: clientLang, timezone: tzIANA || (tzOffset !== null ? String(tzOffset) : ''), isVpn: false, isProxy: false, passed: passed, redirect: redirect, triggered: triggered, ua: ua }));
+    context.waitUntil(logTraffic(env, { a_url: config.a_url, username: config.username || '', ip: ip, device: device, lang: clientLang, timezone: tzIANA || (tzOffset !== null ? String(tzOffset) : ''), isVpn: !!(ipInfo && ipInfo.vpn), isProxy: !!(ipInfo && ipInfo.proxy), passed: passed, redirect: redirect, triggered: triggered, ua: ua }));
 
     return new Response(JSON.stringify({ redirect: redirect, passed: passed, triggered: triggered, whitelisted: whitelisted, _dbg: { a_url: config.a_url, username: config.username, device: device, ip: ip } }), { headers: jsonHeaders });
   } catch (e) {
