@@ -61,6 +61,17 @@ export async function onRequest(context) {
         }
       }
 
+      // 斗篷权限映射（列可能尚未迁移，缺失则视为 0 = 默认关闭）
+      var cloakMap = {};
+      try {
+        var cloakRows = await env.DB.prepare('SELECT username, cloak_enabled FROM accounts WHERE role = ?1').bind('user').all();
+        if (cloakRows && cloakRows.results) {
+          for (var cc = 0; cc < cloakRows.results.length; cc++) {
+            cloakMap[cloakRows.results[cc].username] = cloakRows.results[cc].cloak_enabled ? 1 : 0;
+          }
+        }
+      } catch (e) {}
+
       // D1 中已有的用户名集合
       var d1Users = {};
       var accts = acctsResult && acctsResult.results ? acctsResult.results : [];
@@ -149,6 +160,7 @@ export async function onRequest(context) {
               site: a.site || '',
               created: a.created || '',
               status: a.status || 'active',
+              cloak_enabled: cloakMap[a.username] || 0,
               stats: {
                 downloads: downloadMap[a.username] || 0,
                 apkUrl: apkUrl,
@@ -202,6 +214,20 @@ export async function onRequest(context) {
         var newStatus = (acc.status === 'disabled') ? 'active' : 'disabled';
         await env.DB.prepare('UPDATE accounts SET status = ?1 WHERE username = ?2').bind(newStatus, username).run();
         return new Response(JSON.stringify({ ok: true, status: newStatus, msg: newStatus === 'disabled' ? '已禁用' : '已启用' }), {
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+
+      // -- 斗篷权限开关（账号级，默认关闭） --
+      if (action === 'toggle-cloak') {
+        var accc = null;
+        try { accc = await env.DB.prepare('SELECT cloak_enabled FROM accounts WHERE username = ?1').bind(username).first(); } catch (e) {}
+        if (!accc) {
+          return new Response(JSON.stringify({ error: '账户不存在或斗篷权限列未迁移，请先执行 alter_cloak_perm.sql' }), { status: 404, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } });
+        }
+        var newCloak = accc.cloak_enabled ? 0 : 1;
+        await env.DB.prepare('UPDATE accounts SET cloak_enabled = ?1 WHERE username = ?2').bind(newCloak, username).run();
+        return new Response(JSON.stringify({ ok: true, cloak_enabled: newCloak, msg: newCloak ? '已开启斗篷权限' : '已关闭斗篷权限' }), {
           headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
         });
       }

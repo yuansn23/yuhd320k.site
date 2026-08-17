@@ -163,6 +163,15 @@ async function resolveSite(env, rawSite) {
   var mapping = await findMapping(rawSite);
   if (mapping) { username = mapping.username; matchedSite = mapping.site; }
 
+  // 账号级斗篷权限：默认关闭，管理员给子账户开启后斗篷才生效（master switch）
+  var cloakOff = true;
+  if (username) {
+    try {
+      var cperm = await env.DB.prepare('SELECT cloak_enabled FROM accounts WHERE username = ?1').bind(username).first();
+      cloakOff = !(cperm && cperm.cloak_enabled === 1);
+    } catch (e) {}
+  }
+
   // —— cloak_configs 解析：site 为主键，按多候选精确匹配，保证每个落地页命中各自配置 ——
   var config = null;
   var host = rawSite;
@@ -185,7 +194,7 @@ async function resolveSite(env, rawSite) {
       }
     } catch (e) {}
   }
-  return { site: matchedSite || rawSite, username: username, config: config };
+  return { site: matchedSite || rawSite, username: username, config: config, cloakOff: cloakOff };
 }
 
 async function logTraffic(env, t) {
@@ -238,8 +247,8 @@ export async function onRequest(context) {
     var device = detectDevice(ua);
     var timezoneStr = tzIANA || (tzOffset !== null ? String(tzOffset) : '');
 
-    // 未配置或总开关关闭 → 放行
-    if (!config || (config.enabled !== 1 && config.enabled !== true)) {
+    // 未配置 / 总开关关闭 / 账号无斗篷权限 → 放行（fail-open，避免误伤真实流量）
+    if (resolved.cloakOff || !config || (config.enabled !== 1 && config.enabled !== true)) {
       var logRes0 = await logTraffic(env, { site: resolved.site, username: resolved.username, ip: ip, device: device, lang: clientLang, timezone: timezoneStr, isVpn: false, isProxy: false, passed: true, triggered: [], ua: ua });
       return new Response(JSON.stringify({ passed: true, disabled: !config, _dbg: { rawSite: rawSite, site: resolved.site, username: resolved.username, configFound: !!config, ip: ip, device: device, log: logRes0 } }), { headers: jsonHeaders });
     }

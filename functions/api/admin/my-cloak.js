@@ -32,7 +32,9 @@ async function getMyUser(request, env) {
     }
     if (!account) return null;
     if (auth !== 'Basic ' + btoa(user + ':' + role + ':' + (account.password || account.pw))) return null;
-    return { user, role, site: account.site || '' };
+    var cloakEnabled = 0;
+    try { var cr = await env.DB.prepare('SELECT cloak_enabled FROM accounts WHERE username = ?1').bind(user).first(); cloakEnabled = (cr && cr.cloak_enabled) ? 1 : 0; } catch (e) {}
+    return { user, role, site: account.site || '', cloak_enabled: cloakEnabled };
   } catch (e) { return null; }
 }
 
@@ -63,6 +65,13 @@ export async function onRequest(context) {
     if (!me) {
       return new Response(JSON.stringify({ error: '未授权' }), {
         status: 401, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+      });
+    }
+
+    // 斗篷权限校验：管理员未给该子账户开通斗篷权限时，整个斗篷功能不可用（默认关闭）
+    if (me.role !== 'admin' && !me.cloak_enabled) {
+      return new Response(JSON.stringify({ error: '斗篷功能未开通，请联系管理员开通', code: 'CLOAK_DISABLED' }), {
+        status: 403, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
       });
     }
 

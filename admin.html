@@ -158,6 +158,7 @@ S.token = sessionStorage.getItem('st_token') || '';
 S.user = sessionStorage.getItem('st_user') || '';
 S.role = sessionStorage.getItem('st_role') || '';
 S.site = sessionStorage.getItem('st_site') || '';
+S.cloak_enabled = sessionStorage.getItem('st_cloak_enabled') === '1' ? 1 : 0;
 
 // ========== LOGIN ==========
 document.getElementById('loginBtn').onclick = login;
@@ -173,7 +174,8 @@ async function login(){
     var d = await r.json();
     if(d.ok){
       S.token = d.token; S.user = d.user; S.role = d.role; S.site = d.site||'';
-      ['st_token','st_user','st_role','st_site'].forEach(function(k,i){ sessionStorage.setItem(k,[S.token,S.user,S.role,S.site][i]); });
+      S.cloak_enabled = d.cloak_enabled ? 1 : 0;
+      ['st_token','st_user','st_role','st_site','st_cloak_enabled'].forEach(function(k,i){ sessionStorage.setItem(k,[S.token,S.user,S.role,S.site,S.cloak_enabled][i]); });
       sessionStorage.removeItem('st_current_site'); // 登录后重置站点选择，避免沿用上一个账户的站点
       document.getElementById('loginPage').classList.add('hide');
       document.getElementById('adminPage').classList.remove('hide');
@@ -185,7 +187,7 @@ async function login(){
 }
 
 document.getElementById('logoutBtn').onclick = function(){
-  ['st_token','st_user','st_role','st_site','st_current_site'].forEach(function(k){ sessionStorage.removeItem(k); });
+  ['st_token','st_user','st_role','st_site','st_cloak_enabled','st_current_site'].forEach(function(k){ sessionStorage.removeItem(k); });
   location.reload();
 };
 
@@ -195,9 +197,10 @@ function buildNav(){
   if(S.role==='admin'){
     nav.innerHTML = '<a class="active" data-p="accounts">📋 账户管理</a><a data-p="loginLogs">🕐 登录日志</a>';
   } else {
-    nav.innerHTML = '<a class="active" data-p="dashboard">📊 控制台</a><a data-p="landing">🌐 我的落地页</a><a data-p="visits">📈 流量访问</a><a data-p="clicks">👆 点击统计</a><a data-p="apk">📦 普通跳转地址配置</a><a data-p="pixels">📡 像素管理</a><a data-p="rdlink">🔀 超强分流链接</a>'+
+    var cloakNav = S.cloak_enabled ?
       '<a class="nav-parent open" data-p="cloakParent">🕶️ 斗篷设置 <span class="nav-arrow">▾</span></a>'+
-      '<div class="nav-sub open" id="cloakSubmenu"><a data-p="cloakDeploy">斗篷如何部署</a><a data-p="cloakTraffic">斗篷流量</a><a data-p="cloakRules">斗篷规则列表</a><a data-p="cloakConfigQuery">斗篷配置查询</a></div>';
+      '<div class="nav-sub open" id="cloakSubmenu"><a data-p="cloakDeploy">斗篷如何部署</a><a data-p="cloakTraffic">斗篷流量</a><a data-p="cloakRules">斗篷规则列表</a><a data-p="cloakConfigQuery">斗篷配置查询</a></div>' : '';
+    nav.innerHTML = '<a class="active" data-p="dashboard">📊 控制台</a><a data-p="landing">🌐 我的落地页</a><a data-p="visits">📈 流量访问</a><a data-p="clicks">👆 点击统计</a><a data-p="apk">📦 普通跳转地址配置</a><a data-p="pixels">📡 像素管理</a><a data-p="rdlink">🔀 超强分流链接</a>'+cloakNav;
   }
   nav.querySelectorAll('a').forEach(function(a){
     a.onclick = function(){
@@ -240,7 +243,7 @@ async function showAccounts(){
     '<div class="card"><h3>➕ 创建子账户</h3>'+
     '<div class="form-row"><input type="text" id="newUser" placeholder="用户名"><input type="text" id="newPass" placeholder="密码"><input type="text" id="newSite" placeholder="绑定域名 site1.example.com"><button class="btn btn-p" id="createBtn">创建</button></div><div id="createMsg"></div></div>'+
     '<div id="editModal" class="hide" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.7);z-index:99;display:flex;align-items:center;justify-content:center"><div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:28px;width:480px;max-width:95vw;max-height:90vh;overflow-y:auto"><h3 style="margin-bottom:16px">✏️ 编辑子账户 <span id="editUsername" style="color:var(--green)"></span></h3><label style="font-size:.8rem;color:var(--muted)">新用户名（留空不修改）</label><input type="text" id="editNewUser" placeholder="留空则不修改用户名" style="margin-bottom:8px"><label style="font-size:.8rem;color:var(--muted)">新密码（留空不修改）</label><input type="text" id="editPass" placeholder="留空则不修改密码" style="margin-bottom:8px"><label style="font-size:.8rem;color:var(--muted)">主站点域名</label><input type="text" id="editSite" placeholder="https://site.example.com/estest/" style="margin-bottom:12px"><label style="font-size:.8rem;color:var(--muted);display:flex;align-items:center;gap:8px">🌐 额外落地页 <button class="btn btn-p btn-sm" id="addSiteBtn" style="font-size:.68rem;padding:4px 10px">+ 添加</button></label><div id="editSitesList" style="margin-bottom:12px"></div><div class="form-row" id="addSiteRow" style="display:none"><input type="text" id="newSiteInput" placeholder="输入落地页域名 site.example.com"><button class="btn btn-p btn-sm" id="confirmAddSiteBtn">确定</button></div><div style="display:flex;gap:10px"><button class="btn btn-p" id="saveEditBtn">保存</button><button class="btn btn-o" id="cancelEditBtn">取消</button></div><div id="editMsg"></div></div></div>'+
-    '<div class="card"><h3>📋 子账户列表</h3><table><thead><tr><th>用户名</th><th>密码</th><th>绑定站点</th><th>点击/下载</th><th>像素</th><th>跳转地址</th><th>操作</th></tr></thead><tbody id="accountsBody"><tr><td colspan="8" class="empty">加载中...</td></tr></tbody></table></div>';
+    '<div class="card"><h3>📋 子账户列表</h3><table><thead><tr><th>用户名</th><th>密码</th><th>绑定站点</th><th>点击/下载</th><th>像素</th><th>跳转地址</th><th>斗篷权限</th><th>操作</th></tr></thead><tbody id="accountsBody"><tr><td colspan="9" class="empty">加载中...</td></tr></tbody></table></div>';
 
   document.getElementById('createBtn').onclick = createAccount;
   loadAccounts();
@@ -251,7 +254,7 @@ async function loadAccounts(){
   try{
     var r = await fetch('/api/admin/accounts',{headers:{'Authorization':'Basic '+S.token}});
     var list = await r.json();
-    if(!list.length){ tbody.innerHTML='<tr><td colspan="7" class="empty">暂无子账户</td></tr>'; return; }
+    if(!list.length){ tbody.innerHTML='<tr><td colspan="8" class="empty">暂无子账户</td></tr>'; return; }
     tbody.innerHTML = list.map(function(a){
       var siteList = (a.stats.sites||[]).map(function(s){return s.site;});
       if(!siteList.length && a.site) siteList = [a.site];
@@ -260,7 +263,10 @@ async function loadAccounts(){
       var statusBadge = isDisabled ? ' <span class=\"badge red\">已禁用</span>' : ' <span class=\"badge green\">正常</span>';
       var toggleLabel = isDisabled ? '启用' : '禁用';
       var toggleCls = isDisabled ? 'btn-p' : 'btn-o';
+      var cloakOn = a.cloak_enabled ? 1 : 0;
+      var cloakBtn = '<button class=\"btn '+(cloakOn?'btn-p':'btn-o')+' btn-sm\" data-cloak=\"'+esc(a.username)+'\">'+(cloakOn?'已开启':'未开通')+'</button>';
       return '<tr style=\"'+(isDisabled?'opacity:.5':'')+'\"><td><strong>'+esc(a.username)+'</strong>'+statusBadge+'</td><td style=\"font-family:monospace\">'+esc(a.pw||'—')+'</td><td style=\"max-width:260px\">'+sitesHtml+'</td><td>'+a.stats.downloads+'</td><td>'+(a.stats.pixels||[]).length+'</td><td style=\"max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap\">'+esc(a.stats.apkUrl||'—')+'</td>'+
+        '<td>'+cloakBtn+'</td>'+
         '<td><button class=\"btn btn-p btn-sm\" data-edit=\"'+esc(a.username)+'\">编辑</button> <button class=\"btn '+toggleCls+' btn-sm\" data-toggle=\"'+esc(a.username)+'\">'+toggleLabel+'</button> <button class=\"btn btn-d btn-sm\" data-del=\"'+esc(a.username)+'\">删除</button></td></tr>';
     }).join('');
     tbody.querySelectorAll('[data-edit]').forEach(function(b){
@@ -272,12 +278,23 @@ async function loadAccounts(){
     tbody.querySelectorAll('[data-toggle]').forEach(function(b){
       b.onclick = function(){ toggleAccount(this.getAttribute('data-toggle')); };
     });
-  }catch(e){ tbody.innerHTML='<tr><td colspan="7" class="empty">加载失败: '+esc(e.message)+'</td></tr>'; }
+    tbody.querySelectorAll('[data-cloak]').forEach(function(b){
+      b.onclick = function(){ toggleCloak(this.getAttribute('data-cloak')); };
+    });
+  }catch(e){ tbody.innerHTML='<tr><td colspan="8" class="empty">加载失败: '+esc(e.message)+'</td></tr>'; }
 }
 
 async function toggleAccount(u){
   try{
     var r = await fetch('/api/admin/accounts',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Basic '+S.token},body:JSON.stringify({username:u,action:'toggle-status'})});
+    var d = await r.json();
+    if(d.ok) loadAccounts(); else alert(d.error);
+  }catch(e){ alert('网络错误'); }
+}
+
+async function toggleCloak(u){
+  try{
+    var r = await fetch('/api/admin/accounts',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Basic '+S.token},body:JSON.stringify({username:u,action:'toggle-cloak'})});
     var d = await r.json();
     if(d.ok) loadAccounts(); else alert(d.error);
   }catch(e){ alert('网络错误'); }
@@ -568,8 +585,8 @@ async function showClicks(){
     '<span style="font-size:1.4rem">⚠️</span>'+
     '<div style="font-size:.84rem;color:#f0c060;line-height:1.7">'+
     '<strong style="color:#f0a030">重要说明：</strong><br>'+
-    '1. 点击数据仅供参考，非 100% 精确。【供参考】<br>'+
-    '2. 点击是指用户点击了落地页的<strong style="color:#f0a030">跳转按钮</strong>。如果您同时配置了 Facebook 转化事件，此处的点击数据会与 Facebook 成效数据<strong style="color:#f0a030">相差不大（请以fb成效为主）</strong>。'+
+    '1. 点击数据仅供参考，非 100% 精确。<br>'+
+    '2. 点击是指用户点击了落地页的<strong style="color:#f0a030">跳转按钮</strong>。如果您同时配置了 Facebook 转化事件，此处的点击数据会与 Facebook 成效数据<strong style="color:#f0a030">基本一致</strong>。'+
     '</div></div></div>'+
     '<div class="card"><h3>📍 筛选条件</h3><div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px">'+
     '<span style="color:var(--muted);font-size:.8rem">落地页:</span>'+
@@ -798,7 +815,7 @@ async function showPixels(){
   var main = document.getElementById('mainContent');
   main.innerHTML = '<div class="page-header"><h1>📡 像素管理</h1></div>'+
     '<div class="card"><h3>📍 当前落地页</h3><div style="margin-bottom:12px">'+siteInfo.html+'</div>'+
-    '<h3>➕ 新增像素</h3><div style="background:rgba(88,166,255,.08);border:1px solid rgba(88,166,255,.2);border-radius:8px;padding:14px 18px;margin-bottom:14px"><span style="color:var(--blue);font-weight:800;font-size:.85rem">投放切记：</span><br><span style="color:var(--fg);font-weight:700;font-size:.82rem">1.后台只支持【购物】加【加购】【联系】【潜客】【下载（自定义事件）】【注册】，广告组选择其他事件不会回传</span><br><span style="color:var(--fg);font-weight:700;font-size:.82rem">2.如果需要其他FB事件，请联系管理</span></div><div class="form-row"><input type="text" id="newPixelId" placeholder="输入像素ID"><button class="btn btn-p" id="addPixelBtn">新增</button></div><div id="pixelAddMsg"></div></div>'+
+    '<h3>➕ 新增像素</h3><div style="background:rgba(88,166,255,.08);border:1px solid rgba(88,166,255,.2);border-radius:8px;padding:14px 18px;margin-bottom:14px"><span style="color:var(--blue);font-weight:800;font-size:.85rem">投放切记：</span><br><span style="color:var(--fg);font-weight:700;font-size:.82rem">1.后台只支持【购物】加【加购】，广告组选择其他事件不会回传</span><br><span style="color:var(--fg);font-weight:700;font-size:.82rem">2.如果需要其他FB事件，请联系管理</span></div><div class="form-row"><input type="text" id="newPixelId" placeholder="输入像素ID"><button class="btn btn-p" id="addPixelBtn">新增</button></div><div id="pixelAddMsg"></div></div>'+
     '<div class="card"><h3>📋 像素列表 <span id="pixelCount" style="font-weight:400;font-size:.8rem;color:var(--muted)"></span></h3><table><thead><tr><th>序号</th><th>像素ID</th><th>操作</th></tr></thead><tbody id="pixelBody"><tr><td colspan="4" class="empty">加载中...</td></tr></tbody></table></div>';
   document.getElementById('siteSelector').onchange = function(){
     _currentSite = this.value;
