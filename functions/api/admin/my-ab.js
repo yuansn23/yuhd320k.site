@@ -56,14 +56,13 @@ export async function onRequest(context) {
     if (request.method === 'GET') {
       var list = [];
       try {
-        var res = await env.DB.prepare('SELECT a_url, enabled, b_url, fallback_url, whitelist_ips, rules, updated_at FROM ab_configs WHERE username = ?1 ORDER BY updated_at DESC').bind(me.user).all();
+        var res = await env.DB.prepare('SELECT a_url, enabled, b_url, whitelist_ips, rules, updated_at FROM ab_configs WHERE username = ?1 ORDER BY updated_at DESC').bind(me.user).all();
         if (res && res.results) {
           list = res.results.map(function (r) {
             return {
               a_url: r.a_url,
               enabled: r.enabled,
               b_url: r.b_url || '',
-              fallback_url: r.fallback_url || 'https://www.facebook.com',
               whitelist_ips: parseJson(r.whitelist_ips, []),
               rules: parseJson(r.rules, DEFAULT_RULES),
               updated_at: r.updated_at || ''
@@ -94,14 +93,13 @@ export async function onRequest(context) {
 
       var enabled = (body.enabled === true || body.enabled === 1) ? 1 : 0;
       var bUrl = (body.b_url || '').trim();
-      var fallback = (body.fallback_url || '').trim() || 'https://www.facebook.com';
       var whitelist = Array.isArray(body.whitelist_ips) ? body.whitelist_ips.map(function (s) { return String(s).trim(); }).filter(Boolean) : [];
       var rules = (body.rules && typeof body.rules === 'object') ? body.rules : DEFAULT_RULES;
       var now = new Date().toISOString();
 
       try {
-        await env.DB.prepare('INSERT INTO ab_configs (a_url, username, enabled, b_url, fallback_url, whitelist_ips, rules, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8) ON CONFLICT(a_url) DO UPDATE SET username = excluded.username, enabled = excluded.enabled, b_url = excluded.b_url, fallback_url = excluded.fallback_url, whitelist_ips = excluded.whitelist_ips, rules = excluded.rules, updated_at = excluded.updated_at')
-          .bind(aUrl, me.user, enabled, bUrl, fallback, JSON.stringify(whitelist), JSON.stringify(rules), now).run();
+        await env.DB.prepare('INSERT INTO ab_configs (a_url, username, enabled, b_url, whitelist_ips, rules, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7) ON CONFLICT(a_url) DO UPDATE SET username = excluded.username, enabled = excluded.enabled, b_url = excluded.b_url, whitelist_ips = excluded.whitelist_ips, rules = excluded.rules, updated_at = excluded.updated_at')
+          .bind(aUrl, me.user, enabled, bUrl, JSON.stringify(whitelist), JSON.stringify(rules), now).run();
       } catch (e) {
         return new Response(JSON.stringify({ ok: false, error: 'AB 配置保存失败: ' + (e && e.message ? e.message : String(e)) }), {
           status: 500, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }

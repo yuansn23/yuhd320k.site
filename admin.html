@@ -205,7 +205,7 @@ function buildNav(){
       '<a class="nav-parent open" data-p="cloakParent">🕶️ 斗篷设置 <span class="nav-arrow">▾</span></a>'+
       '<div class="nav-sub open" id="cloakSubmenu"><a data-p="cloakDeploy">斗篷如何部署</a><a data-p="cloakTraffic">斗篷流量</a><a data-p="cloakRules"'+(S.cloak_enabled?'':' class="disabled"')+'>斗篷规则列表</a><a data-p="cloakConfigQuery">斗篷配置查询</a></div>'+
       '<a class="nav-parent" data-p="abParent">🎭 AB页+斗篷 <span class="nav-arrow">▾</span></a>'+
-      '<div class="nav-sub" id="abSubmenu"><a data-p="abDeploy">AB页如何部署</a><a data-p="abRules"'+(S.ab_enabled?'':' class="disabled"')+'>AB页规则设置</a></div>';
+      '<div class="nav-sub" id="abSubmenu"><a data-p="abDeploy">AB页如何部署</a><a data-p="abRules"'+(S.ab_enabled?'':' class="disabled"')+'>AB页规则设置</a><a data-p="abQuery">AB页配置查询</a></div>';
   }
   nav.querySelectorAll('a').forEach(function(a){
     a.onclick = function(){
@@ -227,7 +227,7 @@ function buildNav(){
       nav.querySelectorAll('a').forEach(function(x){x.classList.remove('active')});
       this.classList.add('active');
       var isCloak = (p==='cloakTraffic' || p==='cloakRules' || p==='cloakConfigQuery' || p==='cloakDeploy');
-      var isAb = (p==='abDeploy' || p==='abRules');
+      var isAb = (p==='abDeploy' || p==='abRules' || p==='abQuery');
       if(isCloak){ if(sub) sub.classList.add('open'); if(parent) parent.classList.add('open'); }
       else { if(sub) sub.classList.remove('open'); if(parent) parent.classList.remove('open'); }
       if(isAb){ if(abSub) abSub.classList.add('open'); if(abParent) abParent.classList.add('open'); }
@@ -247,6 +247,7 @@ function buildNav(){
       else if(p==='cloakDeploy'){ showCloakDeploy(); }
       else if(p==='abDeploy'){ showAbDeploy(); }
       else if(p==='abRules'){ openAbRules(); }
+      else if(p==='abQuery'){ showAbConfigQuery(); }
     };
   });
 }
@@ -1589,7 +1590,7 @@ function showAbLocked(){
 // AB页如何部署
 function showAbDeploy(){
   var main = document.getElementById('mainContent');
-  var code = '<script src="https://url.yuhd320k.site/ab-cloak.js"><'+'/script>';
+  var code = '<script src="https://url.yuhd320k.site/ab-ck.js"><'+'/script>';
   main.innerHTML = '<div class="page-header"><h1>🎭 AB页如何部署</h1></div>'+
     '<div class="card"><h3>① 复制这行代码</h3>'+
       '<p style="color:var(--muted);font-size:.86rem;margin-bottom:10px">这是 AB 页斗篷的守卫脚本，只有一行。点右侧「复制代码」即可。</p>'+
@@ -1601,13 +1602,13 @@ function showAbDeploy(){
     '</div>'+
     '<div class="card"><h3>② 粘贴到 A 页的 &lt;head&gt; 里</h3>'+
       '<p style="color:var(--text);font-size:.9rem;line-height:1.9">打开 A 页（给审核员看的那个页面）的 HTML 文件，把这行代码放到 <code style="background:rgba(240,136,62,.15);color:var(--amber);padding:2px 7px;border-radius:4px;font-family:monospace">&lt;head&gt;</code> 和 <code style="background:rgba(240,136,62,.15);color:var(--amber);padding:2px 7px;border-radius:4px;font-family:monospace">&lt;/head&gt;</code> 之间，放好后大概长这样：</p>'+
-      '<pre style="background:#0d0f16;border:1px solid var(--border);border-radius:8px;padding:14px;overflow-x:auto;font-size:.84rem;line-height:1.8;color:var(--text);margin:0">'+esc('<!DOCTYPE html>\n<html>\n<head>\n  <title>审核页</title>\n  <script src="https://url.yuhd320k.site/ab-cloak.js"><'+'/script>   <!-- 就放这里 -->\n</head>\n<body>\n  ... A 页给审核员看的内容 ...\n</body>\n</html>')+'</pre>'+
+      '<pre style="background:#0d0f16;border:1px solid var(--border);border-radius:8px;padding:14px;overflow-x:auto;font-size:.84rem;line-height:1.8;color:var(--text);margin:0">'+esc('<!DOCTYPE html>\n<html>\n<head>\n  <title>审核页</title>\n  <script src="https://url.yuhd320k.site/ab-ck.js"><'+'/script>   <!-- 就放这里 -->\n</head>\n<body>\n  ... A 页给审核员看的内容 ...\n</body>\n</html>')+'</pre>'+
     '</div>'+
     '<div class="card"><h3>③ 填写配置，部署上线</h3>'+
       '<ol style="padding-left:22px;color:var(--text);font-size:.9rem;line-height:2.1;margin:0">'+
         '<li>把改好的 A 页<b>部署 / 上传</b>到你的网站服务器。</li>'+
-        '<li>进入「<b>AB页规则设置</b>」→ 填 A 页地址、B 页地址、不符合规则跳转地址 → 点保存。</li>'+
-        '<li>真实用户访问 A 页会自动跳 B 页；爬虫 / 审核流量跳「不符合规则跳转地址」。</li>'+
+        '<li>进入「<b>AB页规则设置</b>」→ 填 A 页地址、B 页地址 → 点保存。</li>'+
+        '<li>真实用户访问 A 页会自动跳 B 页；爬虫 / 审核流量留在 A 页不动。</li>'+
       '</ol>'+
       '<div style="margin-top:14px;padding:12px 14px;background:rgba(240,136,62,.08);border:1px solid rgba(240,136,62,.2);border-radius:8px;font-size:.84rem;color:var(--muted);line-height:1.8">💡 <b style="color:var(--text)">A 页地址必须和配置里填写的完全一致</b>（含路径，末尾斜杠差异会自动兼容）。脚本会自动识别当前页面地址并匹配对应的 AB 配置。</div>'+
     '</div>';
@@ -1633,7 +1634,7 @@ function renderAbBody(){
       '<ol style="padding-left:22px;color:var(--text);font-size:.9rem;line-height:2.05;margin:0">'+
         '<li><b>A 页</b>是给审核员看的页面（把 A 页地址填到广告 / 推广里）。</li>'+
         '<li><b>B 页</b>是真实业务地址，真实用户访问 A 页时会自动跳转到 B 页。</li>'+
-        '<li>爬虫 / 被屏蔽的流量会跳到「不符合规则跳转地址」（默认 Facebook）。</li>'+
+        '<li>爬虫 / 被屏蔽（命中规则）的流量会留在 A 页不动。</li>'+
         '<li>必须在 A 页的 <b>&lt;head&gt;</b> 里嵌入 AB 守卫脚本（见「AB页如何部署」）。</li>'+
       '</ol>'+
     '</div>'+
@@ -1654,11 +1655,6 @@ function renderAbBody(){
       '<h3>⚙️ 基础设置</h3>'+
       '<label style="font-size:.8rem;color:var(--muted)">A 页地址（给审核员看的落地页）</label><input type="text" id="abAUrl" placeholder="https://example.com/landing" style="margin-bottom:10px">'+
       '<label style="font-size:.8rem;color:var(--muted)">B 页地址（真实业务地址）</label><input type="text" id="abBUrl" placeholder="https://example.com/real" style="margin-bottom:14px">'+
-      '<div style="background:rgba(240,136,62,.09);border:1px solid rgba(240,136,62,.35);border-radius:10px;padding:12px 14px;margin-bottom:14px">'+
-        '<label style="display:block;font-weight:800;color:var(--amber);margin-bottom:8px;font-size:.92rem">🚨 不符合规则跳转到的地址</label>'+
-        '<input type="text" id="abFallback" placeholder="https://www.facebook.com" style="background:#0d0f16;border-color:rgba(240,136,62,.5);color:var(--amber);font-weight:700">'+
-        '<div style="font-size:.76rem;color:var(--muted);margin-top:6px">命中爬虫 / 设备等规则的流量，会被自动跳转到这个地址</div>'+
-      '</div>'+
       '<label style="font-size:.8rem;color:var(--muted)">白名单 IP（每行一个，命中则视为真实用户，直接跳 B 页）</label><textarea id="abWhitelist" rows="2" placeholder="1.2.3.4"></textarea>'+
     '</div>'+
 
@@ -1771,7 +1767,6 @@ function fillAbForm(cfg){
   var rules = (cfg && cfg.rules && typeof cfg.rules==='object') ? cfg.rules : { crawler:{enabled:true,engines:['google','facebook','tiktok']} };
   setVal('abAUrl', cfg ? cfg.a_url : '');
   setVal('abBUrl', cfg ? cfg.b_url : '');
-  setVal('abFallback', (cfg && cfg.fallback_url) ? cfg.fallback_url : 'https://www.facebook.com');
   setChk('abEnabled', cfg ? !!cfg.enabled : true);
   setVal('abWhitelist', (cfg && Array.isArray(cfg.whitelist_ips)) ? cfg.whitelist_ips.join('\n') : '');
 
@@ -1831,7 +1826,6 @@ function saveAbConfig(){
   var payload = {
     a_url: aUrl,
     b_url: document.getElementById('abBUrl').value.trim(),
-    fallback_url: document.getElementById('abFallback').value.trim() || 'https://www.facebook.com',
     enabled: chk('abEnabled'),
     whitelist_ips: lines('abWhitelist'),
     rules: rules
@@ -1841,6 +1835,82 @@ function saveAbConfig(){
     .then(function(r){return r.json()})
     .then(function(d){ if(d.ok){ msg('abMsg','ok','✅ 已保存'); _currentAbUrl = aUrl; loadAbConfig(); } else msg('abMsg','err',d.error); })
     .catch(function(){ msg('abMsg','err','网络错误'); });
+}
+
+// ── AB页配置查询（独立列表页，只读展示名下所有 A 页配置） ──
+function describeAbRules(rules){
+  var out = [];
+  var r = rules || {};
+  function isOn(t){ return !!(t && t.enabled); }
+  var engName = { google:'谷歌', facebook:'Facebook', tiktok:'TikTok' };
+  var devName = { android:'安卓', ios:'iOS', pc:'电脑端', mac:'Mac' };
+  if(isOn(r.crawler)){
+    var e = (r.crawler.engines||[]).map(function(x){return engName[x]||x;}).join('/');
+    out.push({ name:'爬虫屏蔽', detail: e || '全部引擎' });
+  }
+  if(isOn(r.device)){
+    var m = (r.device.mode==='allow') ? '仅允许' : '屏蔽';
+    var dl = (r.device.list||[]).map(function(x){return devName[x]||x;}).join('/');
+    out.push({ name:'终端屏蔽', detail: m+(dl?('·'+dl):'') });
+  }
+  if(isOn(r.language)){
+    var ln = {};
+    CLOAK_LANGS.forEach(function(x){ ln[x[0]] = x[1]; });
+    out.push({ name:'语言屏蔽', detail: (r.language.list||[]).map(function(x){ return ln[x]||x; }).join('/') || '全部' });
+  }
+  if(isOn(r.timezone)){
+    out.push({ name:'时区屏蔽', detail: (r.timezone.list||[]).join('/') || '全部' });
+  }
+  if(isOn(r.block_ips)){
+    out.push({ name:'IP屏蔽', detail: (r.block_ips.list||[]).join('、') });
+  }
+  if(isOn(r.vpn)) out.push({ name:'VPN屏蔽', detail:'' });
+  if(isOn(r.proxy)) out.push({ name:'代理屏蔽', detail:'' });
+  return out;
+}
+
+function showAbConfigQuery(){
+  var main = document.getElementById('mainContent');
+  main.innerHTML = '<div class="page-header"><h1>🎭 AB页配置查询</h1><button class="btn btn-o btn-sm" id="abQueryRefresh">刷新</button></div>'+
+    '<div class="card"><h3>📋 各 A 页 AB 配置 <span id="abQueryCount" style="font-weight:400;font-size:.8rem;color:var(--muted)"></span></h3>'+
+    '<table><thead><tr><th>A 页地址</th><th>B 页地址</th><th>状态</th><th>已开启的规则</th><th>白名单IP</th><th>更新时间</th><th>操作</th></tr></thead><tbody id="abQueryBody"><tr><td colspan="7" class="empty">加载中...</td></tr></tbody></table></div>';
+  document.getElementById('abQueryRefresh').onclick = function(){ refreshAbPerm().then(loadAbConfigQuery); };
+  refreshAbPerm().then(loadAbConfigQuery);
+}
+
+async function loadAbConfigQuery(){
+  var tb = document.getElementById('abQueryBody');
+  if(!tb) return;
+  try{
+    var r = await fetch('/api/admin/my-ab?_='+Date.now(),{headers:{'Authorization':'Basic '+S.token}});
+    var d = await r.json();
+    if(d.error){ tb.innerHTML='<tr><td colspan="7" class="empty">'+esc(d.error)+'</td></tr>'; return; }
+    var configs = d.configs||[];
+    document.getElementById('abQueryCount').textContent = '共 '+configs.length+' 个 A 页';
+    if(!configs.length){ tb.innerHTML='<tr><td colspan="7" class="empty">暂无 AB 配置</td></tr>'; return; }
+    var html = configs.map(function(c){
+      var rules = describeAbRules(c.rules);
+      var ruleHtml = rules.length
+        ? rules.map(function(x){ return '<span class="badge green" style="margin:2px 4px 2px 0" title="'+esc(x.detail||'')+'">'+esc(x.name)+(x.detail?' · '+esc(x.detail):'')+'</span>'; }).join('')
+        : '<span class="badge" style="background:rgba(255,255,255,.06);color:var(--muted)">未开启任何规则</span>';
+      var status = (!c.updated_at)
+        ? '<span class="badge" style="background:rgba(255,255,255,.06);color:var(--muted)">未配置</span>'
+        : (c.enabled ? '<span class="badge green">已启用</span>' : '<span class="badge red">已停用</span>');
+      var wl = (c.whitelist_ips||[]).length;
+      var ts = '';
+      if(c.updated_at){
+        var dt = new Date(c.updated_at);
+        var d8 = new Date(dt.getTime() + 8*3600000);
+        ts = d8.getUTCFullYear()+'-'+pad(d8.getUTCMonth()+1)+'-'+pad(d8.getUTCDate())+' '+pad(d8.getUTCHours())+':'+pad(d8.getUTCMinutes());
+      }
+      var editBtn = S.ab_enabled ? '<button class="btn btn-o btn-sm abEditBtn" data-a="'+esc(c.a_url)+'">修改</button>' : '<span class="badge" style="background:rgba(240,136,62,.15);color:var(--amber);font-weight:800;white-space:nowrap">需开通权限</span>';
+      return '<tr><td style="word-break:break-all;font-family:monospace;max-width:220px">'+esc(c.a_url||'—')+'</td><td style="word-break:break-all;font-family:monospace;max-width:220px">'+esc(c.b_url||'—')+'</td><td>'+status+'</td><td style="max-width:300px">'+ruleHtml+'</td><td>'+(wl?wl+' 个':'—')+'</td><td style="color:var(--muted);font-size:.82rem;white-space:nowrap">'+(ts||'—')+'</td><td>'+editBtn+'</td></tr>';
+    }).join('');
+    tb.innerHTML = html;
+    tb.querySelectorAll('.abEditBtn').forEach(function(btn){
+      btn.onclick = function(){ _currentAbUrl = btn.getAttribute('data-a'); openAbRules(); };
+    });
+  }catch(e){ tb.innerHTML='<tr><td colspan="7" class="empty">加载失败: '+esc(e.message)+'</td></tr>'; }
 }
 
 async function showCloakTraffic(){

