@@ -17,7 +17,7 @@ body{font-family:system-ui,-apple-system,'PingFang SC','Microsoft YaHei',sans-se
 .sidebar-nav a{display:flex;align-items:center;gap:10px;padding:10px 20px;color:var(--muted);text-decoration:none;font-size:.88rem;transition:all .15s;border-left:2px solid transparent;cursor:pointer}
 .sidebar-nav a:hover,.sidebar-nav a.active{color:var(--text);background:rgba(255,255,255,.03);border-left-color:var(--green)}
 .sidebar-nav a.active{font-weight:600}
-.sidebar-nav a.disabled{opacity:.38;cursor:not-allowed;pointer-events:none}
+.sidebar-nav a.disabled{opacity:.5;color:var(--muted)}
 .sidebar-user{padding:16px 20px;border-top:1px solid var(--border);font-size:.8rem;color:var(--muted)}
 .sidebar-user .logout{color:var(--red);cursor:pointer;font-weight:600;margin-top:6px;display:inline-block}
 .sidebar-user .logout:hover{text-decoration:underline}
@@ -227,7 +227,7 @@ function buildNav(){
       else if(p==='rdlink') showRdlink();
       else if(p==='clicks') showClicks();
       else if(p==='cloakTraffic'){ _cloakTab='traffic'; showCloak(); }
-      else if(p==='cloakRules'){ _cloakTab='config'; showCloak(); }
+      else if(p==='cloakRules'){ openCloakRules(); }
       else if(p==='cloakConfigQuery'){ showCloakConfigQuery(); }
       else if(p==='cloakDeploy'){ showCloakDeploy(); }
     };
@@ -1033,6 +1033,45 @@ async function showCloak(){
   if(_cloakTab==='traffic') showCloakTraffic(); else showCloakConfig();
 }
 
+// 无斗篷权限时点击「斗篷规则列表」：渲染页面内容 + 叠加不可关闭的提示弹窗
+function showCloakLocked(){
+  _cloakTab = 'config';
+  showCloak();
+  var overlay = document.createElement('div');
+  overlay.id = 'cloakLockOverlay';
+  overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.72);z-index:9999;display:flex;align-items:center;justify-content:center';
+  overlay.innerHTML = '<div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:34px 42px;max-width:420px;width:90%;text-align:center;box-shadow:0 24px 70px rgba(0,0,0,.55)">'+
+    '<div style="font-size:3rem;line-height:1;margin-bottom:16px">🔒</div>'+
+    '<div style="font-size:1.12rem;font-weight:800;color:var(--text);margin-bottom:10px">斗篷规则列表未开通</div>'+
+    '<div style="color:var(--amber);font-size:.98rem;font-weight:800;margin-bottom:20px">请联系管理员开通权限</div>'+
+    '<button class="btn btn-p" onclick="window.open(\'https://t.me/snvtr2\',\'_blank\')">💬 联系管理员</button>'+
+    '</div>';
+  // 不允许关闭：无关闭按钮、点背景不消失、ESC 不响应
+  document.body.appendChild(overlay);
+}
+
+// 从服务端拉取最新的斗篷权限，同步到 S.cloak_enabled / sessionStorage / 菜单灰态
+async function refreshCloakPerm(){
+  if(S.role === 'admin'){ S.cloak_enabled = 1; return; }
+  try{
+    var r = await fetch('/api/admin/my-cloak',{headers:{'Authorization':'Basic '+S.token}});
+    var d = await r.json();
+    if(d && (d.cloak_enabled === 0 || d.cloak_enabled === 1)){
+      S.cloak_enabled = d.cloak_enabled;
+      sessionStorage.setItem('st_cloak_enabled', S.cloak_enabled ? '1' : '0');
+      var item = document.querySelector('[data-p="cloakRules"]');
+      if(item){ if(S.cloak_enabled) item.classList.remove('disabled'); else item.classList.add('disabled'); }
+    }
+  }catch(e){}
+}
+
+// 点击「斗篷规则列表」：先拉取最新权限，再决定进入配置页或弹锁定弹窗
+async function openCloakRules(){
+  await refreshCloakPerm();
+  if(S.cloak_enabled){ _cloakTab='config'; showCloak(); }
+  else { showCloakLocked(); }
+}
+
 function setCloakSubTab(name){
   _cloakSubTab = name;
   var ids = { basic:'cloakSubBasic', crawler:'cloakSubCrawler', device:'cloakSubDevice', behavior:'cloakSubBehavior' };
@@ -1095,8 +1134,8 @@ async function showCloakConfigQuery(){
   main.innerHTML = '<div class="page-header"><h1>🕶️ 斗篷配置查询</h1><button class="btn btn-o btn-sm" id="cloakQueryRefresh">刷新</button></div>'+
     '<div class="card"><h3>📋 各落地页斗篷规则配置 <span id="cloakQueryCount" style="font-weight:400;font-size:.8rem;color:var(--muted)"></span></h3>'+
     '<table><thead><tr><th>落地页</th><th>斗篷状态</th><th>已开启的斗篷规则</th><th>白名单IP</th><th>更新时间</th><th>操作</th></tr></thead><tbody id="cloakQueryBody"><tr><td colspan="6" class="empty">加载中...</td></tr></tbody></table></div>';
-  document.getElementById('cloakQueryRefresh').onclick = loadCloakConfigQuery;
-  loadCloakConfigQuery();
+  document.getElementById('cloakQueryRefresh').onclick = function(){ refreshCloakPerm().then(loadCloakConfigQuery); };
+  refreshCloakPerm().then(loadCloakConfigQuery);
 }
 
 // 复制到剪贴板（clipboard API + 兼容回退）
@@ -1183,7 +1222,7 @@ async function loadCloakConfigQuery(){
         var d8 = new Date(dt.getTime() + 8*3600000);
         ts = d8.getUTCFullYear()+'-'+pad(d8.getUTCMonth()+1)+'-'+pad(d8.getUTCDate())+' '+pad(d8.getUTCHours())+':'+pad(d8.getUTCMinutes());
       }
-      var editBtn = S.cloak_enabled ? '<button class="btn btn-o btn-sm cloakEditBtn" data-site="'+esc(c.site)+'">修改</button>' : '<span style="color:var(--muted);font-size:.82rem">需开通权限</span>';
+      var editBtn = S.cloak_enabled ? '<button class="btn btn-o btn-sm cloakEditBtn" data-site="'+esc(c.site)+'">修改</button>' : '<span class="badge" style="background:rgba(240,136,62,.15);color:var(--amber);font-weight:800;white-space:nowrap">需开通权限</span>';
       return '<tr><td style="font-family:monospace;font-size:.86rem">'+esc(c.site)+'</td><td>'+status+'</td><td style="max-width:420px">'+ruleHtml+'</td><td>'+(wl?wl+' 个':'—')+'</td><td style="color:var(--muted);font-size:.82rem">'+(ts||'—')+'</td><td>'+editBtn+'</td></tr>';
     }).join('');
     tb.innerHTML = html;
@@ -1850,6 +1889,7 @@ if(S.token){
   document.getElementById('sidebarUser').innerHTML = '👤 '+S.user + (S.role==='admin'?' <span class=\"badge green\">管理员</span>':' <span class=\"badge red\">子账户</span>');
   buildNav();
   if(S.role==='admin') showAccounts(); else showDashboard();
+  if(S.role !== 'admin') refreshCloakPerm();
 }
 </script>
 </body>

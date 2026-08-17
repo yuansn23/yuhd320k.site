@@ -88,7 +88,7 @@ export async function onRequest(context) {
             updated_at: row0 ? row0.updated_at : ''
           });
         }
-        return new Response(JSON.stringify({ sites: sites, configs: list }), {
+        return new Response(JSON.stringify({ sites: sites, configs: list, cloak_enabled: me.cloak_enabled }), {
           headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
         });
       }
@@ -103,6 +103,7 @@ export async function onRequest(context) {
       try { row = await env.DB.prepare('SELECT enabled, fallback_url, whitelist_ips, rules, updated_at FROM cloak_configs WHERE site = ?1').bind(qSite).first(); } catch (e) {}
       return new Response(JSON.stringify({
         site: qSite,
+        cloak_enabled: me.cloak_enabled,
         enabled: row ? row.enabled : 0,
         fallback_url: row ? (row.fallback_url || 'https://www.google.com') : 'https://www.google.com',
         whitelist_ips: row ? parseJson(row.whitelist_ips, []) : [],
