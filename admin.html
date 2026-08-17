@@ -443,7 +443,7 @@ async function deleteAccount(u){
 // ========== USER: 控制台 ==========
 async function showDashboard(){
   var main = document.getElementById('mainContent');
-  main.innerHTML = '<div class="page-header"><h1>📊 控制台</h1><span style="font-size:.92rem;color:var(--green);font-weight:700;background:rgba(33,192,100,.08);padding:4px 14px;border-radius:6px">🔗 '+esc(S.site||'未绑定')+'</span></div>'+
+  main.innerHTML = '<div class="page-header"><h1>📊 控制台</h1></div>'+
     '<div class="stat-row"><div class="stat-mini"><div class="sval b" id="stTotal">—</div><div class="slbl">累计点击/下载 <span style="color:var(--fg-muted);font-weight:400;font-size:.68rem">仅参考</span></div></div><div class="stat-mini"><div class="sval g" id="stToday">—</div><div class="slbl">今日点击/下载 <span style="color:var(--fg-muted);font-weight:400;font-size:.68rem">仅参考</span></div></div><div class="stat-mini"><div class="sval" id="stVisitTotal" style="color:var(--violet);font-size:1.6rem;font-weight:800;line-height:1">—</div><div class="slbl">总流量访问</div></div><div class="stat-mini"><div class="sval" id="stVisitToday" style="color:var(--cyan);font-size:1.6rem;font-weight:800;line-height:1">—</div><div class="slbl">今日流量访问</div></div></div>'+
     '<div class="card"><h3>🕶️ 系统介绍</h3>'+
       '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px;margin-top:2px">'+
@@ -956,6 +956,11 @@ var CLOAK_LANGS = [
   ['zh-cn','简体中文'],['zh-tw','繁体中文'],['en','英文'],['de','德语'],['fr','法语'],
   ['es','西班牙语'],['ja','日语'],['ko','韩语'],['pl','波兰语'],['nl','荷兰语'],['ar','阿拉伯语']
 ];
+// AB 页专用语言列表：大陆 / 香港 / 台湾 分开（zh-cn / zh-hk / zh-tw）
+var AB_LANGS = [
+  ['zh-cn','简体中文(大陆)'],['zh-hk','繁体中文(香港)'],['zh-tw','繁体中文(台湾)'],
+  ['en','英文'],['de','德语'],['fr','法语'],['es','西班牙语'],['ja','日语'],['ko','韩语'],['pl','波兰语'],['nl','荷兰语'],['ar','阿拉伯语']
+];
 function cloakQuickTz(){ cloakSetVal('tzList','+8\n+9\n-5\n-8\n0\n+1\n+5.5'); }
 function cloakSiteInput(sites){
   var list = sites || [];
@@ -1011,8 +1016,8 @@ async function cloakAddSite(){
     }
   }catch(e){ msg('cloakMsg','err','网络错误'); }
 }
-function langSelectHtml(){
-  var opts = CLOAK_LANGS.map(function(x){
+function langSelectHtml(langs){
+  var opts = (langs || CLOAK_LANGS).map(function(x){
     return '<label style="display:flex;align-items:center;gap:8px;padding:7px 12px;cursor:pointer;font-size:.86rem;white-space:nowrap"><input type="checkbox" class="langOpt" value="'+x[0]+'"> '+x[1]+'</label>';
   }).join('');
   return '<div style="position:relative;margin:6px 0 16px">'+
@@ -1022,7 +1027,7 @@ function langSelectHtml(){
   '</div>';
 }
 var _langDocBound = false;
-function wireLangSelect(){
+function wireLangSelect(langs){
   var box = document.getElementById('langListBox');
   var menu = document.getElementById('langListMenu');
   if(!box || !menu) return;
@@ -1035,27 +1040,27 @@ function wireLangSelect(){
       if(m && m.style.display !== 'none') m.style.display = 'none';
     });
   }
-  menu.querySelectorAll('.langOpt').forEach(function(cb){ cb.onchange = updateLangLabel; });
-  updateLangLabel();
+  menu.querySelectorAll('.langOpt').forEach(function(cb){ cb.onchange = function(){ updateLangLabel(langs); }; });
+  updateLangLabel(langs);
 }
 function getLangSelected(){
   var arr = [];
   document.querySelectorAll('.langOpt').forEach(function(cb){ if(cb.checked) arr.push(cb.value); });
   return arr;
 }
-function setLangSelected(list){
+function setLangSelected(list, langs){
   var set = {};
   (list||[]).forEach(function(x){ set[x] = 1; });
   document.querySelectorAll('.langOpt').forEach(function(cb){ cb.checked = !!set[cb.value]; });
-  updateLangLabel();
+  updateLangLabel(langs);
 }
-function updateLangLabel(){
+function updateLangLabel(langs){
   var label = document.getElementById('langListLabel');
   if(!label) return;
   var sel = getLangSelected();
   if(!sel.length){ label.textContent = '点击选择要屏蔽的语言…'; label.style.color = 'var(--muted)'; return; }
   var names = {};
-  CLOAK_LANGS.forEach(function(x){ names[x[0]] = x[1]; });
+  (langs || CLOAK_LANGS).forEach(function(x){ names[x[0]] = x[1]; });
   label.textContent = sel.map(function(v){ return names[v] || v; }).join('、');
   label.style.color = 'var(--text)';
 }
@@ -1691,7 +1696,7 @@ function renderAbBody(){
         '<label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:.86rem;white-space:nowrap"><input type="radio" name="abLangMode" value="block" checked> 屏蔽列表内</label>'+
         '<label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:.86rem;white-space:nowrap"><input type="radio" name="abLangMode" value="allow"> 仅允许列表内</label>'+
       '</div>'+
-      langSelectHtml()+
+      langSelectHtml(AB_LANGS)+
       '<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:600;margin-bottom:8px;white-space:nowrap"><input type="checkbox" id="abTzEnabled"> 地区时区屏蔽</label>'+
       '<div style="display:flex;gap:20px;margin:6px 0 8px">'+
         '<label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:.86rem;white-space:nowrap"><input type="radio" name="abTzMode" value="block" checked> 屏蔽列表内</label>'+
@@ -1702,7 +1707,7 @@ function renderAbBody(){
       '<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:600;margin-bottom:8px;white-space:nowrap"><input type="checkbox" id="abIpEnabled"> 屏蔽具体 IP</label>'+
       '<textarea id="abIpList" rows="2" placeholder="每行一个 IP 地址" style="margin-bottom:16px"></textarea>'+
       '<div style="display:flex;gap:26px;flex-wrap:wrap">'+
-        '<label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:.88rem;white-space:nowrap"><input type="checkbox" id="abPrivacyEnabled"> 屏蔽 VPN / 代理 / 数据中心机房（时区/地区不一致检测）</label>'+
+        '<label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:.88rem;white-space:nowrap"><input type="checkbox" id="abPrivacyEnabled"> 屏蔽 VPN / 代理 / 数据中心机房</label>'+
       '</div>'+
     '</div>'+
 
@@ -1713,7 +1718,7 @@ function renderAbBody(){
   document.getElementById('abSubBasic').onclick = function(){ setAbSubTab('basic'); };
   document.getElementById('abSubCrawler').onclick = function(){ setAbSubTab('crawler'); };
   document.getElementById('abSubDevice').onclick = function(){ setAbSubTab('device'); };
-  wireLangSelect();
+  wireLangSelect(AB_LANGS);
   loadAbConfig();
 }
 
@@ -1789,7 +1794,7 @@ function fillAbForm(cfg){
   var dvList = dv.list || ['android','ios','pc','mac'];
   ['android','ios','pc','mac'].forEach(function(x){ setChk('abDevice_'+x, dvList.indexOf(x)!==-1); });
 
-  var lg = rules.language || {}; setChk('abLangEnabled', !!lg.enabled); setRadio('abLangMode', lg.mode||'block'); setLangSelected(lg.list || []);
+  var lg = rules.language || {}; setChk('abLangEnabled', !!lg.enabled); setRadio('abLangMode', lg.mode||'block'); setLangSelected(lg.list || [], AB_LANGS);
   var tz = rules.timezone || {}; setChk('abTzEnabled', !!tz.enabled); setRadio('abTzMode', tz.mode||'block'); setVal('abTzList', (tz.list||[]).join('\n'));
   var ib = rules.block_ips || {}; setChk('abIpEnabled', !!ib.enabled); setVal('abIpList', (ib.list||[]).join('\n'));
   setChk('abPrivacyEnabled', !!(rules.privacy && rules.privacy.enabled) || !!(rules.vpn && rules.vpn.enabled) || !!(rules.proxy && rules.proxy.enabled));
@@ -1863,7 +1868,7 @@ function describeAbRules(rules){
   }
   if(isOn(r.language)){
     var ln = {};
-    CLOAK_LANGS.forEach(function(x){ ln[x[0]] = x[1]; });
+    AB_LANGS.forEach(function(x){ ln[x[0]] = x[1]; });
     out.push({ name:'语言屏蔽', detail: (r.language.list||[]).map(function(x){ return ln[x]||x; }).join('/') || '全部' });
   }
   if(isOn(r.timezone)){

@@ -35,8 +35,9 @@ function normLang(lang) {
   var l = (lang || '').toLowerCase();
   var primary = l.split('-')[0].split('_')[0];
   if (primary === 'zh') {
-    if (l.indexOf('tw') !== -1 || l.indexOf('hk') !== -1 || l.indexOf('mo') !== -1 || l.indexOf('hant') !== -1) return 'zh-tw';
-    return 'zh-cn';
+    if (l.indexOf('hk') !== -1 || l.indexOf('mo') !== -1) return 'zh-hk'; // 香港/澳门（繁体）
+    if (l.indexOf('tw') !== -1 || l.indexOf('hant') !== -1) return 'zh-tw'; // 台湾（繁体）
+    return 'zh-cn'; // 大陆（简体）
   }
   var map = { en: 'en', ja: 'ja', de: 'de', fr: 'fr', es: 'es', it: 'it', ar: 'ar', pl: 'pl', ko: 'ko', nl: 'nl' };
   return map[primary] || 'other';
@@ -99,6 +100,43 @@ function ianaOffset(iana) {
   return (map[t] !== undefined) ? map[t] : null;
 }
 
+// 判断是否为公网 IP（非内网/回环/保留地址），用于 WebRTC 泄露检测
+function isPublicIp(ip) {
+  if (!ip) return false;
+  var v4 = ip.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+  if (v4) {
+    var a = +v4[1], b = +v4[2];
+    if (a === 0 || a === 10 || a === 127) return false;
+    if (a === 169 && b === 254) return false;          // link-local
+    if (a === 172 && b >= 16 && b <= 31) return false; // 私网
+    if (a === 192 && b === 168) return false;          // 私网
+    if (a === 100 && b >= 64 && b <= 127) return false;// CGNAT
+    if (a === 192 && (b === 0 || b === 2)) return false;
+    if (a >= 224) return false;                        // 组播/保留
+    return true;
+  }
+  // IPv6：仅 2000::/3 (global unicast) 视为公网
+  var l = ip.toLowerCase();
+  if (l.indexOf(':') === -1) return false;
+  if (l === '::1' || l === '::') return false;
+  var c = l.charAt(0);
+  if (c === 'f') return false; // fe80 link-local / fc/fd ULA / ff 组播
+  if (c === '2' || c === '3') return true;
+  return false;
+}
+
+// WebRTC 泄露：本机网卡暴露了与真实出口不同的公网 IP → 疑似代理/VPN/机房
+function webrtcLeak(realIp, webrtcIps) {
+  var arr = Array.isArray(webrtcIps) ? webrtcIps : [];
+  var real = String(realIp || '').trim();
+  for (var i = 0; i < arr.length; i++) {
+    var ip = String(arr[i] || '').trim();
+    if (!ip || ip === real) continue;
+    if (isPublicIp(ip)) return true;
+  }
+  return false;
+}
+
 function evaluateRules(rules, ctx) {
   var r = rules || {};
   var triggered = [];
@@ -131,12 +169,14 @@ function evaluateRules(rules, ctx) {
     var ips = r.block_ips.list || [];
     if (ctx.ip && ips.indexOf(ctx.ip) !== -1) triggered.push('block_ips');
   }
-  // 代理 / VPN / 数据中心机房：浏览器时区偏移 vs IP 归属时区偏移（统一用数字 ±N 判断）
-  // 相差 > 1 小时 → 疑似代理/VPN/机房（1 小时容差吸收夏令时；兼容旧的 vpn/proxy 字段开关）
+  // 代理 / VPN / 数据中心机房：主判定=时区偏移一致性，辅助判定=WebRTC 泄露
+  // 时区相差 > 1 小时，或 WebRTC 泄露了与真实出口不同的公网 IP → 疑似代理/VPN/机房
   if (on(r.privacy) || on(r.vpn) || on(r.proxy)) {
     var ipOff = ianaOffset(ctx.ipTz);
     var clientOff = (typeof ctx.tzOffset === 'number') ? ctx.tzOffset : null;
-    if (ipOff !== null && clientOff !== null && Math.abs(clientOff - ipOff) > 1) triggered.push('privacy');
+    var tzBad = (ipOff !== null && clientOff !== null && Math.abs(clientOff - ipOff) > 1);
+    var webrtcBad = webrtcLeak(ctx.ip, ctx.webrtcIps);
+    if (tzBad || webrtcBad) triggered.push('privacy');
   }
 
   // 行为模块（AB 页默认不启用，保留逻辑供扩展，落地即跳时无行为信号）
@@ -267,6 +307,7 @@ export async function onRequest(context) {
     var tzOffset = (typeof client.timezoneOffset === 'number') ? client.timezoneOffset : null;
     var tzIANA = client.timezoneIANA || '';
     var clientLang = client.lang || acceptLang;
+    var webrtcIps = Array.isArray(client.webrtcIps) ? client.webrtcIps : [];
     var device = detectDevice(ua);
     var whitelist = config.whitelist_ips || [];
     var whitelisted = Array.isArray(whitelist) && ip && whitelist.indexOf(ip) !== -1;
@@ -280,7 +321,7 @@ export async function onRequest(context) {
         var ipInfo = await getIpInfo(env, ip);
         if (ipInfo) { ipTz = ipInfo.timezone || ''; }
       }
-      triggered = evaluateRules(rules, { ip: ip, ua: ua, device: device, lang: clientLang, tzOffset: tzOffset, tzIANA: tzIANA, ipTz: ipTz });
+      triggered = evaluateRules(rules, { ip: ip, ua: ua, device: device, lang: clientLang, tzOffset: tzOffset, tzIANA: tzIANA, ipTz: ipTz, webrtcIps: webrtcIps });
     }
 
     var passed = triggered.length === 0;
