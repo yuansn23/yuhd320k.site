@@ -954,8 +954,8 @@ var _cloakNewMode = false;
 
 function cloakSetVal(id, v){ var el=document.getElementById(id); if(el) el.value = v; }
 var CLOAK_LANGS = [
-  ['zh-cn','简体中文'],['zh-tw','繁体中文'],['en','英文'],['de','德语'],['fr','法语'],
-  ['es','西班牙语'],['ja','日语'],['ko','韩语'],['pl','波兰语'],['nl','荷兰语'],['ar','阿拉伯语']
+  ['zh-cn','简体中文(大陆)'],['zh-hk','繁体中文(香港)'],['zh-tw','繁体中文(台湾)'],
+  ['en','英文'],['de','德语'],['fr','法语'],['es','西班牙语'],['ja','日语'],['ko','韩语'],['pl','波兰语'],['nl','荷兰语'],['ar','阿拉伯语']
 ];
 // AB 页专用语言列表：大陆 / 香港 / 台湾 分开（zh-cn / zh-hk / zh-tw）
 var AB_LANGS = [
@@ -1162,8 +1162,7 @@ function describeCloakRules(rules){
   if(isOn(r.block_ips)){
     out.push({ name:'IP屏蔽', detail: (r.block_ips.list||[]).join('、') });
   }
-  if(isOn(r.vpn)) out.push({ name:'VPN屏蔽', detail:'' });
-  if(isOn(r.proxy)) out.push({ name:'代理屏蔽', detail:'' });
+  if(isOn(r.privacy) || isOn(r.vpn) || isOn(r.proxy)) out.push({ name:'VPN/代理/机房屏蔽', detail:'' });
   if(r.behavior){
     var bh = r.behavior, sub = [];
     if(bh.scroll_depth && bh.scroll_depth.enabled) sub.push('滚动深度'+(typeof bh.scroll_depth.threshold==='number'?bh.scroll_depth.threshold+'%':''));
@@ -1393,8 +1392,7 @@ async function showCloakConfig(){
       '<textarea id="ipBlockList" rows="2" placeholder="每行一个IP地址" style="margin-bottom:16px"></textarea>'+
 
       '<div style="display:flex;gap:24px;flex-wrap:wrap;margin-bottom:16px">'+
-      '<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:.9rem;white-space:nowrap"><input type="checkbox" id="vpnEnabled"> 屏蔽 VPN（ipinfo.io）</label>'+
-      '<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:.9rem;white-space:nowrap"><input type="checkbox" id="proxyEnabled"> 屏蔽代理 IP（ipinfo.io）</label>'+
+      '<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:.9rem;white-space:nowrap"><input type="checkbox" id="privacyEnabled"> 屏蔽 VPN / 代理 / 数据中心机房</label>'+
       '</div>'+
       '<label style="font-size:.8rem;color:var(--muted)">预留扩展（JSON，可留空）</label><textarea id="extraJson" rows="2" placeholder=\'{"future_rule": true}\'></textarea>'+
     '</div>'+
@@ -1478,8 +1476,7 @@ async function loadCloak(){
     var lg = rules.language || {}; setChk('langEnabled', lg.enabled); setRadio('langMode', lg.mode||'block'); setLangSelected(lg.list || []);
     var tz = rules.timezone || {}; setChk('tzEnabled', tz.enabled); setRadio('tzMode', tz.mode||'block'); setVal('tzList', (tz.list||[]).join('\n'));
     var ib = rules.block_ips || {}; setChk('ipBlockEnabled', ib.enabled); setVal('ipBlockList', (ib.list||[]).join('\n'));
-    setChk('vpnEnabled', !!(rules.vpn && rules.vpn.enabled));
-    setChk('proxyEnabled', !!(rules.proxy && rules.proxy.enabled));
+    setChk('privacyEnabled', !!(rules.privacy && rules.privacy.enabled) || !!(rules.vpn && rules.vpn.enabled) || !!(rules.proxy && rules.proxy.enabled));
 
     var bh = rules.behavior || {};
     var sd = bh.scroll_depth || {}; setChk('bScrollEnabled', sd.enabled); setVal('bScrollThreshold', (typeof sd.threshold==='number'?sd.threshold:90));
@@ -1505,8 +1502,7 @@ function renderCloakRuleList(rules){
     ['设备语言屏蔽', on(rules.language)],
     ['地区时区屏蔽', on(rules.timezone)],
     ['IP 屏蔽', on(rules.block_ips)],
-    ['VPN 屏蔽', on(rules.vpn)],
-    ['代理 IP 屏蔽', on(rules.proxy)],
+    ['VPN / 代理 / 数据中心机房屏蔽', on(rules.privacy) || on(rules.vpn) || on(rules.proxy)],
     ['页面滚动深度', on(bh.scroll_depth)],
     ['鼠标/手指轨迹曲线', on(bh.mouse_curve)],
     ['触摸滑动连续性', on(bh.touch_continuity)],
@@ -1528,8 +1524,7 @@ function saveCloak(){
     language: { enabled: chk('langEnabled'), mode: radio('langMode'), list: getLangSelected() },
     timezone: { enabled: chk('tzEnabled'), mode: radio('tzMode'), list: lines('tzList') },
     block_ips: { enabled: chk('ipBlockEnabled'), list: lines('ipBlockList') },
-    vpn: { enabled: chk('vpnEnabled') },
-    proxy: { enabled: chk('proxyEnabled') },
+    privacy: { enabled: chk('privacyEnabled') },
     behavior: {
       scroll_depth: { enabled: chk('bScrollEnabled'), threshold: num('bScrollThreshold') },
       mouse_curve: { enabled: chk('bMouseEnabled') },

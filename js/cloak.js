@@ -91,6 +91,38 @@
     try { tzIANA = Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch (e) {}
     var lang = (navigator.language || navigator.userLanguage || '');
 
+    // ---- WebRTC 采集本机网卡 IP（辅助检测 VPN/代理泄露，与 AB 页一致）----
+    // 用 Google STUN 拿到 host（本机）与 srflx（出口公网 IP）候选，供服务端比对；
+    // gather 完成即返回，最迟 2.5s 超时兜底，超时/不支持则跳过（不误伤）。
+    var _webrtcIps = [];
+    function collectWebRtcIps() {
+      var ips = [];
+      var done = false;
+      var pc = null;
+      function finish() {
+        if (done) return; done = true;
+        try { if (pc) { pc.onicecandidate = null; try { pc.close(); } catch (e2) {} } } catch (e) {}
+        _webrtcIps = ips;
+      }
+      try {
+        var RTCPC = window.RTCPeerConnection || window.webkitRTCPeerConnection || window.mozRTCPeerConnection;
+        if (!RTCPC) { finish(); return; }
+        pc = new RTCPC({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
+        pc.onicecandidate = function (e) {
+          if (!e || !e.candidate) { finish(); return; } // 候选结束（event.candidate 为 null）
+          var c = e.candidate.candidate || '';
+          var v4 = c.match(/\d{1,3}(?:\.\d{1,3}){3}/g) || [];
+          var v6 = c.match(/[0-9a-fA-F]{1,4}(?::[0-9a-fA-F]{1,4}){2,7}/g) || [];
+          v4.concat(v6).forEach(function (ip) { if (ips.indexOf(ip) === -1) ips.push(ip); });
+        };
+        pc.onicegatheringstatechange = function () { if (pc && pc.iceGatheringState === 'complete') finish(); };
+        pc.createDataChannel('');
+        pc.createOffer(function (offer) { try { pc.setLocalDescription(offer, function () {}, function () {}); } catch (e3) {} }, function () {});
+      } catch (e) { finish(); }
+      setTimeout(finish, 2500);
+    }
+    collectWebRtcIps();
+
     // ---- 静默预热 ipinfo 缓存 ----
     try {
       fetch(API_BASE + '/api/cloak', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ site: SITE, preflight: true }) }).catch(function () {});
@@ -109,7 +141,7 @@
           touchContinuous: sig.touchContinuous, visibilityChanged: sig.visibilityChanged,
           scrollRhythmIrregular: sig.scrollRhythmIrregular
         },
-        client: { timezoneOffset: tzOffset, timezoneIANA: tzIANA, lang: lang }
+        client: { timezoneOffset: tzOffset, timezoneIANA: tzIANA, lang: lang, webrtcIps: _webrtcIps }
       };
     }
 

@@ -32,8 +32,9 @@ function normLang(lang) {
   var l = (lang || '').toLowerCase();
   var primary = l.split('-')[0].split('_')[0];
   if (primary === 'zh') {
-    if (l.indexOf('tw') !== -1 || l.indexOf('hk') !== -1 || l.indexOf('mo') !== -1 || l.indexOf('hant') !== -1) return 'zh-tw';
-    return 'zh-cn';
+    if (l.indexOf('hk') !== -1 || l.indexOf('mo') !== -1) return 'zh-hk'; // 香港/澳门（繁体）
+    if (l.indexOf('tw') !== -1 || l.indexOf('hant') !== -1) return 'zh-tw'; // 台湾（繁体）
+    return 'zh-cn'; // 大陆（简体）
   }
   var map = { en: 'en', ja: 'ja', de: 'de', fr: 'fr', es: 'es', it: 'it', ar: 'ar', pl: 'pl', ko: 'ko', nl: 'nl' };
   return map[primary] || 'other';
@@ -55,6 +56,77 @@ function tzMatch(list, offsetEast, iana) {
     else if (t === 'usa' || t === '美国' || t === 'america') { if (iL.indexOf('new_york') !== -1 || iL.indexOf('los_angeles') !== -1 || iL.indexOf('chicago') !== -1) return true; }
   }
   return false;
+}
+
+// 时区 → 数字偏移（小时，东正）。ipinfo 返回 IANA 名称，统一换算成 ±N 比较。未知返回 null（fail-open）
+function ianaOffset(iana) {
+  var t = String(iana || '').toLowerCase();
+  if (!t) return null;
+  var map = {
+    'utc': 0, 'gmt': 0, 'etc/utc': 0, 'etc/gmt': 0, 'zulu': 0,
+    'asia/shanghai': 8, 'asia/chongqing': 8, 'asia/harbin': 8, 'asia/kashgar': 8, 'asia/urumqi': 8, 'prc': 8,
+    'asia/hong_kong': 8, 'asia/macau': 8, 'asia/taipei': 8, 'asia/singapore': 8, 'asia/kuala_lumpur': 8, 'asia/manila': 8, 'asia/brunei': 8,
+    'asia/tokyo': 9, 'asia/seoul': 9, 'asia/pyongyang': 9,
+    'asia/jakarta': 7, 'asia/pontianak': 7, 'asia/bangkok': 7, 'asia/ho_chi_minh': 7, 'asia/hanoi': 7, 'asia/saigon': 7,
+    'asia/dubai': 4, 'asia/muscat': 4, 'asia/riyadh': 3, 'asia/qatar': 3, 'asia/kuwait': 3, 'asia/bahrain': 3, 'asia/baghdad': 3, 'asia/tehran': 3.5,
+    'asia/kolkata': 5.5, 'asia/calcutta': 5.5, 'asia/colombo': 5.5, 'asia/kathmandu': 5.75,
+    'asia/dhaka': 6, 'asia/karachi': 5, 'asia/kabul': 4.5, 'asia/almaty': 6, 'asia/tashkent': 5,
+    'europe/london': 0, 'europe/dublin': 0, 'europe/lisbon': 0, 'europe/reykjavik': 0,
+    'europe/madrid': 1, 'europe/paris': 1, 'europe/berlin': 1, 'europe/amsterdam': 1, 'europe/brussels': 1, 'europe/rome': 1, 'europe/zurich': 1, 'europe/vienna': 1, 'europe/prague': 1, 'europe/warsaw': 1, 'europe/stockholm': 1, 'europe/copenhagen': 1, 'europe/oslo': 1, 'europe/budapest': 1,
+    'europe/athens': 2, 'europe/helsinki': 2, 'europe/riga': 2, 'europe/tallinn': 2, 'europe/vilnius': 2, 'europe/sofia': 2, 'europe/bucharest': 2, 'europe/kiev': 2, 'europe/kyiv': 2,
+    'europe/istanbul': 3, 'europe/moscow': 3, 'europe/minsk': 3,
+    'america/new_york': -5, 'america/toronto': -5, 'america/detroit': -5, 'america/bogota': -5, 'america/lima': -5, 'america/panama': -5, 'america/quito': -5, 'america/jamaica': -5,
+    'america/chicago': -6, 'america/mexico_city': -6, 'america/winnipeg': -6, 'america/guatemala': -6,
+    'america/denver': -7, 'america/phoenix': -7, 'america/edmonton': -7,
+    'america/los_angeles': -8, 'america/vancouver': -8, 'america/tijuana': -8,
+    'america/anchorage': -9,
+    'america/sao_paulo': -3, 'america/argentina/buenos_aires': -3, 'america/santiago': -4, 'america/caracas': -4, 'america/halifax': -4, 'america/la_paz': -4, 'america/puerto_rico': -4, 'america/santo_domingo': -4,
+    'america/honolulu': -10, 'pacific/honolulu': -10,
+    'australia/sydney': 10, 'australia/melbourne': 10, 'australia/brisbane': 10, 'australia/canberra': 10, 'australia/hobart': 10,
+    'australia/perth': 8, 'australia/adelaide': 9.5, 'australia/darwin': 9.5,
+    'pacific/auckland': 12, 'pacific/fiji': 12, 'pacific/guam': 10, 'pacific/port_moresby': 10,
+    'africa/cairo': 2, 'africa/johannesburg': 2, 'africa/nairobi': 3, 'africa/lagos': 1, 'africa/casablanca': 1, 'africa/algiers': 1, 'africa/accra': 0
+  };
+  return (map[t] !== undefined) ? map[t] : null;
+}
+
+// 判断是否为公网 IP（非内网/回环/保留地址），用于 WebRTC 泄露检测
+function isPublicIp(ip) {
+  if (!ip) return false;
+  var v4 = ip.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+  if (v4) {
+    var a = +v4[1], b = +v4[2];
+    if (a === 0 || a === 10 || a === 127) return false;
+    if (a === 169 && b === 254) return false;          // link-local
+    if (a === 172 && b >= 16 && b <= 31) return false; // 私网
+    if (a === 192 && b === 168) return false;          // 私网
+    if (a === 100 && b >= 64 && b <= 127) return false;// CGNAT
+    if (a === 192 && (b === 0 || b === 2)) return false;
+    if (a >= 224) return false;                        // 组播/保留
+    return true;
+  }
+  var l = ip.toLowerCase();
+  if (l.indexOf(':') === -1) return false;
+  if (l === '::1' || l === '::') return false;
+  var c = l.charAt(0);
+  if (c === 'f') return false;
+  if (c === '2' || c === '3') return true;
+  return false;
+}
+
+// WebRTC 泄露（仿 km37acd.top/ip）：出口 IP 与 WebRTC 本地 IP 不一致、且本地含公网 IP → 疑似代理/VPN/机房
+function webrtcLeak(realIp, webrtcIps) {
+  var arr = Array.isArray(webrtcIps) ? webrtcIps : [];
+  var real = String(realIp || '').trim();
+  var match = false;
+  var hasPublicLocal = false;
+  for (var i = 0; i < arr.length; i++) {
+    var ip = String(arr[i] || '').trim();
+    if (!ip || ip === '0.0.0.0' || ip === '::' || ip === '::1') continue;
+    if (ip === real) match = true;
+    if (isPublicIp(ip)) hasPublicLocal = true;
+  }
+  return (!match && hasPublicLocal);
 }
 
 function evaluateRules(rules, ctx) {
@@ -89,8 +161,15 @@ function evaluateRules(rules, ctx) {
     var ips = r.block_ips.list || [];
     if (ctx.ip && ips.indexOf(ctx.ip) !== -1) triggered.push('block_ips');
   }
-  if (on(r.vpn) && ctx.isVpn === true) triggered.push('vpn');
-  if (on(r.proxy) && ctx.isProxy === true) triggered.push('proxy');
+  // 代理 / VPN / 数据中心机房：三路信号任一命中即拦（与 AB 页斗篷一致）
+  if (on(r.privacy) || on(r.vpn) || on(r.proxy)) {
+    var ipOff = ianaOffset(ctx.ipTz);
+    var clientOff = (typeof ctx.tzOffset === 'number') ? ctx.tzOffset : null;
+    var tzBad = (ipOff !== null && clientOff !== null && Math.abs(clientOff - ipOff) > 1);
+    var webrtcBad = webrtcLeak(ctx.ip, ctx.webrtcIps);
+    var intelBad = !!(ctx.ipIntel && (ctx.ipIntel.is_datacenter || ctx.ipIntel.is_vpn || ctx.ipIntel.is_proxy || ctx.ipIntel.is_tor));
+    if (tzBad || webrtcBad || intelBad) triggered.push('privacy');
+  }
 
   if (on(b.scroll_depth)) {
     var thr = b.scroll_depth.threshold;
@@ -114,7 +193,7 @@ function evaluateRules(rules, ctx) {
 
 async function getIpInfo(env, ip) {
   if (!ip || ip === '127.0.0.1' || ip === '::1') return null;
-  var cacheKey = 'cloak:ipinfo:' + ip;
+  var cacheKey = 'cloak:ipinfo:v2:' + ip;
   try {
     var cached = await env.kvadmin.get(cacheKey);
     if (cached) return JSON.parse(cached);
@@ -128,8 +207,37 @@ async function getIpInfo(env, ip) {
     clearTimeout(timer);
     if (!res.ok) return null;
     var data = await res.json();
-    var out = { vpn: !!(data.privacy && data.privacy.vpn), proxy: !!(data.privacy && data.proxy) };
+    var out = { timezone: data.timezone || '', country: data.country || '', region: data.region || '' };
     try { await env.kvadmin.put(cacheKey, JSON.stringify(out), { expirationTtl: 600 }); } catch (e) {}
+    return out;
+  } catch (e) { return null; }
+}
+
+// IP 情报（机房/VPN/代理/Tor）——api.ipapi.is 查询（key 来自 env.IPAPI_KEY）
+// 失败/超时返回 null（降级忽略，不影响时区 + WebRTC 两路主判定）
+async function getIpIntel(env, ip) {
+  if (!ip || ip === '127.0.0.1' || ip === '::1') return null;
+  var cacheKey = 'cloak:ipintel:v1:' + ip;
+  try {
+    var cached = await env.kvadmin.get(cacheKey);
+    if (cached) return JSON.parse(cached);
+  } catch (e) {}
+  try {
+    var key = env.IPAPI_KEY || '';
+    var url = 'https://api.ipapi.is?q=' + encodeURIComponent(ip) + (key ? '&key=' + encodeURIComponent(key) : '');
+    var controller = new AbortController();
+    var timer = setTimeout(function () { controller.abort(); }, 1500);
+    var res = await fetch(url, { signal: controller.signal });
+    clearTimeout(timer);
+    if (!res.ok) return null;
+    var d = await res.json();
+    var out = {
+      is_datacenter: !!d.is_datacenter,
+      is_vpn: !!d.is_vpn,
+      is_proxy: !!d.is_proxy,
+      is_tor: !!d.is_tor
+    };
+    try { await env.kvadmin.put(cacheKey, JSON.stringify(out), { expirationTtl: 3600 }); } catch (e) {}
     return out;
   } catch (e) { return null; }
 }
@@ -254,15 +362,22 @@ export async function onRequest(context) {
     }
 
     var triggered = [];
+    var ipTz = '';
+    var ipIntel = null;
     var isVpn = false, isProxy = false;
     if (!whitelisted) {
       var rules = config.rules || {};
-      var needIp = on(rules.vpn) || on(rules.proxy);
+      var needIp = on(rules.privacy) || on(rules.vpn) || on(rules.proxy);
       if (needIp) {
-        var ipInfo = await getIpInfo(env, ip);
-        if (ipInfo) { isVpn = ipInfo.vpn; isProxy = ipInfo.proxy; }
+        var both = await Promise.all([getIpInfo(env, ip), getIpIntel(env, ip)]);
+        var ipInfo = both[0];
+        ipIntel = both[1];
+        if (ipInfo) { ipTz = ipInfo.timezone || ''; }
+        isVpn = !!(ipIntel && ipIntel.is_vpn);
+        isProxy = !!(ipIntel && ipIntel.is_proxy);
       }
-      triggered = evaluateRules(rules, { ip: ip, ua: ua, device: device, lang: clientLang, tzOffset: tzOffset, tzIANA: tzIANA, isVpn: isVpn, isProxy: isProxy, behavior: behavior });
+      var webrtcIps = Array.isArray(client.webrtcIps) ? client.webrtcIps : [];
+      triggered = evaluateRules(rules, { ip: ip, ua: ua, device: device, lang: clientLang, tzOffset: tzOffset, tzIANA: tzIANA, ipTz: ipTz, webrtcIps: webrtcIps, ipIntel: ipIntel, behavior: behavior });
     }
 
     var passed = triggered.length === 0;
