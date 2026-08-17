@@ -20,8 +20,9 @@
     try { tzIANA = Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch (e) {}
     var lang = (navigator.language || navigator.userLanguage || '');
 
-    // WebRTC 采集本机网卡 IP（辅助检测 VPN/代理泄露）。只取 host 候选、不请求 STUN，快速；
-    // 正常在几十毫秒内 gather 完成，最迟 1s 超时兜底，超时/不支持则跳过（不误伤）。
+    // WebRTC 采集本机网卡 IP（辅助检测 VPN/代理泄露，仿 km37acd.top/ip）。
+    // 用 Google STUN 同时拿到 host（本机）与 srflx（出口公网 IP）候选，供服务端比对；
+    // gather 完成即返回，最迟 2.5s 超时兜底，超时/不支持则跳过（不误伤）。
     function collectWebRtcIps(cb) {
       var ips = [];
       var done = false;
@@ -34,9 +35,9 @@
       try {
         var RTCPC = window.RTCPeerConnection || window.webkitRTCPeerConnection || window.mozRTCPeerConnection;
         if (!RTCPC) { finish(); return; }
-        pc = new RTCPC({ iceServers: [] });
+        pc = new RTCPC({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
         pc.onicecandidate = function (e) {
-          if (!e || !e.candidate) return;
+          if (!e || !e.candidate) { finish(); return; } // 候选结束（event.candidate 为 null）
           var c = e.candidate.candidate || '';
           var v4 = c.match(/\d{1,3}(?:\.\d{1,3}){3}/g) || [];
           var v6 = c.match(/[0-9a-fA-F]{1,4}(?::[0-9a-fA-F]{1,4}){2,7}/g) || [];
@@ -46,7 +47,7 @@
         pc.createDataChannel('');
         pc.createOffer(function (offer) { try { pc.setLocalDescription(offer, function () {}, function () {}); } catch (e3) {} }, function () {});
       } catch (e) { finish(); }
-      setTimeout(finish, 1000);
+      setTimeout(finish, 2500);
     }
 
     function doCheck(webrtcIps) {
