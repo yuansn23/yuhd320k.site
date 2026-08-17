@@ -1645,6 +1645,10 @@ function renderAbBody(){
     '</div></div>'+
 
     '<div class="card" id="abPanel_basic">'+
+      '<div style="background:rgba(33,192,100,.12);border:1px solid rgba(33,192,100,.45);border-radius:12px;padding:14px 16px;margin-bottom:16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">'+
+        '<label style="display:flex;align-items:center;gap:10px;cursor:pointer;margin:0;font-weight:800;font-size:1.05rem;color:var(--green);white-space:nowrap"><input type="checkbox" id="abEnabled" checked style="width:20px;height:20px;accent-color:#21C064;cursor:pointer"> 启用 AB 页斗篷</label>'+
+        '<span style="font-size:.78rem;color:var(--muted)">开启后，真实用户访问 A 页会自动跳转到 B 页</span>'+
+      '</div>'+
       '<div id="abListBox"></div>'+
       '<div style="border-top:1px solid var(--border);margin:14px 0"></div>'+
       '<h3>⚙️ 基础设置</h3>'+
@@ -1655,7 +1659,6 @@ function renderAbBody(){
         '<input type="text" id="abFallback" placeholder="https://www.facebook.com" style="background:#0d0f16;border-color:rgba(240,136,62,.5);color:var(--amber);font-weight:700">'+
         '<div style="font-size:.76rem;color:var(--muted);margin-top:6px">命中爬虫 / 设备等规则的流量，会被自动跳转到这个地址</div>'+
       '</div>'+
-      '<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:700;margin-bottom:12px;white-space:nowrap"><input type="checkbox" id="abEnabled"> 启用 AB 页斗篷</label>'+
       '<label style="font-size:.8rem;color:var(--muted)">白名单 IP（每行一个，命中则视为真实用户，直接跳 B 页）</label><textarea id="abWhitelist" rows="2" placeholder="1.2.3.4"></textarea>'+
     '</div>'+
 
@@ -1769,7 +1772,7 @@ function fillAbForm(cfg){
   setVal('abAUrl', cfg ? cfg.a_url : '');
   setVal('abBUrl', cfg ? cfg.b_url : '');
   setVal('abFallback', (cfg && cfg.fallback_url) ? cfg.fallback_url : 'https://www.facebook.com');
-  setChk('abEnabled', cfg ? !!cfg.enabled : false);
+  setChk('abEnabled', cfg ? !!cfg.enabled : true);
   setVal('abWhitelist', (cfg && Array.isArray(cfg.whitelist_ips)) ? cfg.whitelist_ips.join('\n') : '');
 
   var cr = rules.crawler || {}; setChk('abCrawlerEnabled', cr.enabled !== false);
