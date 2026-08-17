@@ -30,13 +30,6 @@ export async function onRequest(context) {
       });
     }
 
-    // 斗篷权限校验：管理员未给该子账户开通斗篷权限时，斗篷流量也不可查看（默认关闭）
-    if (me.role !== 'admin' && !me.cloak_enabled) {
-      return new Response(JSON.stringify({ error: '斗篷功能未开通，请联系管理员开通', code: 'CLOAK_DISABLED' }), {
-        status: 403, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-      });
-    }
-
     const url = new URL(request.url);
     const filterSite = url.searchParams.get('site') || '';
     const dateStart = url.searchParams.get('start') || '';

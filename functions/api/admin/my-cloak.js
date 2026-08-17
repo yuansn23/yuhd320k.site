@@ -68,13 +68,6 @@ export async function onRequest(context) {
       });
     }
 
-    // 斗篷权限校验：管理员未给该子账户开通斗篷权限时，整个斗篷功能不可用（默认关闭）
-    if (me.role !== 'admin' && !me.cloak_enabled) {
-      return new Response(JSON.stringify({ error: '斗篷功能未开通，请联系管理员开通', code: 'CLOAK_DISABLED' }), {
-        status: 403, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-      });
-    }
-
     // ── GET ──
     if (request.method === 'GET') {
       var qSite = (new URL(request.url)).searchParams.get('site') || '';
@@ -123,6 +116,14 @@ export async function onRequest(context) {
     // ── POST ──
     if (request.method === 'POST') {
       const body = await request.json();
+
+      // 斗篷权限校验：未开通权限的子账户不能保存/修改斗篷规则（只读查询不受限）
+      if (me.role !== 'admin' && !me.cloak_enabled) {
+        return new Response(JSON.stringify({ ok: false, error: '斗篷功能未开通，请联系管理员开通', code: 'CLOAK_DISABLED' }), {
+          status: 403, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+
       const site = (body.site || '').trim();
       if (!site) {
         return new Response(JSON.stringify({ ok: false, error: '缺少站点' }), { status: 400, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } });
