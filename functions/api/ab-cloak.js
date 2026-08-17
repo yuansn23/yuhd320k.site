@@ -175,14 +175,13 @@ function evaluateRules(rules, ctx) {
   // 代理 / VPN / 数据中心机房：三路信号任一命中即拦 ——
   // ① 时区偏移一致性（IP 时区 vs 浏览器时区相差 > 1 小时）
   // ② WebRTC 泄露（本机暴露了与出口不同的公网 IP）
-  // ③ IP 情报（ipinfo：机房 hosting / VPN / 代理 / Tor / 中继）
+  // ③ IP 情报（api.ipapi.is：机房/VPN/代理/Tor）
   if (on(r.privacy) || on(r.vpn) || on(r.proxy)) {
-    var info = ctx.ipInfo || {};
-    var ipOff = ianaOffset(info.timezone);
+    var ipOff = ianaOffset(ctx.ipTz);
     var clientOff = (typeof ctx.tzOffset === 'number') ? ctx.tzOffset : null;
     var tzBad = (ipOff !== null && clientOff !== null && Math.abs(clientOff - ipOff) > 1);
     var webrtcBad = webrtcLeak(ctx.ip, ctx.webrtcIps);
-    var intelBad = !!(info.vpn || info.proxy || info.tor || info.relay || info.hosting);
+    var intelBad = !!(ctx.ipIntel && (ctx.ipIntel.is_datacenter || ctx.ipIntel.is_vpn || ctx.ipIntel.is_proxy || ctx.ipIntel.is_tor));
     if (tzBad || webrtcBad || intelBad) triggered.push('privacy');
   }
 
@@ -209,7 +208,7 @@ function evaluateRules(rules, ctx) {
 
 async function getIpInfo(env, ip) {
   if (!ip || ip === '127.0.0.1' || ip === '::1') return null;
-  var cacheKey = 'ab:ipinfo:v3:' + ip;
+  var cacheKey = 'ab:ipinfo:v2:' + ip;
   try {
     var cached = await env.kvadmin.get(cacheKey);
     if (cached) return JSON.parse(cached);
@@ -223,19 +222,35 @@ async function getIpInfo(env, ip) {
     clearTimeout(timer);
     if (!res.ok) return null;
     var data = await res.json();
-    var p = data.privacy || {};
-    var asn = data.asn || {};
-    var out = {
-      timezone: data.timezone || '',
-      country: data.country || '',
-      region: data.region || '',
-      vpn: !!p.vpn,
-      proxy: !!p.proxy,
-      tor: !!p.tor,
-      relay: !!p.relay,
-      hosting: !!(p.hosting || asn.type === 'hosting') // 机房：privacy.hosting 或 ASN 类型为 hosting
-    };
+    var out = { timezone: data.timezone || '', country: data.country || '', region: data.region || '' };
     try { await env.kvadmin.put(cacheKey, JSON.stringify(out), { expirationTtl: 600 }); } catch (e) {}
+    return out;
+  } catch (e) { return null; }
+}
+
+// IP 情报（机房/VPN/代理/Tor）——仿 km37acd.top/ip 的 api.ipapi.is 查询（免费无 key）
+// 失败/超时返回 null（降级忽略，不影响时区 + WebRTC 两路主判定）
+async function getIpIntel(env, ip) {
+  if (!ip || ip === '127.0.0.1' || ip === '::1') return null;
+  var cacheKey = 'ab:ipintel:v1:' + ip;
+  try {
+    var cached = await env.kvadmin.get(cacheKey);
+    if (cached) return JSON.parse(cached);
+  } catch (e) {}
+  try {
+    var controller = new AbortController();
+    var timer = setTimeout(function () { controller.abort(); }, 1500);
+    var res = await fetch('https://api.ipapi.is/?q=' + encodeURIComponent(ip), { signal: controller.signal });
+    clearTimeout(timer);
+    if (!res.ok) return null;
+    var d = await res.json();
+    var out = {
+      is_datacenter: !!d.is_datacenter,
+      is_vpn: !!d.is_vpn,
+      is_proxy: !!d.is_proxy,
+      is_tor: !!d.is_tor
+    };
+    try { await env.kvadmin.put(cacheKey, JSON.stringify(out), { expirationTtl: 3600 }); } catch (e) {}
     return out;
   } catch (e) { return null; }
 }
@@ -331,14 +346,18 @@ export async function onRequest(context) {
     var whitelisted = Array.isArray(whitelist) && ip && whitelist.indexOf(ip) !== -1;
 
     var triggered = [];
-    var ipInfo = null;
+    var ipTz = '';
+    var ipIntel = null;
     if (!whitelisted) {
       var rules = config.rules || {};
       var needIp = on(rules.privacy) || on(rules.vpn) || on(rules.proxy);
       if (needIp) {
-        ipInfo = await getIpInfo(env, ip);
+        var both = await Promise.all([getIpInfo(env, ip), getIpIntel(env, ip)]);
+        var ipInfo = both[0];
+        ipIntel = both[1];
+        if (ipInfo) { ipTz = ipInfo.timezone || ''; }
       }
-      triggered = evaluateRules(rules, { ip: ip, ua: ua, device: device, lang: clientLang, tzOffset: tzOffset, tzIANA: tzIANA, ipInfo: ipInfo, webrtcIps: webrtcIps });
+      triggered = evaluateRules(rules, { ip: ip, ua: ua, device: device, lang: clientLang, tzOffset: tzOffset, tzIANA: tzIANA, ipTz: ipTz, webrtcIps: webrtcIps, ipIntel: ipIntel });
     }
 
     var passed = triggered.length === 0;
@@ -346,7 +365,7 @@ export async function onRequest(context) {
     var redirect = passed ? (config.b_url || null) : null;
 
     // 记录流量（异步，不阻塞跳转响应；ab_traffic 表未建时静默跳过）
-    context.waitUntil(logTraffic(env, { a_url: config.a_url, username: config.username || '', ip: ip, device: device, lang: clientLang, timezone: tzIANA || (tzOffset !== null ? String(tzOffset) : ''), isVpn: !!(ipInfo && ipInfo.vpn), isProxy: !!(ipInfo && ipInfo.proxy), passed: passed, redirect: redirect, triggered: triggered, ua: ua }));
+    context.waitUntil(logTraffic(env, { a_url: config.a_url, username: config.username || '', ip: ip, device: device, lang: clientLang, timezone: tzIANA || (tzOffset !== null ? String(tzOffset) : ''), isVpn: !!(ipIntel && ipIntel.is_vpn), isProxy: !!(ipIntel && ipIntel.is_proxy), passed: passed, redirect: redirect, triggered: triggered, ua: ua }));
 
     return new Response(JSON.stringify({ redirect: redirect, passed: passed, triggered: triggered, whitelisted: whitelisted, _dbg: { a_url: config.a_url, username: config.username, device: device, ip: ip } }), { headers: jsonHeaders });
   } catch (e) {
