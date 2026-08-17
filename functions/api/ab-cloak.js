@@ -125,16 +125,19 @@ function isPublicIp(ip) {
   return false;
 }
 
-// WebRTC 泄露：本机网卡暴露了与真实出口不同的公网 IP → 疑似代理/VPN/机房
+// WebRTC 泄露（仿 km37acd.top/ip）：出口 IP 与 WebRTC 本地 IP 不一致、且本地含公网 IP → 疑似代理/VPN/机房
 function webrtcLeak(realIp, webrtcIps) {
   var arr = Array.isArray(webrtcIps) ? webrtcIps : [];
   var real = String(realIp || '').trim();
+  var match = false;
+  var hasPublicLocal = false;
   for (var i = 0; i < arr.length; i++) {
     var ip = String(arr[i] || '').trim();
-    if (!ip || ip === real) continue;
-    if (isPublicIp(ip)) return true;
+    if (!ip || ip === '0.0.0.0' || ip === '::' || ip === '::1') continue;
+    if (ip === real) match = true;      // 出口 IP 与本地候选一致 → 直连
+    if (isPublicIp(ip)) hasPublicLocal = true;
   }
-  return false;
+  return (!match && hasPublicLocal);    // 不一致 + 本地含公网 IP → 疑似代理/VPN/机房
 }
 
 function evaluateRules(rules, ctx) {
