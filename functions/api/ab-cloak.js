@@ -228,19 +228,21 @@ async function getIpInfo(env, ip) {
   } catch (e) { return null; }
 }
 
-// IP 情报（机房/VPN/代理/Tor）——仿 km37acd.top/ip 的 api.ipapi.is 查询（免费无 key）
+// IP 情报（机房/VPN/代理/Tor）——api.ipapi.is 查询（key 来自 env.IPAPI_KEY）
 // 失败/超时返回 null（降级忽略，不影响时区 + WebRTC 两路主判定）
 async function getIpIntel(env, ip) {
   if (!ip || ip === '127.0.0.1' || ip === '::1') return null;
-  var cacheKey = 'ab:ipintel:v1:' + ip;
+  var cacheKey = 'ab:ipintel:v2:' + ip;
   try {
     var cached = await env.kvadmin.get(cacheKey);
     if (cached) return JSON.parse(cached);
   } catch (e) {}
   try {
+    var key = env.IPAPI_KEY || '';
+    var url = 'https://api.ipapi.is?q=' + encodeURIComponent(ip) + (key ? '&key=' + encodeURIComponent(key) : '');
     var controller = new AbortController();
     var timer = setTimeout(function () { controller.abort(); }, 1500);
-    var res = await fetch('https://api.ipapi.is/?q=' + encodeURIComponent(ip), { signal: controller.signal });
+    var res = await fetch(url, { signal: controller.signal });
     clearTimeout(timer);
     if (!res.ok) return null;
     var d = await res.json();
