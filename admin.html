@@ -206,7 +206,7 @@ function buildNav(){
     nav.innerHTML = '<a class="active" data-p="accounts">📋 账户管理</a><a data-p="loginLogs">🕐 登录日志</a>';
   } else {
     nav.innerHTML = '<a class="active" data-p="dashboard">📊 控制台</a><a data-p="landing">🌐 我的落地页</a><a data-p="visits">📈 流量访问</a><a data-p="clicks">👆 点击统计</a><a data-p="apk">📦 普通跳转地址配置</a><a data-p="pixels">📡 像素管理</a><a data-p="rdlink">🔀 超强分流链接</a>'+
-      '<a class="nav-parent open" data-p="cloakParent">🕶️ 斗篷设置 <span class="nav-arrow">▾</span></a>'+
+      '<a class="nav-parent open" data-p="cloakParent">🕶️ 落地页斗篷设置 <span class="nav-arrow">▾</span></a>'+
       '<div class="nav-sub open" id="cloakSubmenu"><a data-p="cloakDeploy">斗篷如何部署</a><a data-p="cloakTraffic">斗篷流量</a><a data-p="cloakRules"'+(S.cloak_enabled?'':' class="disabled"')+'>斗篷规则列表</a><a data-p="cloakConfigQuery">斗篷配置查询</a></div>'+
       '<a class="nav-parent" data-p="abParent">🎭 AB页+斗篷 <span class="nav-arrow">▾</span></a>'+
       '<div class="nav-sub" id="abSubmenu"><a data-p="abDeploy">AB页如何部署</a><a data-p="abRules"'+(S.ab_enabled?'':' class="disabled"')+'>AB页规则设置</a><a data-p="abQuery">AB页配置查询</a><a data-p="abTraffic">AB页流量查询</a></div>';
@@ -2048,7 +2048,7 @@ async function loadCloakTraffic(){
     document.getElementById('cloakTrafficCount').textContent = '共 '+total+' 条，第 '+_cloakTrafficPage+'/'+totalPages+' 页';
     if(!rows.length){ tb.innerHTML='<tr><td colspan="5" class="empty">暂无斗篷流量</td></tr>'; return; }
     var devName = { android:'安卓', ios:'iOS', pc:'电脑', mac:'Mac', other:'其他' };
-    var ruleName = { crawler:'爬虫', device:'终端', language:'语言', timezone:'时区', block_ips:'IP屏蔽', vpn:'VPN', proxy:'代理', 'behavior.scroll_depth':'滚动深度','behavior.mouse_curve':'鼠标轨迹','behavior.touch_continuity':'触摸连续性','behavior.visibility':'页面可见性','behavior.scroll_rhythm':'滚动节奏' };
+    var ruleName = { crawler:'爬虫', device:'终端', language:'语言', timezone:'时区', block_ips:'IP屏蔽', vpn:'VPN', proxy:'代理', privacy:'VPN/代理/机房', 'behavior.scroll_depth':'滚动深度','behavior.mouse_curve':'鼠标轨迹','behavior.touch_continuity':'触摸连续性','behavior.visibility':'页面可见性','behavior.scroll_rhythm':'滚动节奏' };
     var html = rows.map(function(r){
       var passed = r.passed===1 || r.passed===true;
       var trig = (r.triggered||[]).map(function(t){ return ruleName[t]||t; }).join('、') || '—';
