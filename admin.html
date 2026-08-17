@@ -14,7 +14,8 @@ body{font-family:system-ui,-apple-system,'PingFang SC','Microsoft YaHei',sans-se
 .sidebar{width:220px;background:var(--card);border-right:1px solid var(--border);padding:24px 0;display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:10}
 .sidebar-logo{padding:0 20px 24px;border-bottom:1px solid var(--border);font-weight:800;font-size:1.05rem;display:flex;align-items:center;gap:8px}
 .sidebar-logo .dot{width:8px;height:8px;border-radius:50%;background:var(--green)}
-.sidebar-nav{flex:1;padding:12px 0}
+.sidebar-nav{flex:1;padding:12px 0;overflow-y:auto;min-height:0}
+.sidebar-nav::-webkit-scrollbar{width:6px}.sidebar-nav::-webkit-scrollbar-thumb{background:rgba(255,255,255,.14);border-radius:3px}.sidebar-nav::-webkit-scrollbar-track{background:transparent}
 .sidebar-nav a{display:flex;align-items:center;gap:10px;padding:10px 20px;color:var(--muted);text-decoration:none;font-size:.88rem;transition:all .15s;border-left:2px solid transparent;cursor:pointer}
 .sidebar-nav a:hover,.sidebar-nav a.active{color:var(--text);background:rgba(255,255,255,.03);border-left-color:var(--green)}
 .sidebar-nav a.active{font-weight:600}
@@ -24,7 +25,7 @@ body{font-family:system-ui,-apple-system,'PingFang SC','Microsoft YaHei',sans-se
 .sidebar-user .logout:hover{text-decoration:underline}
 /* 主区域 */
 .main{margin-left:220px;flex:1;padding:28px 32px}
-.page-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px}
+.page-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;padding-right:150px}
 .page-header h1{font-size:1.4rem;font-weight:700}
 .card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:24px;margin-bottom:20px}
 .card h3{font-size:1rem;margin-bottom:14px;display:flex;align-items:center;gap:8px}
@@ -146,6 +147,7 @@ input[type=checkbox],input[type=radio]{width:auto;flex-shrink:0;accent-color:var
 
 <!-- 后台面板 -->
 <div id="adminPage" class="hide">
+  <div class="login-topright"><button class="kf" onclick="window.open('https://t.me/snvtr2','_blank')">💬 联系管理员</button></div>
   <aside class="sidebar">
     <div class="sidebar-logo"><span class="dot"></span><span>天御系统后台</span></div>
     <nav class="sidebar-nav" id="sidebarNav"></nav>
@@ -1700,8 +1702,7 @@ function renderAbBody(){
       '<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:600;margin-bottom:8px;white-space:nowrap"><input type="checkbox" id="abIpEnabled"> 屏蔽具体 IP</label>'+
       '<textarea id="abIpList" rows="2" placeholder="每行一个 IP 地址" style="margin-bottom:16px"></textarea>'+
       '<div style="display:flex;gap:26px;flex-wrap:wrap">'+
-        '<label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:.88rem;white-space:nowrap"><input type="checkbox" id="abVpnEnabled"> 屏蔽 VPN（ipinfo.io）</label>'+
-        '<label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:.88rem;white-space:nowrap"><input type="checkbox" id="abProxyEnabled"> 屏蔽代理 IP（ipinfo.io）</label>'+
+        '<label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:.88rem;white-space:nowrap"><input type="checkbox" id="abPrivacyEnabled"> 屏蔽 VPN / 代理 / 数据中心机房（时区/地区不一致检测）</label>'+
       '</div>'+
     '</div>'+
 
@@ -1791,8 +1792,7 @@ function fillAbForm(cfg){
   var lg = rules.language || {}; setChk('abLangEnabled', !!lg.enabled); setRadio('abLangMode', lg.mode||'block'); setLangSelected(lg.list || []);
   var tz = rules.timezone || {}; setChk('abTzEnabled', !!tz.enabled); setRadio('abTzMode', tz.mode||'block'); setVal('abTzList', (tz.list||[]).join('\n'));
   var ib = rules.block_ips || {}; setChk('abIpEnabled', !!ib.enabled); setVal('abIpList', (ib.list||[]).join('\n'));
-  setChk('abVpnEnabled', !!(rules.vpn && rules.vpn.enabled));
-  setChk('abProxyEnabled', !!(rules.proxy && rules.proxy.enabled));
+  setChk('abPrivacyEnabled', !!(rules.privacy && rules.privacy.enabled) || !!(rules.vpn && rules.vpn.enabled) || !!(rules.proxy && rules.proxy.enabled));
 
   renderAbRuleList(rules);
 }
@@ -1808,8 +1808,7 @@ function renderAbRuleList(rules){
     ['设备语言屏蔽', on(rules.language)],
     ['地区时区屏蔽', on(rules.timezone)],
     ['IP 屏蔽', on(rules.block_ips)],
-    ['VPN 屏蔽', on(rules.vpn)],
-    ['代理 IP 屏蔽', on(rules.proxy)]
+    ['VPN / 代理 / 数据中心机房屏蔽', on(rules.privacy) || on(rules.vpn) || on(rules.proxy)]
   ];
   tb.innerHTML = rows.map(function(r){ return '<tr><td>'+r[0]+'</td><td>'+badge(r[1])+'</td></tr>'; }).join('');
 }
@@ -1828,8 +1827,7 @@ function saveAbConfig(){
     language: { enabled: chk('abLangEnabled'), mode: radio('abLangMode'), list: getLangSelected() },
     timezone: { enabled: chk('abTzEnabled'), mode: radio('abTzMode'), list: lines('abTzList') },
     block_ips: { enabled: chk('abIpEnabled'), list: lines('abIpList') },
-    vpn: { enabled: chk('abVpnEnabled') },
-    proxy: { enabled: chk('abProxyEnabled') },
+    privacy: { enabled: chk('abPrivacyEnabled') },
     extra: {}
   };
 
@@ -1874,8 +1872,7 @@ function describeAbRules(rules){
   if(isOn(r.block_ips)){
     out.push({ name:'IP屏蔽', detail: (r.block_ips.list||[]).join('、') });
   }
-  if(isOn(r.vpn)) out.push({ name:'VPN屏蔽', detail:'' });
-  if(isOn(r.proxy)) out.push({ name:'代理屏蔽', detail:'' });
+  if(isOn(r.privacy) || isOn(r.vpn) || isOn(r.proxy)) out.push({ name:'VPN/代理/机房屏蔽', detail:'' });
   return out;
 }
 
@@ -1981,7 +1978,7 @@ async function loadAbTraffic(){
     document.getElementById('abTrafficCount').textContent = '共 '+total+' 条，第 '+_abTrafficPage+'/'+totalPages+' 页';
     if(!rows.length){ tb.innerHTML='<tr><td colspan="6" class="empty">暂无 AB 页流量</td></tr>'; return; }
     var devName = { android:'安卓', ios:'iOS', pc:'电脑', mac:'Mac', other:'其他' };
-    var ruleName = { crawler:'爬虫', device:'终端', language:'语言', timezone:'时区', block_ips:'IP屏蔽', vpn:'VPN', proxy:'代理' };
+    var ruleName = { crawler:'爬虫', device:'终端', language:'语言', timezone:'时区', block_ips:'IP屏蔽', vpn:'VPN', proxy:'代理', privacy:'VPN/代理/机房' };
     var html = rows.map(function(r){
       var passed = r.passed===1 || r.passed===true;
       var trig = (r.triggered||[]).map(function(t){ return ruleName[t]||t; }).join('、') || '—';

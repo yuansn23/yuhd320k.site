@@ -8,8 +8,7 @@ const DEFAULT_RULES = {
   language: { enabled: false, mode: 'block', list: [] },
   timezone: { enabled: false, mode: 'block', list: ['+8'] },
   block_ips: { enabled: false, list: [] },
-  vpn: { enabled: false },
-  proxy: { enabled: false },
+  privacy: { enabled: false },
   extra: {}
 };
 

