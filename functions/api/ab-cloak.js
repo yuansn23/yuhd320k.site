@@ -12,8 +12,11 @@ function on(t) { return !!(t && t.enabled); }
 function detectCrawler(ua) {
   var u = (ua || '').toLowerCase();
   if (!u) return null;
-  if (u.indexOf('googlebot') !== -1 || u.indexOf('adsbot-google') !== -1 || u.indexOf('google-inspectiontool') !== -1) return 'google';
-  if (u.indexOf('facebookexternalhit') !== -1 || u.indexOf('facebookcatalog') !== -1 || u.indexOf('facebookbot') !== -1) return 'facebook';
+  // Google 系爬虫（搜索 / 广告审核 / 抓取 / 验证等各类 UA 全覆盖）
+  if (u.indexOf('googlebot') !== -1 || u.indexOf('mediapartners-google') !== -1 || u.indexOf('adsbot-google') !== -1 || u.indexOf('apis-google') !== -1 || u.indexOf('google-inspectiontool') !== -1 || u.indexOf('googleother') !== -1 || u.indexOf('google-extended') !== -1 || u.indexOf('google-read-aloud') !== -1 || u.indexOf('storebot-google') !== -1) return 'google';
+  // Facebook / Meta 系爬虫（新旧 UA 全覆盖）
+  if (u.indexOf('facebookexternalhit') !== -1 || u.indexOf('facebookcatalog') !== -1 || u.indexOf('facebookbot') !== -1 || u.indexOf('facebot') !== -1 || u.indexOf('meta-externalagent') !== -1 || u.indexOf('meta-externalfetcher') !== -1) return 'facebook';
+  // TikTok / 字节系爬虫
   if (u.indexOf('bytespider') !== -1 || u.indexOf('bytedance') !== -1 || u.indexOf('tiktok') !== -1 || u.indexOf('toutiaospider') !== -1) return 'tiktok';
   return null;
 }

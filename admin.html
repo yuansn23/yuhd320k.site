@@ -3,9 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
+<meta name="color-scheme" content="dark">
 <title>天御系统后台</title>
 <style>
-:root{--bg:#0f1119;--card:#181b28;--border:rgba(255,255,255,.06);--text:#e1e4ed;--muted:#7c8097;--green:#21C064;--red:#f85149;--blue:#58a6ff;--amber:#f0883e}
+:root{color-scheme:dark;--bg:#0f1119;--card:#181b28;--border:rgba(255,255,255,.06);--text:#e1e4ed;--muted:#7c8097;--green:#21C064;--red:#f85149;--blue:#58a6ff;--amber:#f0883e}
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:system-ui,-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
 .hide{display:none!important}
@@ -1912,7 +1913,7 @@ async function loadAbConfigQuery(){
         var d8 = new Date(dt.getTime() + 8*3600000);
         ts = d8.getUTCFullYear()+'-'+pad(d8.getUTCMonth()+1)+'-'+pad(d8.getUTCDate())+' '+pad(d8.getUTCHours())+':'+pad(d8.getUTCMinutes());
       }
-      var editBtn = S.ab_enabled ? '<button class="btn btn-o btn-sm abEditBtn" data-a="'+esc(c.a_url)+'">修改</button>' : '<span class="badge" style="background:rgba(240,136,62,.15);color:var(--amber);font-weight:800;white-space:nowrap">需开通权限</span>';
+      var editBtn = S.ab_enabled ? '<button class="btn btn-p btn-sm abEditBtn" data-a="'+esc(c.a_url)+'">✏️ 修改</button>' : '<span class="badge" style="background:rgba(240,136,62,.15);color:var(--amber);font-weight:800;white-space:nowrap">需开通权限</span>';
       return '<tr><td style="word-break:break-all;font-family:monospace;max-width:220px">'+esc(c.a_url||'—')+'</td><td style="word-break:break-all;font-family:monospace;max-width:220px">'+esc(c.b_url||'—')+'</td><td>'+status+'</td><td style="max-width:300px">'+ruleHtml+'</td><td>'+(wl?wl+' 个':'—')+'</td><td style="color:var(--muted);font-size:.82rem;white-space:nowrap">'+(ts||'—')+'</td><td>'+editBtn+'</td></tr>';
     }).join('');
     tb.innerHTML = html;
@@ -1949,6 +1950,7 @@ async function showAbTraffic(){
     '<button class="btn btn-p btn-sm" id="abTrafficFilterBtn">查询</button>'+
     '</div></div>'+
     '<div class="card"><h3>📋 AB页流量 <span id="abTrafficCount" style="font-weight:400;font-size:.8rem;color:var(--muted)"></span></h3>'+
+    '<div style="background:rgba(88,166,255,.08);border:1px solid rgba(88,166,255,.22);border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:.82rem;color:var(--muted);line-height:1.7">💡 <b style="color:var(--text)">判定结果说明：</b>「<b style="color:var(--green)">真实用户 · 跳B</b>」＝该访客被判定为正常真人，会自动跳转到 B 页（真实业务）；「<b style="color:var(--red)">命中规则 · 留A</b>」＝该访客命中了你设置的爬虫/设备等规则（如 Googlebot、Facebook、TikTok 审核），会留在 A 页给审核员看，不跳转。</div>'+
     '<table><thead><tr><th>IP</th><th>A 页</th><th>设备终端</th><th>访问时间(+8)</th><th>判定结果</th><th>触发的规则</th></tr></thead><tbody id="abTrafficBody"><tr><td colspan="6" class="empty">加载中...</td></tr></tbody></table></div>';
 
   var sf = document.getElementById('abTrafficAUrl');
