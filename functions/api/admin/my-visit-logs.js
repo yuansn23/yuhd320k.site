@@ -88,14 +88,25 @@ export async function onRequest(context) {
     var fields = 'site, visit_time, ip, device, user_agent';
     var orderBy = ' ORDER BY visit_time DESC';
 
-    // 查总数
-    var countSql = 'SELECT COUNT(*) AS cnt FROM visit_logs WHERE ' + whereBase;
-    var countResult = null;
-    if (condParams.length === 1) countResult = await env.DB.prepare(countSql).bind(condParams[0]).first();
-    else if (condParams.length === 2) countResult = await env.DB.prepare(countSql).bind(condParams[0], condParams[1]).first();
-    else if (condParams.length === 3) countResult = await env.DB.prepare(countSql).bind(condParams[0], condParams[1], condParams[2]).first();
-    else countResult = await env.DB.prepare(countSql).bind(condParams[0], condParams[1], condParams[2], condParams[3]).first();
-    var totalCount = countResult ? countResult.cnt : 0;
+    // 查总数（无筛选时读预聚合表 stats_daily，避免 COUNT(*) 全表扫；有筛选时走索引 COUNT）
+    var totalCount = 0;
+    if (!filterSite && !dateStart && !dateEnd) {
+      try {
+        var ag = await env.DB.prepare('SELECT COALESCE(SUM(visits),0) AS cnt FROM stats_daily WHERE username = ?1').bind(me.user).first();
+        totalCount = ag ? ag.cnt : 0;
+      } catch (e) {
+        var cntFb = await env.DB.prepare('SELECT COUNT(*) AS cnt FROM visit_logs WHERE username = ?1').bind(me.user).first();
+        totalCount = cntFb ? cntFb.cnt : 0;
+      }
+    } else {
+      var countSql = 'SELECT COUNT(*) AS cnt FROM visit_logs WHERE ' + whereBase;
+      var countResult = null;
+      if (condParams.length === 1) countResult = await env.DB.prepare(countSql).bind(condParams[0]).first();
+      else if (condParams.length === 2) countResult = await env.DB.prepare(countSql).bind(condParams[0], condParams[1]).first();
+      else if (condParams.length === 3) countResult = await env.DB.prepare(countSql).bind(condParams[0], condParams[1], condParams[2]).first();
+      else countResult = await env.DB.prepare(countSql).bind(condParams[0], condParams[1], condParams[2], condParams[3]).first();
+      totalCount = countResult ? countResult.cnt : 0;
+    }
 
     // 查数据
     var dataSql = 'SELECT ' + fields + ' FROM visit_logs WHERE ' + whereBase + orderBy + ' LIMIT ?' + (idx++) + ' OFFSET ?' + (idx);

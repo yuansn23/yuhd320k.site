@@ -99,14 +99,19 @@ export async function onRequest(context) {
     ids = d1Ids;
     // 该站点没配置像素 → ids = []
 
-    // 记录访问日志（非阻塞）
+    // 记录访问日志（非阻塞）+ 预聚合计数（stats_daily.visits +1，独立 waitUntil，互不影响）
     if (username && matchedSite) {
       var ip = request.headers.get('CF-Connecting-IP') || '';
       var ua = request.headers.get('User-Agent') || '';
       var device = (/Mobile|Android|iPhone|iPad|iPod/i.test(ua)) ? '手机' : '电脑';
+      var visitIso = new Date().toISOString();
       context.waitUntil(
         env.DB.prepare('INSERT INTO visit_logs (username, site, visit_time, ip, device, user_agent) VALUES (?1, ?2, ?3, ?4, ?5, ?6)')
-          .bind(username, matchedSite, new Date().toISOString(), ip, device, ua.substring(0, 500)).run().catch(function(){})
+          .bind(username, matchedSite, visitIso, ip, device, ua.substring(0, 500)).run().catch(function(){})
+      );
+      context.waitUntil(
+        env.DB.prepare('INSERT INTO stats_daily (username, date, visits, clicks) VALUES (?1, ?2, 1, 0) ON CONFLICT(username, date) DO UPDATE SET visits = visits + 1')
+          .bind(username, visitIso.slice(0, 10)).run().catch(function(){})
       );
     }
 

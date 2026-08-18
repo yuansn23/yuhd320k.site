@@ -135,15 +135,23 @@ export async function onRequest(context) {
       } catch (e) {}
     }
 
-    // 流量统计
+    // 流量统计（访问量）——优先读预聚合表 stats_daily（O(1)），未跑迁移时回退 COUNT
     var visitTotal = 0, visitToday = 0;
     try {
-      var vt = await env.DB.prepare('SELECT COUNT(*) AS cnt FROM visit_logs WHERE username = ?1').bind(me.user).first();
+      var vt = await env.DB.prepare('SELECT COALESCE(SUM(visits),0) AS cnt FROM stats_daily WHERE username = ?1').bind(me.user).first();
       visitTotal = vt ? vt.cnt : 0;
       var vtd = new Date().toISOString().slice(0,10);
-      var vtr = await env.DB.prepare('SELECT COUNT(*) AS cnt FROM visit_logs WHERE username = ?1 AND visit_time >= ?2').bind(me.user, vtd).first();
+      var vtr = await env.DB.prepare('SELECT COALESCE(SUM(visits),0) AS cnt FROM stats_daily WHERE username = ?1 AND date = ?2').bind(me.user, vtd).first();
       visitToday = vtr ? vtr.cnt : 0;
-    } catch(e) {}
+    } catch(e) {
+      try {
+        var vt2 = await env.DB.prepare('SELECT COUNT(*) AS cnt FROM visit_logs WHERE username = ?1').bind(me.user).first();
+        visitTotal = vt2 ? vt2.cnt : 0;
+        var vtd2 = new Date().toISOString().slice(0,10);
+        var vtr2 = await env.DB.prepare('SELECT COUNT(*) AS cnt FROM visit_logs WHERE username = ?1 AND visit_time >= ?2').bind(me.user, vtd2).first();
+        visitToday = vtr2 ? vtr2.cnt : 0;
+      } catch(e2) {}
+    }
 
     return new Response(JSON.stringify({ total, apkUrl: apkUrl, history: history, daily, dailyBySite: dailyBySiteArr, site: me.site, sites: sites, visitTotal: visitTotal, visitToday: visitToday }), {
       headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'private, max-age=15' }

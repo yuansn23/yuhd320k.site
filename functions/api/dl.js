@@ -29,6 +29,11 @@ export async function onRequest(context) {
             .bind(dlUser, dlSite, now, ip, device, lang, ua.substring(0, 500))
         ]).catch(function(){})
       );
+      // 预聚合计数（独立 waitUntil，即使 stats_daily 未建表也不影响日志写入）
+      context.waitUntil(
+        env.DB.prepare('INSERT INTO stats_daily (username, date, visits, clicks) VALUES (?1, ?2, 0, 1) ON CONFLICT(username, date) DO UPDATE SET clicks = clicks + 1')
+          .bind(dlUser, today).run().catch(function(){})
+      );
     }
 
     return new Response(obj.body, {

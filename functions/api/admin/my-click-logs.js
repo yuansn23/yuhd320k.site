@@ -42,16 +42,26 @@ export async function onRequest(context) {
     if (dateStart) { whereBase += ' AND click_time >= ?' + (idx++); condParams.push(dateStart + 'T00:00:00.000Z'); }
     if (dateEnd) { whereBase += ' AND click_time <= ?' + (idx++); condParams.push(dateEnd + 'T23:59:59.999Z'); }
 
-    // 统计总数（表可能不存在，兜底返回 0）
+    // 统计总数（无筛选时读预聚合表 stats_daily，避免 COUNT(*) 全表扫；有筛选时走索引 COUNT）
     var total = 0;
     try {
-      var countSql = 'SELECT COUNT(*) AS cnt FROM click_logs WHERE ' + whereBase;
-      var countResult = null;
-      if (condParams.length === 1) countResult = await env.DB.prepare(countSql).bind(condParams[0]).first();
-      else if (condParams.length === 2) countResult = await env.DB.prepare(countSql).bind(condParams[0], condParams[1]).first();
-      else if (condParams.length === 3) countResult = await env.DB.prepare(countSql).bind(condParams[0], condParams[1], condParams[2]).first();
-      else countResult = await env.DB.prepare(countSql).bind(condParams[0], condParams[1], condParams[2], condParams[3]).first();
-      total = countResult ? countResult.cnt : 0;
+      if (!filterSite && !dateStart && !dateEnd) {
+        try {
+          var ag = await env.DB.prepare('SELECT COALESCE(SUM(clicks),0) AS cnt FROM stats_daily WHERE username = ?1').bind(me.user).first();
+          total = ag ? ag.cnt : 0;
+        } catch (e2) {
+          var cntFb = await env.DB.prepare('SELECT COUNT(*) AS cnt FROM click_logs WHERE username = ?1').bind(me.user).first();
+          total = cntFb ? cntFb.cnt : 0;
+        }
+      } else {
+        var countSql = 'SELECT COUNT(*) AS cnt FROM click_logs WHERE ' + whereBase;
+        var countResult = null;
+        if (condParams.length === 1) countResult = await env.DB.prepare(countSql).bind(condParams[0]).first();
+        else if (condParams.length === 2) countResult = await env.DB.prepare(countSql).bind(condParams[0], condParams[1]).first();
+        else if (condParams.length === 3) countResult = await env.DB.prepare(countSql).bind(condParams[0], condParams[1], condParams[2]).first();
+        else countResult = await env.DB.prepare(countSql).bind(condParams[0], condParams[1], condParams[2], condParams[3]).first();
+        total = countResult ? countResult.cnt : 0;
+      }
     } catch (e) {}
 
     // 分页查询（表可能不存在，兜底返回空）
