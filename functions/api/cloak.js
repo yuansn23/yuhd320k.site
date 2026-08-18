@@ -309,6 +309,14 @@ async function logTraffic(env, t) {
   try {
     await env.DB.prepare('INSERT INTO cloak_traffic (site, username, ip, device, terminal, lang, timezone, is_vpn, is_proxy, passed, triggered_rules, ua, created_at) VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13)')
       .bind(t.site || '', t.username || '', t.ip || '', t.device || '', t.terminal || t.device || '', t.lang || '', t.timezone || '', t.isVpn ? 1 : 0, t.isProxy ? 1 : 0, t.passed ? 1 : 0, JSON.stringify(t.triggered || []), (t.ua || '').substring(0, 500), new Date().toISOString()).run();
+    // 预聚合计数（独立，失败不影响日志）
+    if (t.username) {
+      try {
+        var passInc = t.passed ? 1 : 0;
+        await env.DB.prepare('INSERT INTO stats_daily (username, date, cloak_total, cloak_pass) VALUES (?1, ?2, 1, ?3) ON CONFLICT(username, date) DO UPDATE SET cloak_total = cloak_total + 1, cloak_pass = cloak_pass + ?3')
+          .bind(t.username, new Date().toISOString().slice(0, 10), passInc).run();
+      } catch (e2) {}
+    }
     return { ok: true };
   } catch (e) {
     return { ok: false, error: (e && e.message) ? e.message : String(e) };

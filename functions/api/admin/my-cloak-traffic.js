@@ -49,17 +49,32 @@ export async function onRequest(context) {
     if (result === 'pass' || result === '1') { where += ' AND passed = 1'; }
     else if (result === 'fail' || result === '0') { where += ' AND passed = 0'; }
 
-    // 总数（表可能不存在，兜底 0）
+    // 总数（无 site/date 筛选时读预聚合表 stats_daily，result 在聚合上算；有筛选时走索引 COUNT）
     var total = 0;
-    try {
-      var cnt = null;
-      var cs = 'SELECT COUNT(*) AS cnt FROM cloak_traffic WHERE ' + where;
-      if (cond.length === 1) cnt = await env.DB.prepare(cs).bind(cond[0]).first();
-      else if (cond.length === 2) cnt = await env.DB.prepare(cs).bind(cond[0], cond[1]).first();
-      else if (cond.length === 3) cnt = await env.DB.prepare(cs).bind(cond[0], cond[1], cond[2]).first();
-      else cnt = await env.DB.prepare(cs).bind(cond[0], cond[1], cond[2], cond[3]).first();
-      total = cnt ? cnt.cnt : 0;
-    } catch (e) {}
+    var useAgg = !filterSite && !dateStart && !dateEnd;
+    if (useAgg) {
+      try {
+        var aggExpr;
+        if (result === 'pass' || result === '1') aggExpr = 'COALESCE(SUM(cloak_pass),0)';
+        else if (result === 'fail' || result === '0') aggExpr = 'COALESCE(SUM(cloak_total)-SUM(cloak_pass),0)';
+        else aggExpr = 'COALESCE(SUM(cloak_total),0)';
+        var ag = await env.DB.prepare('SELECT ' + aggExpr + ' AS cnt FROM stats_daily WHERE username = ?1').bind(me.user).first();
+        total = ag ? ag.cnt : 0;
+      } catch (e) {
+        useAgg = false; // stats_daily 未建表 → 回退 COUNT
+      }
+    }
+    if (!useAgg) {
+      try {
+        var cnt = null;
+        var cs = 'SELECT COUNT(*) AS cnt FROM cloak_traffic WHERE ' + where;
+        if (cond.length === 1) cnt = await env.DB.prepare(cs).bind(cond[0]).first();
+        else if (cond.length === 2) cnt = await env.DB.prepare(cs).bind(cond[0], cond[1]).first();
+        else if (cond.length === 3) cnt = await env.DB.prepare(cs).bind(cond[0], cond[1], cond[2]).first();
+        else cnt = await env.DB.prepare(cs).bind(cond[0], cond[1], cond[2], cond[3]).first();
+        total = cnt ? cnt.cnt : 0;
+      } catch (e) {}
+    }
 
     // 分页查询
     var rows = [];
