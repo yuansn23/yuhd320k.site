@@ -2124,7 +2124,7 @@ function renderRdLinks(){
   c.innerHTML = '<div id="rdResult"></div>'+
     '<div class="card"><div style="display:flex;align-items:center;justify-content:space-between"><h3 style="margin:0">📋 短链列表</h3><button class="btn btn-p" id="rdAddBtn">➕ 新增短链</button></div>'+
     '<div style="font-size:.76rem;color:var(--muted);margin-top:10px;line-height:1.6">「分流链接」＝分享给访客的短链地址；「跳转后链接」＝访客最终跳转到的目标链接</div>'+
-    '<table style="margin-top:10px"><thead><tr><th style="white-space:nowrap">短链ID</th><th style="white-space:nowrap">分流链接</th><th style="white-space:nowrap">跳转后链接</th><th style="white-space:nowrap">分流方式</th><th style="white-space:nowrap">状态</th><th style="white-space:nowrap">添加时间</th><th style="white-space:nowrap">操作</th></tr></thead><tbody id="rdLinksBody"><tr><td colspan="7" class="empty">加载中...</td></tr></tbody></table></div>'+
+    '<table style="margin-top:10px"><thead><tr><th style="white-space:nowrap">短链ID</th><th style="white-space:nowrap">分流链接</th><th style="white-space:nowrap">跳转后链接</th><th style="white-space:nowrap">分流方式</th><th style="white-space:nowrap">状态</th><th style="white-space:nowrap">添加时间</th><th style="white-space:nowrap">备注</th><th style="white-space:nowrap">操作</th></tr></thead><tbody id="rdLinksBody"><tr><td colspan="8" class="empty">加载中...</td></tr></tbody></table></div>'+
     '<div id="rdModalWrap"></div>';
   document.getElementById('rdAddBtn').onclick = function(){ openRdModal(null); };
   loadRdLinks();
@@ -2136,7 +2136,7 @@ async function loadRdLinks(){
     var r = await fetch('/api/admin/my-rdlink?action=links&_='+Date.now(),{headers:{Authorization:'Basic '+S.token}});
     var d = await r.json();
     _rdLinks = d.links || [];
-    if(!_rdLinks.length){ tbody.innerHTML='<tr><td colspan="7" class="empty">暂无短链，点击右上角「新增短链」创建</td></tr>'; return; }
+    if(!_rdLinks.length){ tbody.innerHTML='<tr><td colspan="8" class="empty">暂无短链，点击右上角「新增短链」创建</td></tr>'; return; }
     tbody.innerHTML = _rdLinks.map(function(l){
       var modeTxt = l.mode==='weighted' ? '⚖️ 权重' : '🎲 随机';
       var targets = (l.targets||[]).map(function(t){ return esc(t.url); });
@@ -2148,9 +2148,36 @@ async function loadRdLinks(){
         '<td style="word-break:break-all;font-family:monospace;max-width:240px">'+short+'</td>'+
         '<td style="word-break:break-all;font-family:monospace;max-width:260px">'+bTxt+'</td>'+
         '<td>'+modeTxt+'</td><td>'+st+'</td><td style="white-space:nowrap">'+fmtTime(l.created_at)+'</td>'+
+        '<td style="min-width:200px"><input type="text" id="rdRemark-'+esc(l.id)+'" value="'+esc(l.remark||'')+'" placeholder="备注说明" style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid var(--border);background:#0d0f16;color:var(--text);font-size:.8rem"><button class="btn btn-p btn-sm" data-rd-save-remark="'+esc(l.id)+'" style="margin-top:5px">保存</button></td>'+
         '<td style="white-space:nowrap"><button class="btn btn-o btn-sm" onclick="rdEdit(\''+l.id+'\')">修改</button> <button class="btn btn-o btn-sm" style="color:var(--red)" onclick="rdDel(\''+l.id+'\')">删除</button> '+btn+'</td></tr>';
     }).join('');
-  }catch(e){ tbody.innerHTML='<tr><td colspan="7" class="empty">加载失败: '+esc(e.message)+'</td></tr>'; }
+    tbody.querySelectorAll('[data-rd-save-remark]').forEach(function(b){
+      b.onclick = function(){ rdSaveRemark(this.getAttribute('data-rd-save-remark')); };
+    });
+  }catch(e){ tbody.innerHTML='<tr><td colspan="8" class="empty">加载失败: '+esc(e.message)+'</td></tr>'; }
+}
+
+async function rdSaveRemark(id){
+  var inp = document.getElementById('rdRemark-'+id);
+  var btn = document.querySelector('[data-rd-save-remark="'+id+'"]');
+  if(!inp) return;
+  var remark = inp.value;
+  if(btn){ btn.textContent = '保存中...'; btn.disabled = true; }
+  try{
+    var r = await fetch('/api/admin/my-rdlink',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Basic '+S.token},body:JSON.stringify({action:'link_remark', id:id, remark:remark})});
+    var d = await r.json();
+    if(d.ok){
+      if(btn) btn.textContent = '✅ 保存成功';
+      alert('✅ 保存成功');
+    } else {
+      if(btn) btn.textContent = '保存';
+      alert(d.error || '保存失败');
+    }
+  }catch(e){
+    if(btn) btn.textContent = '保存';
+    alert('网络错误');
+  }
+  if(btn) setTimeout(function(){ btn.textContent = '保存'; btn.disabled = false; }, 1500);
 }
 
 function openRdModal(link){

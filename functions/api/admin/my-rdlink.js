@@ -101,6 +101,13 @@ export async function onRequest(context) {
             links[i].targets = (tr && tr.results) || [];
           } catch (e) { links[i].targets = []; }
         }
+        // 备注说明：读 rd_link_remarks 合并到短链列表（无备注时默认空串）
+        var rmMap = {};
+        try {
+          var rmRes = await env.DB.prepare('SELECT link_id, remark FROM rd_link_remarks WHERE username = ?1').bind(me.user).all();
+          if (rmRes && rmRes.results) { rmRes.results.forEach(function(x){ rmMap[x.link_id] = x.remark || ''; }); }
+        } catch (e) {}
+        for (var r2 = 0; r2 < links.length; r2++) { links[r2].remark = rmMap[links[r2].id] || ''; }
         return json({ links: links });
       }
       if (action === 'logs') {
@@ -175,6 +182,7 @@ export async function onRequest(context) {
         var delId = String(body.id || '').toLowerCase().trim();
         await env.DB.prepare('DELETE FROM rd_links WHERE id = ?1 AND username = ?2').bind(delId, me.user).run();
         await env.DB.prepare('DELETE FROM rd_targets WHERE link_id = ?1').bind(delId).run();
+        await env.DB.prepare('DELETE FROM rd_link_remarks WHERE link_id = ?1').bind(delId).run();
         return json({ ok: true });
       }
 
@@ -182,6 +190,17 @@ export async function onRequest(context) {
         var tgId = String(body.id || '').toLowerCase().trim();
         var en = body.enabled ? 1 : 0;
         await env.DB.prepare('UPDATE rd_links SET enabled = ?1, updated_at = ?2 WHERE id = ?3 AND username = ?4').bind(en, new Date().toISOString(), tgId, me.user).run();
+        return json({ ok: true });
+      }
+
+      if (act === 'link_remark') {
+        var rkId = String(body.id || '').toLowerCase().trim();
+        var rkRemark = (body.remark == null ? '' : String(body.remark));
+        if (!/^[a-z0-9]{8}$/.test(rkId)) return json({ error: '短链ID格式错误' }, 400);
+        var rkOwn = await env.DB.prepare('SELECT id FROM rd_links WHERE id = ?1 AND username = ?2').bind(rkId, me.user).first();
+        if (!rkOwn) return json({ error: '无权修改该短链' }, 403);
+        await env.DB.prepare('INSERT INTO rd_link_remarks (link_id, username, remark, updated_at) VALUES (?1, ?2, ?3, ?4) ON CONFLICT(link_id) DO UPDATE SET remark = excluded.remark, updated_at = excluded.updated_at')
+          .bind(rkId, me.user, rkRemark, new Date().toISOString()).run();
         return json({ ok: true });
       }
 
