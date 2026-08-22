@@ -28,7 +28,7 @@ export async function onRequest(context) {
     if (request.method === 'OPTIONS') {
       return new Response(null, { headers: {
         'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS',
+        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
         'Access-Control-Allow-Headers': 'Authorization, Content-Type'
       }});
     }
@@ -50,6 +50,13 @@ export async function onRequest(context) {
         }
       } catch (e) {}
       if (!sites.length && me.site) sites = [{ site: me.site, pixelCount: 0, apkUrl: '' }];
+      // 备注说明：读 site_remarks 合并到站点列表
+      try {
+        var rmRes = await env.DB.prepare('SELECT site, remark FROM site_remarks WHERE username = ?1').bind(me.user).all();
+        var rmMap = {};
+        if (rmRes && rmRes.results) { rmRes.results.forEach(function(x){ rmMap[x.site] = x.remark || ''; }); }
+        sites.forEach(function(s){ s.remark = rmMap[s.site] || ''; });
+      } catch (e) {}
       return new Response(JSON.stringify({ sites: sites }), {
         headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
       });
@@ -121,6 +128,39 @@ export async function onRequest(context) {
         await env.DB.prepare('DELETE FROM account_sites WHERE site = ?1 AND username = ?2').bind(site, me.user).run();
         await env.DB.prepare('DELETE FROM site_mappings WHERE site = ?1 AND username = ?2').bind(site, me.user).run();
       } catch (e) {}
+      return new Response(JSON.stringify({ ok: true }), {
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+      });
+    }
+
+    // ── PUT — 保存落地页备注 ──
+    if (request.method === 'PUT') {
+      const body = await request.json();
+      const site = normalizeSite(body.site);
+      const remark = (body.remark == null ? '' : String(body.remark));
+      if (!site) {
+        return new Response(JSON.stringify({ error: '缺少站点参数' }), {
+          status: 400, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+      var owns = false;
+      try {
+        var om = await env.DB.prepare('SELECT username FROM site_mappings WHERE site = ?1').bind(site).first();
+        if (om && om.username === me.user) owns = true;
+      } catch (e) {}
+      if (!owns) {
+        return new Response(JSON.stringify({ error: '无权修改该落地页' }), {
+          status: 403, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+      try {
+        await env.DB.prepare('INSERT INTO site_remarks (site, username, remark, updated_at) VALUES (?1, ?2, ?3, ?4) ON CONFLICT(site, username) DO UPDATE SET remark = excluded.remark, updated_at = excluded.updated_at')
+          .bind(site, me.user, remark, new Date().toISOString()).run();
+      } catch (e) {
+        return new Response(JSON.stringify({ error: '保存失败: ' + (e && e.message ? e.message : String(e)) }), {
+          status: 500, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
       return new Response(JSON.stringify({ ok: true }), {
         headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
       });

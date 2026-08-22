@@ -708,7 +708,7 @@ async function showLanding(){
   var main = document.getElementById('mainContent');
   main.innerHTML = '<div class="page-header"><h1>🌐 我的落地页</h1></div>'+
     '<div class="card"><h3>➕ 新增落地页</h3><div class="form-row"><input type="text" id="newSiteInput" placeholder="输入落地页域名，如 https://example.com/landing/"><button class="btn btn-p" id="addSiteBtn">新增</button></div><div style="font-size:.78rem;color:var(--muted);margin-top:6px">新增后，可在「斗篷设置」「像素管理」「普通跳转地址配置」里为该落地页分别配置</div><div id="addSiteMsg"></div></div>'+
-    '<div class="card"><h3>📋 落地页列表</h3><table><thead><tr><th>#</th><th>落地页URL</th><th>像素ID</th><th>跳转地址</th></tr></thead><tbody id="landingBody"><tr><td colspan="4" class="empty">加载中...</td></tr></tbody></table></div>';
+    '<div class="card"><h3>📋 落地页列表</h3><table><thead><tr><th>#</th><th>落地页URL</th><th>像素ID</th><th>跳转地址</th><th>备注</th></tr></thead><tbody id="landingBody"><tr><td colspan="5" class="empty">加载中...</td></tr></tbody></table></div>';
   document.getElementById('addSiteBtn').onclick = addSite;
   loadLanding();
 }
@@ -733,7 +733,7 @@ async function loadLanding(){
     var d = await r.json();
     var sites = d.sites||[];
     if(!sites.length && d.site) sites = [{site:d.site, pixelCount:0, apkUrl:d.apkUrl||''}];
-    if(!sites.length){ tbody.innerHTML='<tr><td colspan="4" class="empty">暂无落地页，请联系管理员配置</td></tr>'; return; }
+    if(!sites.length){ tbody.innerHTML='<tr><td colspan="5" class="empty">暂无落地页，请联系管理员配置</td></tr>'; return; }
     // 查每个站点的像素
     var pixelPromises = sites.map(function(s){
       return fetch('/api/admin/my-pixels?site='+encodeURIComponent(s.site)+'&_='+Date.now(),{headers:{'Authorization':'Basic '+S.token}}).then(function(r){return r.json()});
@@ -741,11 +741,29 @@ async function loadLanding(){
     var pixelResults = await Promise.all(pixelPromises);
     tbody.innerHTML = sites.map(function(s,i){
       var ids = (pixelResults[i]&&pixelResults[i].ids) ? pixelResults[i].ids.join(', ') : '未配置';
-      return '<tr><td>'+(i+1)+'</td><td style="word-break:break-all;font-family:monospace">'+esc(s.site)+'</td><td style="word-break:break-all;font-family:monospace">'+esc(ids)+'</td><td style="word-break:break-all;font-family:monospace;max-width:300px">'+esc(s.apkUrl||'未配置')+'</td></tr>';
+      return '<tr><td>'+(i+1)+'</td><td style="word-break:break-all;font-family:monospace">'+esc(s.site)+'</td><td style="word-break:break-all;font-family:monospace">'+esc(ids)+'</td><td style="word-break:break-all;font-family:monospace;max-width:300px">'+esc(s.apkUrl||'未配置')+'</td>'+
+        '<td style="min-width:240px"><input type="text" id="remarkInput-'+i+'" data-site="'+esc(s.site)+'" value="'+esc(s.remark||'')+'" placeholder="填写备注说明" style="width:100%;padding:7px 9px;border-radius:6px;border:1px solid var(--border);background:#0d0f16;color:var(--text);font-size:.84rem">'+
+        '<button class="btn btn-p btn-sm" data-save-remark="'+i+'" style="margin-top:5px">保存</button></td></tr>';
     }).join('');
+    tbody.querySelectorAll('[data-save-remark]').forEach(function(b){
+      b.onclick = function(){ saveRemark(parseInt(this.getAttribute('data-save-remark'))); };
+    });
   }catch(e){
-    tbody.innerHTML='<tr><td colspan="7" class="empty">加载失败: '+esc(e.message)+'</td></tr>';
+    tbody.innerHTML='<tr><td colspan="5" class="empty">加载失败: '+esc(e.message)+'</td></tr>';
   }
+}
+
+async function saveRemark(i){
+  var inp = document.getElementById('remarkInput-'+i);
+  if(!inp) return;
+  var site = inp.getAttribute('data-site');
+  var remark = inp.value;
+  try{
+    var r = await fetch('/api/admin/my-sites',{method:'PUT',headers:{'Content-Type':'application/json','Authorization':'Basic '+S.token},body:JSON.stringify({site:site, remark:remark})});
+    var d = await r.json();
+    if(d.ok) msg('addSiteMsg','ok','✅ 备注已保存');
+    else msg('addSiteMsg','err', d.error || '保存失败');
+  }catch(e){ msg('addSiteMsg','err','网络错误'); }
 }
 
 // ========== USER: 普通跳转地址配置 ==========
@@ -857,7 +875,7 @@ async function showPixels(){
   var main = document.getElementById('mainContent');
   main.innerHTML = '<div class="page-header"><h1>📡 像素管理</h1></div>'+
     '<div class="card"><h3>📍 当前落地页</h3><div style="margin-bottom:12px">'+siteInfo.html+'</div>'+
-    '<h3>➕ 新增像素</h3><div style="background:rgba(88,166,255,.08);border:1px solid rgba(88,166,255,.2);border-radius:8px;padding:14px 18px;margin-bottom:14px"><span style="color:var(--blue);font-weight:800;font-size:.85rem">投放切记：</span><br><span style="color:var(--fg);font-weight:700;font-size:.82rem">1.后台只支持【购物】加【加购】【联系】【潜客】【完成注册】【自定义-下载】，广告组选择其他事件不会回传</span><br><span style="color:var(--fg);font-weight:700;font-size:.82rem">2.如果需要其他FB事件，请联系管理</span></div><div class="form-row"><input type="text" id="newPixelId" placeholder="输入像素ID"><button class="btn btn-p" id="addPixelBtn">新增</button></div><div id="pixelAddMsg"></div></div>'+
+    '<h3>➕ 新增像素</h3><div style="background:rgba(88,166,255,.08);border:1px solid rgba(88,166,255,.2);border-radius:8px;padding:14px 18px;margin-bottom:14px"><span style="color:var(--blue);font-weight:800;font-size:.85rem">投放切记：</span><br><span style="color:var(--fg);font-weight:700;font-size:.82rem">1.后台只支持【购物】加【加购】，广告组选择其他事件不会回传</span><br><span style="color:var(--fg);font-weight:700;font-size:.82rem">2.如果需要其他FB事件，请联系管理</span></div><div class="form-row"><input type="text" id="newPixelId" placeholder="输入像素ID"><button class="btn btn-p" id="addPixelBtn">新增</button></div><div id="pixelAddMsg"></div></div>'+
     '<div class="card"><h3>📋 像素列表 <span id="pixelCount" style="font-weight:400;font-size:.8rem;color:var(--muted)"></span></h3><table><thead><tr><th>序号</th><th>像素ID</th><th>操作</th></tr></thead><tbody id="pixelBody"><tr><td colspan="4" class="empty">加载中...</td></tr></tbody></table></div>';
   document.getElementById('siteSelector').onchange = function(){
     _currentSite = this.value;

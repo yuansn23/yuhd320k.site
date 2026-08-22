@@ -135,6 +135,14 @@ export async function onRequest(context) {
       } catch (e) {}
     }
 
+    // 备注说明：读 site_remarks 合并到站点列表（无备注时默认空串）
+    try {
+      var rmRes = await env.DB.prepare('SELECT site, remark FROM site_remarks WHERE username = ?1').bind(me.user).all();
+      var rmMap = {};
+      if (rmRes && rmRes.results) { rmRes.results.forEach(function(x){ rmMap[x.site] = x.remark || ''; }); }
+      sites.forEach(function(s){ s.remark = rmMap[s.site] || ''; });
+    } catch (e) {}
+
     // 流量统计（访问量）——优先读预聚合表 stats_daily（O(1)），未跑迁移时回退 COUNT
     var visitTotal = 0, visitToday = 0;
     try {
