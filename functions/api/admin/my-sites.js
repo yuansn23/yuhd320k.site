@@ -46,10 +46,21 @@ export async function onRequest(context) {
       try {
         var sr = await env.DB.prepare('SELECT site, pixel_ids, apk_url FROM account_sites WHERE username = ?1').bind(me.user).all();
         if (sr && sr.results) {
-          sites = sr.results.map(function(r){ return { site: r.site, pixelCount: JSON.parse(r.pixel_ids || '[]').length, apkUrl: r.apk_url || '' }; });
+          sites = sr.results.map(function(r){
+            var pids = [];
+            try { pids = JSON.parse(r.pixel_ids || '[]'); } catch (e) { pids = []; }
+            return { site: r.site, pixelIds: pids, pixelCount: pids.length, apkUrl: r.apk_url || '' };
+          });
         }
       } catch (e) {}
-      if (!sites.length && me.site) sites = [{ site: me.site, pixelCount: 0, apkUrl: '' }];
+      if (!sites.length && me.site) {
+        var fpids = [], fapk = '';
+        try {
+          var acctRow = await env.DB.prepare('SELECT pixel_ids, apk_url FROM accounts WHERE username = ?1').bind(me.user).first();
+          if (acctRow) { try { fpids = JSON.parse(acctRow.pixel_ids || '[]'); } catch (e) { fpids = []; } fapk = acctRow.apk_url || ''; }
+        } catch (e) {}
+        sites = [{ site: me.site, pixelIds: fpids, pixelCount: fpids.length, apkUrl: fapk }];
+      }
       // 备注说明：读 site_remarks 合并到站点列表
       try {
         var rmRes = await env.DB.prepare('SELECT site, remark FROM site_remarks WHERE username = ?1').bind(me.user).all();

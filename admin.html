@@ -741,18 +741,12 @@ async function addSite(){
 async function loadLanding(){
   var tbody = document.getElementById('landingBody');
   try{
-    var r = await fetch('/api/admin/my-stats?_='+Date.now(),{headers:{'Authorization':'Basic '+S.token}});
+    var r = await fetch('/api/admin/my-sites?_='+Date.now(),{headers:{'Authorization':'Basic '+S.token}});
     var d = await r.json();
     var sites = d.sites||[];
-    if(!sites.length && d.site) sites = [{site:d.site, pixelCount:0, apkUrl:d.apkUrl||''}];
     if(!sites.length){ tbody.innerHTML='<tr><td colspan="5" class="empty">暂无落地页，请联系管理员配置</td></tr>'; return; }
-    // 查每个站点的像素
-    var pixelPromises = sites.map(function(s){
-      return fetch('/api/admin/my-pixels?site='+encodeURIComponent(s.site)+'&_='+Date.now(),{headers:{'Authorization':'Basic '+S.token}}).then(function(r){return r.json()});
-    });
-    var pixelResults = await Promise.all(pixelPromises);
     tbody.innerHTML = sites.map(function(s,i){
-      var ids = (pixelResults[i]&&pixelResults[i].ids) ? pixelResults[i].ids.join(', ') : '未配置';
+      var ids = (s.pixelIds && s.pixelIds.length) ? s.pixelIds.join(', ') : '未配置';
       return '<tr><td>'+(i+1)+'</td><td style="word-break:break-all;font-family:monospace">'+esc(s.site)+'</td><td style="word-break:break-all;font-family:monospace">'+esc(ids)+'</td><td style="word-break:break-all;font-family:monospace;max-width:300px">'+esc(s.apkUrl||'未配置')+'</td>'+
         '<td style="min-width:240px"><input type="text" id="remarkInput-'+i+'" data-site="'+esc(s.site)+'" value="'+esc(s.remark||'')+'" placeholder="填写备注说明" style="width:100%;padding:7px 9px;border-radius:6px;border:1px solid var(--border);background:#0d0f16;color:var(--text);font-size:.84rem">'+
         '<button class="btn btn-p btn-sm" data-save-remark="'+i+'" style="margin-top:5px">保存</button></td></tr>';
