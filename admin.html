@@ -445,7 +445,7 @@ async function deleteAccount(u){
 async function showDashboard(){
   var main = document.getElementById('mainContent');
   main.innerHTML = '<div class="page-header"><h1>📊 控制台</h1></div>'+
-    '<div class="stat-row"><div class="stat-mini"><div class="sval b" id="stTotal">—</div><div class="slbl">累计点击/下载 <span style="color:var(--fg-muted);font-weight:400;font-size:.68rem">仅参考</span></div></div><div class="stat-mini"><div class="sval g" id="stToday">—</div><div class="slbl">今日点击/下载 <span style="color:var(--fg-muted);font-weight:400;font-size:.68rem">仅参考</span></div></div><div class="stat-mini"><div class="sval" id="stVisitTotal" style="color:var(--violet);font-size:1.6rem;font-weight:800;line-height:1">—</div><div class="slbl">总流量访问</div></div><div class="stat-mini"><div class="sval" id="stVisitToday" style="color:var(--cyan);font-size:1.6rem;font-weight:800;line-height:1">—</div><div class="slbl">今日流量访问</div></div></div>'+
+    '<div class="stat-row"><div class="stat-mini"><div class="sval g" id="stToday">—</div><div class="slbl">今日点击/下载 <span style="color:var(--fg-muted);font-weight:400;font-size:.68rem">仅参考</span></div></div><div class="stat-mini"><div class="sval" id="stVisitToday" style="color:var(--cyan);font-size:1.6rem;font-weight:800;line-height:1">—</div><div class="slbl">今日流量访问</div></div></div>'+
     '<div class="card"><h3>🕶️ 系统介绍</h3>'+
       '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px;margin-top:2px">'+
         '<div style="background:rgba(88,166,255,.08);border:1px solid rgba(88,166,255,.32);border-radius:10px;padding:14px 16px">'+
@@ -472,8 +472,6 @@ async function loadStats(){
     var r = await fetch('/api/admin/my-stats?_='+Date.now(),{headers:{'Authorization':'Basic '+S.token}});
     var d = await r.json();
 
-    document.getElementById('stTotal').textContent = d.total||0;
-    document.getElementById('stVisitTotal').textContent = d.visitTotal||0;
     document.getElementById('stVisitToday').textContent = d.visitToday||0;
 
     var today = new Date().toISOString().slice(0,10);
@@ -537,6 +535,14 @@ async function loadLoginLogs(){
 }
 
 // ========== USER: 流量访问 ==========
+function lastNDays(n){
+  var end = new Date();
+  var start = new Date();
+  start.setDate(start.getDate() - (n - 1));
+  function fmt(d){ return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()); }
+  return { start: fmt(start), end: fmt(end) };
+}
+
 async function showVisits(){
   var siteInfo = await loadSiteSelector();
   var main = document.getElementById('mainContent');
@@ -548,6 +554,9 @@ async function showVisits(){
     sessionStorage.setItem('st_current_site', _currentSite);
   };
   document.getElementById('visitFilterBtn').onclick = function(){ _visitPage = 1; loadVisits(); };
+  var dr = lastNDays(3);
+  document.getElementById('visitDateStart').value = dr.start;
+  document.getElementById('visitDateEnd').value = dr.end;
   loadVisits();
 }
 
@@ -641,6 +650,9 @@ async function showClicks(){
     '</div></div>'+
     '<div class="card"><h3>📋 点击记录 <span id="clickTotal" style="font-weight:400;font-size:.8rem;color:var(--muted)"></span></h3><table><thead><tr><th>点击时间</th><th>落地页</th><th>IP地址</th><th>设备</th><th>语言</th></tr></thead><tbody id="clickBody"><tr><td colspan="5" class="empty">加载中...</td></tr></tbody></table></div>';
   document.getElementById('clickFilterBtn').onclick = function(){ _clickPage = 1; loadClickLogs(); };
+  var dr = lastNDays(3);
+  document.getElementById('clickDateStart').value = dr.start;
+  document.getElementById('clickDateEnd').value = dr.end;
   // 先加载站点下拉框（独立于点击数据）
   loadClickSites();
   loadClickLogs();
