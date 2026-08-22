@@ -755,15 +755,26 @@ async function loadLanding(){
 
 async function saveRemark(i){
   var inp = document.getElementById('remarkInput-'+i);
+  var btn = document.querySelector('[data-save-remark="'+i+'"]');
   if(!inp) return;
   var site = inp.getAttribute('data-site');
   var remark = inp.value;
+  if(btn){ btn.textContent = '保存中...'; btn.disabled = true; }
   try{
     var r = await fetch('/api/admin/my-sites',{method:'PUT',headers:{'Content-Type':'application/json','Authorization':'Basic '+S.token},body:JSON.stringify({site:site, remark:remark})});
     var d = await r.json();
-    if(d.ok) msg('addSiteMsg','ok','✅ 备注已保存');
-    else msg('addSiteMsg','err', d.error || '保存失败');
-  }catch(e){ msg('addSiteMsg','err','网络错误'); }
+    if(d.ok){
+      if(btn) btn.textContent = '✅ 保存成功';
+      alert('✅ 保存成功');
+    } else {
+      if(btn) btn.textContent = '保存';
+      alert(d.error || '保存失败');
+    }
+  }catch(e){
+    if(btn) btn.textContent = '保存';
+    alert('网络错误');
+  }
+  if(btn) setTimeout(function(){ btn.textContent = '保存'; btn.disabled = false; }, 1500);
 }
 
 // ========== USER: 普通跳转地址配置 ==========
