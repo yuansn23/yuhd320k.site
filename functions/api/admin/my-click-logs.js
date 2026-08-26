@@ -47,7 +47,7 @@ export async function onRequest(context) {
     try {
       if (!filterSite && !dateStart && !dateEnd) {
         try {
-          var ag = await env.DB.prepare('SELECT COALESCE(SUM(clicks),0) AS cnt FROM stats_daily WHERE username = ?1').bind(me.user).first();
+          var ag = await env.DB.prepare("SELECT COALESCE(SUM(clicks),0) AS cnt FROM stats_daily WHERE username = ?1 AND date >= date('now','-5 days')").bind(me.user).first();
           total = ag ? ag.cnt : 0;
         } catch (e2) {
           var cntFb = await env.DB.prepare('SELECT COUNT(*) AS cnt FROM click_logs WHERE username = ?1').bind(me.user).first();

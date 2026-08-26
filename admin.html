@@ -446,6 +446,7 @@ async function showDashboard(){
   var main = document.getElementById('mainContent');
   main.innerHTML = '<div class="page-header"><h1>📊 控制台</h1></div>'+
     '<div class="stat-row"><div class="stat-mini"><div class="sval g" id="stToday">—</div><div class="slbl">今日点击/下载 <span style="color:var(--fg-muted);font-weight:400;font-size:.68rem">仅参考</span></div></div><div class="stat-mini"><div class="sval" id="stVisitToday" style="color:var(--cyan);font-size:1.6rem;font-weight:800;line-height:1">—</div><div class="slbl">今日流量访问</div></div></div>'+
+    '<div class="card" style="margin-bottom:14px;background:rgba(88,166,255,.06);border:1px solid rgba(88,166,255,.35)"><div style="display:flex;align-items:center;gap:10px;padding:12px 16px"><span style="font-size:1.1rem">🗂️</span><span style="color:var(--blue);font-weight:600;font-size:.85rem">系统仅保留最近 5 天的访问与点击数据，更早的数据会自动清理。</span></div></div>'+
     '<div class="card"><h3>🕶️ 系统介绍</h3>'+
       '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px;margin-top:2px">'+
         '<div style="background:rgba(88,166,255,.08);border:1px solid rgba(88,166,255,.32);border-radius:10px;padding:14px 16px">'+
@@ -547,6 +548,7 @@ async function showVisits(){
   var siteInfo = await loadSiteSelector();
   var main = document.getElementById('mainContent');
   main.innerHTML = '<div class="page-header"><h1>📈 流量访问</h1></div>'+
+    '<div class="card" style="margin-bottom:14px;background:rgba(88,166,255,.06);border:1px solid rgba(88,166,255,.35)"><div style="display:flex;align-items:center;gap:10px;padding:12px 16px"><span style="font-size:1.1rem">🗂️</span><span style="color:var(--blue);font-weight:600;font-size:.85rem">系统仅保留最近 5 天的访问数据，更早的数据会自动清理。</span></div></div>'+
     '<div class="card"><h3>📍 筛选条件</h3><div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px"><span style="color:var(--muted);font-size:.8rem">落地页:</span>'+siteInfo.html+'<span style="color:var(--muted);font-size:.8rem;margin-left:8px">日期:</span><input type="date" id="visitDateStart" style="width:170px;min-height:42px;padding:10px 14px;font-size:.9rem;border-radius:8px;border:1px solid var(--border);background:#0d0f16;color:var(--text);cursor:pointer"><span style="font-size:.86rem;margin:0 4px">至</span><input type="date" id="visitDateEnd" style="width:170px;min-height:42px;padding:10px 14px;font-size:.9rem;border-radius:8px;border:1px solid var(--border);background:#0d0f16;color:var(--text);cursor:pointer"><button class="btn btn-p btn-sm" id="visitFilterBtn">查询</button></div></div>'+
     '<div class="card"><h3>📋 访问记录 <span id="visitCount" style="font-weight:400;font-size:.8rem;color:var(--muted)"></span></h3><table><thead><tr><th>访问时间</th><th>落地页</th><th>IP地址</th><th>终端类型</th><th>型号</th><th>语言</th><th>流量媒体</th><th>访问来源</th></tr></thead><tbody id="visitBody"><tr><td colspan="8" class="empty">加载中...</td></tr></tbody></table></div>';
   document.getElementById('siteSelector').onchange = function(){
@@ -637,7 +639,8 @@ async function showClicks(){
     '<div style="font-size:.84rem;color:#f0c060;line-height:1.7">'+
     '<strong style="color:#f0a030">重要说明：</strong><br>'+
     '1. 点击数据仅供参考，非 100% 精确。<br>'+
-    '2. 点击是指用户点击了落地页的<strong style="color:#f0a030">跳转按钮</strong>。如果您同时配置了 Facebook 转化事件，此处的点击数据会与 Facebook 成效数据<strong style="color:#f0a030">基本一致</strong>。'+
+    '2. 点击是指用户点击了落地页的<strong style="color:#f0a030">跳转按钮</strong>。如果您同时配置了 Facebook 转化事件，此处的点击数据会与 Facebook 成效数据<strong style="color:#f0a030">基本一致</strong>。<br>'+
+    '3. 系统仅保留最近 5 天的点击数据。'+
     '</div></div></div>'+
     '<div class="card"><h3>📍 筛选条件</h3><div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px">'+
     '<span style="color:var(--muted);font-size:.8rem">落地页:</span>'+
