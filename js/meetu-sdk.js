@@ -8,7 +8,7 @@
     'use strict';
 
     // ---------- 1. 基础配置 ----------
-    var API_BASE = 'https://url.yuhd320k.site';   // 你的后台地址
+    var API_BASE = 'https://api.km624da.site';   // 你的后台地址
     var _site = global.location.origin + global.location.pathname;
     var _apkUrl = '';
 
