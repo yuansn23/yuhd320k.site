@@ -5,7 +5,7 @@
 (function () {
   try {
     var cs = document.currentScript;
-    var API_BASE = 'https://url.yuhd320k.site';
+    var API_BASE = 'https://api.km624da.site';
     if (cs && cs.src) { var k = cs.src.indexOf('/', 8); if (k > 0) API_BASE = cs.src.slice(0, k); }
     var SITE = location.origin + location.pathname;
 
