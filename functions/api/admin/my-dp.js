@@ -42,6 +42,33 @@ function fillRuleDefaults(parsed) {
   return out;
 }
 
+// ============ DP 落地页无限域名（短链式唯一地址生成） ============
+// 生成 https://snk622ma.site/abwx/{8位随机码} 作为落地页地址；
+// 随机码对 dp_configs 全表按落地页地址查重，保证不与任何已配置的落地页重复。
+// 如需更换域名/路径前缀，只改下面这个常量即可（保存后重新部署生效）。
+const DP_LANDING_PREFIX = 'https://snk622ma.site/abwx';
+
+function genDpId() {
+  var chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+  var out = '';
+  var arr = new Uint8Array(8);
+  crypto.getRandomValues(arr);
+  for (var i = 0; i < 8; i++) out += chars[arr[i] % chars.length];
+  return out;
+}
+
+async function uniqueDpId(env) {
+  for (var i = 0; i < 10; i++) {
+    var id = genDpId();
+    var full = DP_LANDING_PREFIX + '/' + id;
+    try {
+      var exist = await env.DB.prepare('SELECT site FROM dp_configs WHERE site = ?1').bind(full).first();
+      if (!exist) return id;
+    } catch (e) { return id; }
+  }
+  return genDpId();
+}
+
 export async function onRequest(context) {
   const { request, env } = context;
   try {
@@ -87,6 +114,14 @@ export async function onRequest(context) {
     // ── POST — 保存 DP 配置 ──
     if (request.method === 'POST') {
       const body = await request.json();
+
+      // 落地页无限域名：生成一个全局唯一的落地页地址并返回
+      if (body.action === 'gen') {
+        var gid = await uniqueDpId(env);
+        return new Response(JSON.stringify({ ok: true, id: gid, url: DP_LANDING_PREFIX + '/' + gid }), {
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
 
       const site = (body.site || '').trim();
       if (!site) {

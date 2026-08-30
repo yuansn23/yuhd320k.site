@@ -2129,7 +2129,11 @@ function renderDpBody(){
       '<div id="dpListBox"></div>'+
       '<div style="border-top:1px solid var(--border);margin:14px 0"></div>'+
       '<h3>⚙️ 基础设置</h3>'+
-      '<label style="font-size:.8rem;color:var(--muted)">落地页地址（给用户打开的页面）</label><input type="text" id="dpSite" placeholder="https://snk622ma.site/dp" style="margin-bottom:8px">'+
+      '<label style="font-size:.8rem;color:var(--muted)">落地页地址（给用户打开的页面）</label>'+
+      '<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">'+
+        '<input type="text" id="dpSite" placeholder="https://snk622ma.site/dp" style="margin-bottom:0;flex:1">'+
+        '<button class="btn btn-o" id="dpGenBtn" style="white-space:nowrap" title="生成一个永不重复的落地页地址并自动填入">🎲 落地页无限域名</button>'+
+      '</div>'+
       '<label style="font-size:.8rem;color:var(--green);font-weight:700">实际地址（符合规则 → 跳这里）</label><input type="text" id="dpActualUrl" placeholder="https://example.com/real" style="margin-bottom:14px">'+
       '<label style="font-size:.8rem;color:var(--red);font-weight:700">不符合规则地址（命中规则 → 跳这里）</label><input type="text" id="dpFallbackUrl" placeholder="https://www.google.com" style="margin-bottom:14px">'+
       '<label style="font-size:.8rem;color:var(--muted)">白名单 IP（每行一个，命中则视为真实用户，直接跳实际地址）</label><textarea id="dpWhitelist" rows="2" placeholder="1.2.3.4"></textarea>'+
@@ -2182,6 +2186,7 @@ function renderDpBody(){
     '<div class="card"><h3>📋 DP 规则开启状态</h3><table><thead><tr><th>规则</th><th>状态</th></tr></thead><tbody id="dpRuleBody"><tr><td colspan="2" class="empty">—</td></tr></tbody></table></div>';
 
   document.getElementById('dpSaveBtn').onclick = saveDpConfig;
+  document.getElementById('dpGenBtn').onclick = genDpLanding;
   document.getElementById('dpSubBasic').onclick = function(){ setDpSubTab('basic'); };
   document.getElementById('dpSubCrawler').onclick = function(){ setDpSubTab('crawler'); };
   document.getElementById('dpSubDevice').onclick = function(){ setDpSubTab('device'); };
@@ -2301,6 +2306,24 @@ function saveDpConfig(){
     .then(function(r){return r.json()})
     .then(function(d){ if(d.ok){ msg('dpMsg','ok','✅ 已保存'); _currentDpUrl = site; loadDpConfig(); } else msg('dpMsg','err',d.error); })
     .catch(function(){ msg('dpMsg','err','网络错误'); });
+}
+
+// 落地页无限域名：调用后端生成一个全局唯一、永不重复的落地页地址并自动填入「落地页地址」
+async function genDpLanding(){
+  var btn = document.getElementById('dpGenBtn');
+  if(btn){ btn.disabled = true; }
+  try{
+    var r = await fetch('/api/admin/my-dp',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Basic '+S.token},body:JSON.stringify({action:'gen'})});
+    var d = await r.json();
+    if(d.ok && d.url){
+      var el = document.getElementById('dpSite');
+      if(el) el.value = d.url;
+      msg('dpMsg','ok','✅ 已生成落地页地址：'+esc(d.url));
+    }else{
+      msg('dpMsg','err', d.error || '生成失败');
+    }
+  }catch(e){ msg('dpMsg','err','网络错误'); }
+  if(btn){ btn.disabled = false; }
 }
 
 // ── DP配置查询（独立列表页，只读展示名下所有落地页配置） ──
