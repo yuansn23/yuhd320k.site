@@ -2384,13 +2384,27 @@ async function loadDpConfigQuery(){
         var d8 = new Date(dt.getTime() + 8*3600000);
         ts = d8.getUTCFullYear()+'-'+pad(d8.getUTCMonth()+1)+'-'+pad(d8.getUTCDate())+' '+pad(d8.getUTCHours())+':'+pad(d8.getUTCMinutes());
       }
-      return '<tr><td style="word-break:break-all;font-family:monospace;max-width:200px">'+esc(c.site||'—')+'</td><td style="word-break:break-all;font-family:monospace;max-width:200px">'+esc(c.actual_url||'—')+'</td><td style="word-break:break-all;font-family:monospace;max-width:200px">'+esc(c.fallback_url||'—')+'</td><td>'+status+'</td><td style="max-width:300px">'+ruleHtml+'</td><td>'+(wl?wl+' 个':'—')+'</td><td style="color:var(--muted);font-size:.82rem;white-space:nowrap">'+(ts||'—')+'</td><td><button class="btn btn-p btn-sm dpEditBtn" data-site="'+esc(c.site)+'">✏️ 修改</button></td></tr>';
+      return '<tr><td style="word-break:break-all;font-family:monospace;max-width:200px">'+esc(c.site||'—')+'</td><td style="word-break:break-all;font-family:monospace;max-width:200px">'+esc(c.actual_url||'—')+'</td><td style="word-break:break-all;font-family:monospace;max-width:200px">'+esc(c.fallback_url||'—')+'</td><td>'+status+'</td><td style="max-width:300px">'+ruleHtml+'</td><td>'+(wl?wl+' 个':'—')+'</td><td style="color:var(--muted);font-size:.82rem;white-space:nowrap">'+(ts||'—')+'</td><td><button class="btn btn-p btn-sm dpEditBtn" data-site="'+esc(c.site)+'">✏️ 修改</button> <button class="btn btn-d btn-sm dpDelBtn" data-site="'+esc(c.site)+'">🗑 删除</button></td></tr>';
     }).join('');
     tb.innerHTML = html;
     tb.querySelectorAll('.dpEditBtn').forEach(function(btn){
       btn.onclick = function(){ _currentDpUrl = btn.getAttribute('data-site'); showDpConfig(); };
     });
+    tb.querySelectorAll('.dpDelBtn').forEach(function(btn){
+      btn.onclick = function(){ delDpSite(btn.getAttribute('data-site')); };
+    });
   }catch(e){ tb.innerHTML='<tr><td colspan="8" class="empty">加载失败: '+esc(e.message)+'</td></tr>'; }
+}
+
+// 删除某个落地页的 DP 配置（仅配置查询页使用）
+async function delDpSite(site){
+  if(!confirm('确定删除落地页「'+site+'」的 DP 配置吗？此操作不可恢复。')) return;
+  try{
+    var r = await fetch('/api/admin/my-dp?site='+encodeURIComponent(site),{method:'DELETE',headers:{'Authorization':'Basic '+S.token}});
+    var d = await r.json();
+    if(d.ok){ loadDpConfigQuery(); }
+    else { alert(d.error || '删除失败'); }
+  }catch(e){ alert('网络错误'); }
 }
 
 // ── DP流量查询（独立列表页，只读展示名下落地页的访问流量） ──

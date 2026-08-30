@@ -37,7 +37,7 @@ export async function onRequest(context) {
     if (request.method === 'OPTIONS') {
       return new Response(null, { headers: {
         'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+        'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS',
         'Access-Control-Allow-Headers': 'Authorization, Content-Type'
       }});
     }
@@ -100,6 +100,21 @@ export async function onRequest(context) {
       return new Response(JSON.stringify({ ok: true, site: site }), {
         headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
       });
+    }
+
+    // ── DELETE — 删除自己名下某个落地页的 DP 配置 ──
+    if (request.method === 'DELETE') {
+      const url = new URL(request.url);
+      const site = (url.searchParams.get('site') || '').trim();
+      if (!site) {
+        return new Response(JSON.stringify({ ok: false, error: '缺少站点参数' }), { status: 400, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } });
+      }
+      try {
+        await env.DB.prepare('DELETE FROM dp_configs WHERE site = ?1 AND username = ?2').bind(site, me.user).run();
+      } catch (e) {
+        return new Response(JSON.stringify({ ok: false, error: '删除失败: ' + (e && e.message ? e.message : String(e)) }), { status: 500, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } });
+      }
+      return new Response(JSON.stringify({ ok: true, site: site }), { headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } });
     }
 
     return new Response(JSON.stringify({ error: 'Method not allowed' }), {
