@@ -30,6 +30,17 @@ async function getMyUser(request, env) {
 }
 
 function parseJson(s, d) { try { return JSON.parse(s); } catch (e) { return d; } }
+// 补齐缺失的规则键（老数据 / 空 rules 时，保证 device 等各模块结构完整，避免前端勾选状态丢失）
+function fillRuleDefaults(parsed) {
+  var out = JSON.parse(JSON.stringify(DEFAULT_RULES));
+  var p = (parsed && typeof parsed === 'object') ? parsed : {};
+  Object.keys(out).forEach(function (k) {
+    if (p[k] && typeof p[k] === 'object' && !Array.isArray(p[k])) {
+      out[k] = Object.assign({}, out[k], p[k]);
+    }
+  });
+  return out;
+}
 
 export async function onRequest(context) {
   const { request, env } = context;
@@ -62,7 +73,7 @@ export async function onRequest(context) {
               actual_url: r.actual_url || '',
               fallback_url: r.fallback_url || '',
               whitelist_ips: parseJson(r.whitelist_ips, []),
-              rules: parseJson(r.rules, DEFAULT_RULES),
+              rules: fillRuleDefaults(parseJson(r.rules, null)),
               updated_at: r.updated_at || ''
             };
           });
