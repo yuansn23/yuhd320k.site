@@ -2094,8 +2094,9 @@ function showDpDeploy(){
 }
 
 // DP规则设置主入口
-function showDpConfig(){
+function showDpConfig(keep){
   var main = document.getElementById('mainContent');
+  if(!keep) _currentDpUrl = '';
   main.innerHTML = '<div class="page-header"><h1>🧭 DP配置 <span style="color:var(--muted);font-size:.8rem;font-weight:400">/ DP规则设置</span></h1></div>'+
     '<div id="dpContent"></div>';
   renderDpBody();
@@ -2132,7 +2133,7 @@ function renderDpBody(){
       '<label style="font-size:.8rem;color:var(--muted)">落地页地址（给用户打开的页面）</label>'+
       '<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">'+
         '<input type="text" id="dpSite" placeholder="https://snk622ma.site/dp" style="margin-bottom:0;flex:1">'+
-        '<button class="btn btn-o" id="dpGenBtn" style="white-space:nowrap" title="生成一个永不重复的落地页地址并自动填入">🎲 落地页无限域名</button>'+
+        '<button class="btn btn-p" id="dpGenBtn" style="white-space:nowrap;font-size:.92rem" title="生成一个永不重复的落地页地址并自动填入">🎲 落地页无限域名</button>'+
       '</div>'+
       '<label style="font-size:.8rem;color:var(--green);font-weight:700">实际地址（符合规则 → 跳这里）</label><input type="text" id="dpActualUrl" placeholder="https://example.com/real" style="margin-bottom:14px">'+
       '<label style="font-size:.8rem;color:var(--red);font-weight:700">不符合规则地址（命中规则 → 跳这里）</label><input type="text" id="dpFallbackUrl" placeholder="https://www.google.com" style="margin-bottom:14px">'+
@@ -2212,7 +2213,6 @@ async function loadDpConfig(){
     var d = await r.json();
     if(d.error){ msg('dpMsg','err',d.error); return; }
     _dpConfigs = d.configs || [];
-    if(!_currentDpUrl && _dpConfigs.length) _currentDpUrl = _dpConfigs[0].site;
     var cfg = null;
     for(var i=0;i<_dpConfigs.length;i++){ if(_dpConfigs[i].site===_currentDpUrl){ cfg=_dpConfigs[i]; break; } }
     renderDpList();
@@ -2395,7 +2395,7 @@ async function loadDpConfigQuery(){
     }).join('');
     tb.innerHTML = html;
     tb.querySelectorAll('.dpEditBtn').forEach(function(btn){
-      btn.onclick = function(){ _currentDpUrl = btn.getAttribute('data-site'); showDpConfig(); };
+      btn.onclick = function(){ _currentDpUrl = btn.getAttribute('data-site'); showDpConfig(true); };
     });
     tb.querySelectorAll('.dpDelBtn').forEach(function(btn){
       btn.onclick = function(){ delDpSite(btn.getAttribute('data-site')); };
