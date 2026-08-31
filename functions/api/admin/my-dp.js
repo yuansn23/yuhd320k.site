@@ -43,10 +43,9 @@ function fillRuleDefaults(parsed) {
 }
 
 // ============ DP 落地页无限域名（短链式唯一地址生成） ============
-// 生成 https://snk622ma.site/abwx/{8位随机码} 作为落地页地址；
+// 生成 {DP_LANDING_PREFIX}/{8位随机码} 作为落地页地址；
 // 随机码对 dp_configs 全表按落地页地址查重，保证不与任何已配置的落地页重复。
-// 如需更换域名/路径前缀，只改下面这个常量即可（保存后重新部署生效）。
-const DP_LANDING_PREFIX = 'https://snk622ma.site/abwx';
+// 域名/路径前缀由 wrangler.toml [vars] 的 DP_LANDING_PREFIX 配置（env.DP_LANDING_PREFIX，带默认值兜底）。
 
 function genDpId() {
   var chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
@@ -60,7 +59,7 @@ function genDpId() {
 async function uniqueDpId(env) {
   for (var i = 0; i < 10; i++) {
     var id = genDpId();
-    var full = DP_LANDING_PREFIX + '/' + id;
+    var full = (env.DP_LANDING_PREFIX || 'https://snk622ma.site/abwx') + '/' + id;
     try {
       var exist = await env.DB.prepare('SELECT site FROM dp_configs WHERE site = ?1').bind(full).first();
       if (!exist) return id;
@@ -118,7 +117,7 @@ export async function onRequest(context) {
       // 落地页无限域名：生成一个全局唯一的落地页地址并返回
       if (body.action === 'gen') {
         var gid = await uniqueDpId(env);
-        return new Response(JSON.stringify({ ok: true, id: gid, url: DP_LANDING_PREFIX + '/' + gid }), {
+        return new Response(JSON.stringify({ ok: true, id: gid, url: (env.DP_LANDING_PREFIX || 'https://snk622ma.site/abwx') + '/' + gid }), {
           headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
         });
       }
