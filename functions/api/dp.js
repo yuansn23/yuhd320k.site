@@ -218,7 +218,7 @@ async function getIpInfo(env, ip) {
   var url = 'https://ipinfo.io/' + encodeURIComponent(ip) + '/json' + (token ? '?token=' + token : '');
   try {
     var controller = new AbortController();
-    var timer = setTimeout(function () { controller.abort(); }, 800);
+    var timer = setTimeout(function () { controller.abort(); }, 500);
     var res = await fetch(url, { signal: controller.signal });
     clearTimeout(timer);
     if (!res.ok) return null;
@@ -242,7 +242,7 @@ async function getIpIntel(env, ip) {
     var key = env.IPAPI_KEY || '';
     var url = 'https://api.ipapi.is?q=' + encodeURIComponent(ip) + (key ? '&key=' + encodeURIComponent(key) : '');
     var controller = new AbortController();
-    var timer = setTimeout(function () { controller.abort(); }, 1500);
+    var timer = setTimeout(function () { controller.abort(); }, 800);
     var res = await fetch(url, { signal: controller.signal });
     clearTimeout(timer);
     if (!res.ok) return null;
