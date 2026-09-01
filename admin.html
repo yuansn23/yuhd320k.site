@@ -2135,6 +2135,7 @@ function renderDpBody(){
         '<input type="text" id="dpSite" placeholder="https://snk622ma.site/dp" style="margin-bottom:0;flex:1">'+
         '<button class="btn btn-p" id="dpGenBtn" style="white-space:nowrap;font-size:.92rem" title="生成一个永不重复的落地页地址并自动填入">🎲 落地页无限域名</button>'+
       '</div>'+
+      '<label style="font-size:.8rem;color:var(--muted)">备注（可选，给自己看的标记，方便区分不同链接）</label><input type="text" id="dpRemark" placeholder="例如：谷歌广告主推 / 测试用" style="margin-bottom:14px">'+
       '<label style="font-size:.8rem;color:var(--green);font-weight:700">实际地址（符合规则 → 跳这里）</label><input type="text" id="dpActualUrl" placeholder="https://example.com/real" style="margin-bottom:14px">'+
       '<label style="font-size:.8rem;color:var(--red);font-weight:700">不符合规则地址（命中规则 → 跳这里）</label><input type="text" id="dpFallbackUrl" placeholder="https://www.google.com" style="margin-bottom:14px">'+
       '<label style="font-size:.8rem;color:var(--muted)">白名单 IP（每行一个，命中则视为真实用户，直接跳实际地址）</label><textarea id="dpWhitelist" rows="2" placeholder="1.2.3.4"></textarea>'+
@@ -2242,6 +2243,7 @@ function fillDpForm(cfg){
   setVal('dpFallbackUrl', cfg ? cfg.fallback_url : '');
   setChk('dpEnabled', cfg ? !!cfg.enabled : true);
   setVal('dpWhitelist', (cfg && Array.isArray(cfg.whitelist_ips)) ? cfg.whitelist_ips.join('\n') : '');
+  setVal('dpRemark', cfg ? (cfg.remark || '') : '');
 
   var cr = rules.crawler || {}; setChk('dpCrawlerEnabled', cr.enabled !== false);
   var cEng = cr.engines || ['google','facebook','tiktok'];
@@ -2299,6 +2301,7 @@ function saveDpConfig(){
     fallback_url: document.getElementById('dpFallbackUrl').value.trim(),
     enabled: chk('dpEnabled'),
     whitelist_ips: lines('dpWhitelist'),
+    remark: document.getElementById('dpRemark').value.trim(),
     rules: rules
   };
   msg('dpMsg','ok','保存中...');
@@ -2361,7 +2364,7 @@ function showDpConfigQuery(){
   var main = document.getElementById('mainContent');
   main.innerHTML = '<div class="page-header"><h1>🧭 DP配置查询</h1><button class="btn btn-o btn-sm" id="dpQueryRefresh">刷新</button></div>'+
     '<div class="card"><h3>📋 各落地页 DP 配置 <span id="dpQueryCount" style="font-weight:400;font-size:.8rem;color:var(--muted)"></span></h3>'+
-    '<table><thead><tr><th>落地页地址</th><th>实际地址</th><th>不符合规则地址</th><th>状态</th><th>已开启的规则</th><th>白名单IP</th><th>更新时间</th><th>操作</th></tr></thead><tbody id="dpQueryBody"><tr><td colspan="8" class="empty">加载中...</td></tr></tbody></table></div>';
+    '<table><thead><tr><th>序号</th><th>落地页地址</th><th>实际地址</th><th>不符合规则地址</th><th>状态</th><th>已开启的规则</th><th>白名单IP</th><th>备注</th><th>更新时间</th><th>操作</th></tr></thead><tbody id="dpQueryBody"><tr><td colspan="10" class="empty">加载中...</td></tr></tbody></table></div>';
   document.getElementById('dpQueryRefresh').onclick = function(){ loadDpConfigQuery(); };
   loadDpConfigQuery();
 }
@@ -2372,11 +2375,12 @@ async function loadDpConfigQuery(){
   try{
     var r = await fetch('/api/admin/my-dp?_='+Date.now(),{headers:{'Authorization':'Basic '+S.token}});
     var d = await r.json();
-    if(d.error){ tb.innerHTML='<tr><td colspan="8" class="empty">'+esc(d.error)+'</td></tr>'; return; }
+    if(d.error){ tb.innerHTML='<tr><td colspan="10" class="empty">'+esc(d.error)+'</td></tr>'; return; }
     var configs = d.configs||[];
     document.getElementById('dpQueryCount').textContent = '共 '+configs.length+' 个落地页';
-    if(!configs.length){ tb.innerHTML='<tr><td colspan="8" class="empty">暂无 DP 配置</td></tr>'; return; }
-    var html = configs.map(function(c){
+    if(!configs.length){ tb.innerHTML='<tr><td colspan="10" class="empty">暂无 DP 配置</td></tr>'; return; }
+    var html = configs.map(function(c, ci){
+      var num = (c.seq != null) ? c.seq : (ci + 1);
       var rules = describeDpRules(c.rules);
       var ruleHtml = rules.length
         ? rules.map(function(x){ return '<span class="badge green" style="margin:2px 4px 2px 0" title="'+esc(x.detail||'')+'">'+esc(x.name)+(x.detail?' · '+esc(x.detail):'')+'</span>'; }).join('')
@@ -2391,7 +2395,7 @@ async function loadDpConfigQuery(){
         var d8 = new Date(dt.getTime() + 8*3600000);
         ts = d8.getUTCFullYear()+'-'+pad(d8.getUTCMonth()+1)+'-'+pad(d8.getUTCDate())+' '+pad(d8.getUTCHours())+':'+pad(d8.getUTCMinutes());
       }
-      return '<tr><td style="word-break:break-all;font-family:monospace;max-width:200px">'+esc(c.site||'—')+'</td><td style="word-break:break-all;font-family:monospace;max-width:200px">'+esc(c.actual_url||'—')+'</td><td style="word-break:break-all;font-family:monospace;max-width:200px">'+esc(c.fallback_url||'—')+'</td><td>'+status+'</td><td style="max-width:300px">'+ruleHtml+'</td><td>'+(wl?wl+' 个':'—')+'</td><td style="color:var(--muted);font-size:.82rem;white-space:nowrap">'+(ts||'—')+'</td><td><button class="btn btn-p btn-sm dpEditBtn" data-site="'+esc(c.site)+'">✏️ 修改</button> <button class="btn btn-d btn-sm dpDelBtn" data-site="'+esc(c.site)+'">🗑 删除</button></td></tr>';
+      return '<tr><td style="color:var(--muted);font-weight:700">'+num+'</td><td style="word-break:break-all;font-family:monospace;max-width:200px">'+esc(c.site||'—')+'</td><td style="word-break:break-all;font-family:monospace;max-width:200px">'+esc(c.actual_url||'—')+'</td><td style="word-break:break-all;font-family:monospace;max-width:200px">'+esc(c.fallback_url||'—')+'</td><td>'+status+'</td><td style="max-width:300px">'+ruleHtml+'</td><td>'+(wl?wl+' 个':'—')+'</td><td><input type="text" class="dpRemarkInput" data-site="'+esc(c.site)+'" value="'+esc(c.remark||'')+'" placeholder="备注" style="min-width:120px"> <button class="btn btn-o btn-sm dpRemarkSave" data-site="'+esc(c.site)+'">保存</button></td><td style="color:var(--muted);font-size:.82rem;white-space:nowrap">'+(ts||'—')+'</td><td><button class="btn btn-p btn-sm dpEditBtn" data-site="'+esc(c.site)+'">✏️ 修改</button> <button class="btn btn-d btn-sm dpDelBtn" data-site="'+esc(c.site)+'">🗑 删除</button></td></tr>';
     }).join('');
     tb.innerHTML = html;
     tb.querySelectorAll('.dpEditBtn').forEach(function(btn){
@@ -2400,7 +2404,13 @@ async function loadDpConfigQuery(){
     tb.querySelectorAll('.dpDelBtn').forEach(function(btn){
       btn.onclick = function(){ delDpSite(btn.getAttribute('data-site')); };
     });
-  }catch(e){ tb.innerHTML='<tr><td colspan="8" class="empty">加载失败: '+esc(e.message)+'</td></tr>'; }
+    tb.querySelectorAll('.dpRemarkSave').forEach(function(btn){
+      btn.onclick = function(){
+        var inp = btn.parentNode.querySelector('.dpRemarkInput');
+        saveDpRemark(btn.getAttribute('data-site'), inp ? inp.value.trim() : '', btn);
+      };
+    });
+  }catch(e){ tb.innerHTML='<tr><td colspan="10" class="empty">加载失败: '+esc(e.message)+'</td></tr>'; }
 }
 
 // 删除某个落地页的 DP 配置（仅配置查询页使用）
@@ -2412,6 +2422,17 @@ async function delDpSite(site){
     if(d.ok){ loadDpConfigQuery(); }
     else { alert(d.error || '删除失败'); }
   }catch(e){ alert('网络错误'); }
+}
+
+// 备注快捷保存（配置查询页内联编辑）
+async function saveDpRemark(site, remark, btn){
+  if(btn){ btn.disabled = true; }
+  try{
+    var r = await fetch('/api/admin/my-dp',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Basic '+S.token},body:JSON.stringify({action:'remark', site:site, remark:remark})});
+    var d = await r.json();
+    if(d.ok){ loadDpConfigQuery(); }
+    else { alert(d.error || '备注保存失败'); if(btn){ btn.disabled = false; } }
+  }catch(e){ alert('网络错误'); if(btn){ btn.disabled = false; } }
 }
 
 // ── DP流量查询（独立列表页，只读展示名下落地页的访问流量） ──

@@ -90,7 +90,7 @@ export async function onRequest(context) {
     if (request.method === 'GET') {
       var list = [];
       try {
-        var res = await env.DB.prepare('SELECT site, enabled, actual_url, fallback_url, whitelist_ips, rules, updated_at FROM dp_configs WHERE username = ?1 ORDER BY updated_at DESC').bind(me.user).all();
+        var res = await env.DB.prepare('SELECT site, enabled, actual_url, fallback_url, whitelist_ips, rules, remark, seq, updated_at FROM dp_configs WHERE username = ?1 ORDER BY seq ASC, updated_at DESC').bind(me.user).all();
         if (res && res.results) {
           list = res.results.map(function (r) {
             return {
@@ -100,6 +100,8 @@ export async function onRequest(context) {
               fallback_url: r.fallback_url || '',
               whitelist_ips: parseJson(r.whitelist_ips, []),
               rules: fillRuleDefaults(parseJson(r.rules, null)),
+              remark: r.remark || '',
+              seq: (r.seq != null) ? r.seq : null,
               updated_at: r.updated_at || ''
             };
           });
@@ -122,6 +124,21 @@ export async function onRequest(context) {
         });
       }
 
+      // 备注快捷修改：只更新 remark 一列（配置查询页内联编辑）
+      if (body.action === 'remark') {
+        var rSite = (body.site || '').trim();
+        if (!rSite) {
+          return new Response(JSON.stringify({ ok: false, error: '缺少站点参数' }), { status: 400, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } });
+        }
+        var rRemark = (body.remark == null ? '' : String(body.remark)).trim();
+        try {
+          await env.DB.prepare('UPDATE dp_configs SET remark = ?1, updated_at = ?2 WHERE site = ?3 AND username = ?4').bind(rRemark, new Date().toISOString(), rSite, me.user).run();
+        } catch (e) {
+          return new Response(JSON.stringify({ ok: false, error: '备注保存失败: ' + (e && e.message ? e.message : String(e)) }), { status: 500, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } });
+        }
+        return new Response(JSON.stringify({ ok: true, site: rSite, remark: rRemark }), { headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } });
+      }
+
       const site = (body.site || '').trim();
       if (!site) {
         return new Response(JSON.stringify({ ok: false, error: '请填写落地页地址' }), { status: 400, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } });
@@ -130,13 +147,22 @@ export async function onRequest(context) {
       var enabled = (body.enabled === true || body.enabled === 1) ? 1 : 0;
       var actualUrl = (body.actual_url || '').trim();
       var fallbackUrl = (body.fallback_url || '').trim();
+      var remark = (body.remark == null ? '' : String(body.remark)).trim();
       var whitelist = Array.isArray(body.whitelist_ips) ? body.whitelist_ips.map(function (s) { return String(s).trim(); }).filter(Boolean) : [];
       var rules = (body.rules && typeof body.rules === 'object') ? body.rules : DEFAULT_RULES;
       var now = new Date().toISOString();
 
       try {
-        await env.DB.prepare('INSERT INTO dp_configs (site, username, enabled, actual_url, fallback_url, whitelist_ips, rules, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8) ON CONFLICT(site) DO UPDATE SET username = excluded.username, enabled = excluded.enabled, actual_url = excluded.actual_url, fallback_url = excluded.fallback_url, whitelist_ips = excluded.whitelist_ips, rules = excluded.rules, updated_at = excluded.updated_at')
-          .bind(site, me.user, enabled, actualUrl, fallbackUrl, JSON.stringify(whitelist), JSON.stringify(rules), now).run();
+        // 序号：新落地页按该子账户内 max+1 自然增长；已存在则沿用原序号
+        var seq = null;
+        var ex = await env.DB.prepare('SELECT seq FROM dp_configs WHERE site = ?1').bind(site).first();
+        if (ex && ex.seq != null) { seq = ex.seq; }
+        else {
+          var mx = await env.DB.prepare('SELECT COALESCE(MAX(seq), 0) AS m FROM dp_configs WHERE username = ?1').bind(me.user).first();
+          seq = (mx ? (mx.m || 0) : 0) + 1;
+        }
+        await env.DB.prepare('INSERT INTO dp_configs (site, username, enabled, actual_url, fallback_url, whitelist_ips, rules, remark, seq, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10) ON CONFLICT(site) DO UPDATE SET username = excluded.username, enabled = excluded.enabled, actual_url = excluded.actual_url, fallback_url = excluded.fallback_url, whitelist_ips = excluded.whitelist_ips, rules = excluded.rules, remark = excluded.remark, seq = excluded.seq, updated_at = excluded.updated_at')
+          .bind(site, me.user, enabled, actualUrl, fallbackUrl, JSON.stringify(whitelist), JSON.stringify(rules), remark, seq, now).run();
       } catch (e) {
         return new Response(JSON.stringify({ ok: false, error: 'DP 配置保存失败: ' + (e && e.message ? e.message : String(e)) }), {
           status: 500, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
