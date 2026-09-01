@@ -2130,11 +2130,12 @@ function renderDpBody(){
       '<div id="dpListBox"></div>'+
       '<div style="border-top:1px solid var(--border);margin:14px 0"></div>'+
       '<h3>⚙️ 基础设置</h3>'+
-      '<label style="font-size:.8rem;color:var(--muted)">落地页地址（给用户打开的页面）</label>'+
+      '<label style="font-size:.8rem;color:var(--muted)">落地页域名（先选域名，再点「落地页无限域名」生成）</label>'+
       '<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">'+
-        '<input type="text" id="dpSite" placeholder="https://snk622ma.site/dp" style="margin-bottom:0;flex:1">'+
-        '<button class="btn btn-p" id="dpGenBtn" style="white-space:nowrap;font-size:.92rem" title="生成一个永不重复的落地页地址并自动填入">🎲 落地页无限域名</button>'+
+        '<select id="dpSitePrefix" style="margin-bottom:0;flex:1;max-width:340px"></select>'+
+        '<button class="btn btn-p" id="dpGenBtn" style="white-space:nowrap;font-size:.92rem" title="用所选域名生成一个永不重复的落地页地址并自动填入">🎲 落地页无限域名</button>'+
       '</div>'+
+      '<label style="font-size:.8rem;color:var(--muted)">落地页地址（给用户打开的页面）</label><input type="text" id="dpSite" placeholder="点「落地页无限域名」自动生成，或手动粘贴完整地址" style="margin-bottom:14px">'+
       '<label style="font-size:.8rem;color:var(--muted)">备注（可选，给自己看的标记，方便区分不同链接）</label><input type="text" id="dpRemark" placeholder="例如：谷歌广告主推 / 测试用" style="margin-bottom:14px">'+
       '<label style="font-size:.8rem;color:var(--green);font-weight:700">实际地址（符合规则 → 跳这里）</label><input type="text" id="dpActualUrl" placeholder="https://example.com/real" style="margin-bottom:14px">'+
       '<label style="font-size:.8rem;color:var(--red);font-weight:700">不符合规则地址（命中规则 → 跳这里）</label><input type="text" id="dpFallbackUrl" placeholder="https://www.google.com" style="margin-bottom:14px">'+
@@ -2208,12 +2209,21 @@ function setDpSubTab(name){
 
 function dpQuickTz(){ var el=document.getElementById('dpTzList'); if(el) el.value='+8\n+9\n-5\n-8\n0\n+1\n+5.5'; }
 
+function populateDpPrefix(list){
+  var sel = document.getElementById('dpSitePrefix');
+  if(!sel) return;
+  var cur = sel.value;
+  sel.innerHTML = list.map(function(p){ return '<option value="'+esc(p)+'">'+esc(p)+'</option>'; }).join('');
+  if(cur) sel.value = cur;
+}
+
 async function loadDpConfig(){
   try{
     var r = await fetch('/api/admin/my-dp?_='+Date.now(),{headers:{'Authorization':'Basic '+S.token}});
     var d = await r.json();
     if(d.error){ msg('dpMsg','err',d.error); return; }
     _dpConfigs = d.configs || [];
+    if(d.prefixes && d.prefixes.length){ populateDpPrefix(d.prefixes); }
     var cfg = null;
     for(var i=0;i<_dpConfigs.length;i++){ if(_dpConfigs[i].site===_currentDpUrl){ cfg=_dpConfigs[i]; break; } }
     renderDpList();
@@ -2314,9 +2324,13 @@ function saveDpConfig(){
 // 落地页无限域名：调用后端生成一个全局唯一、永不重复的落地页地址并自动填入「落地页地址」
 async function genDpLanding(){
   var btn = document.getElementById('dpGenBtn');
+  var sel = document.getElementById('dpSitePrefix');
+  var prefix = sel ? sel.value : '';
   if(btn){ btn.disabled = true; }
   try{
-    var r = await fetch('/api/admin/my-dp',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Basic '+S.token},body:JSON.stringify({action:'gen'})});
+    var payload = { action:'gen' };
+    if(prefix){ payload.prefix = prefix; }
+    var r = await fetch('/api/admin/my-dp',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Basic '+S.token},body:JSON.stringify(payload)});
     var d = await r.json();
     if(d.ok && d.url){
       var el = document.getElementById('dpSite');
@@ -2360,57 +2374,78 @@ function describeDpRules(rules){
   return out;
 }
 
+var _dpQueryAll = [];
+var _dpQuerySearch = '';
+
 function showDpConfigQuery(){
   var main = document.getElementById('mainContent');
   main.innerHTML = '<div class="page-header"><h1>🧭 DP配置查询</h1><button class="btn btn-o btn-sm" id="dpQueryRefresh">刷新</button></div>'+
     '<div class="card"><h3>📋 各落地页 DP 配置 <span id="dpQueryCount" style="font-weight:400;font-size:.8rem;color:var(--muted)"></span></h3>'+
+    '<div style="margin-bottom:12px"><input type="text" id="dpQuerySearch" placeholder="搜索落地页地址（支持完整地址 / 后缀 abmka / 域名 snk622ma.site）" style="max-width:480px;margin-bottom:0"></div>'+
     '<div style="overflow-x:auto"><table style="min-width:1200px"><thead><tr><th>序号</th><th>落地页地址</th><th>实际地址</th><th>不符合规则地址</th><th>状态</th><th>已开启的规则</th><th>白名单IP</th><th>备注</th><th>更新时间</th><th>操作</th></tr></thead><tbody id="dpQueryBody"><tr><td colspan="10" class="empty">加载中...</td></tr></tbody></table></div></div>';
   document.getElementById('dpQueryRefresh').onclick = function(){ loadDpConfigQuery(); };
+  var s = document.getElementById('dpQuerySearch');
+  if(s) s.oninput = function(){ _dpQuerySearch = s.value.trim(); renderDpQuery(); };
   loadDpConfigQuery();
 }
 
 async function loadDpConfigQuery(){
-  var tb = document.getElementById('dpQueryBody');
-  if(!tb) return;
   try{
     var r = await fetch('/api/admin/my-dp?_='+Date.now(),{headers:{'Authorization':'Basic '+S.token}});
     var d = await r.json();
-    if(d.error){ tb.innerHTML='<tr><td colspan="10" class="empty">'+esc(d.error)+'</td></tr>'; return; }
-    var configs = d.configs||[];
-    document.getElementById('dpQueryCount').textContent = '共 '+configs.length+' 个落地页';
-    if(!configs.length){ tb.innerHTML='<tr><td colspan="10" class="empty">暂无 DP 配置</td></tr>'; return; }
-    var html = configs.map(function(c, ci){
-      var num = (c.seq != null) ? c.seq : (ci + 1);
-      var rules = describeDpRules(c.rules);
-      var ruleHtml = rules.length
-        ? rules.map(function(x){ return '<span class="badge green" style="margin:2px 4px 2px 0" title="'+esc(x.detail||'')+'">'+esc(x.name)+(x.detail?' · '+esc(x.detail):'')+'</span>'; }).join('')
-        : '<span class="badge" style="background:rgba(255,255,255,.06);color:var(--muted)">未开启任何规则</span>';
-      var status = (!c.updated_at)
-        ? '<span class="badge" style="background:rgba(255,255,255,.06);color:var(--muted)">未配置</span>'
-        : (c.enabled ? '<span class="badge green">已启用</span>' : '<span class="badge red">已停用</span>');
-      var wl = (c.whitelist_ips||[]).length;
-      var ts = '';
-      if(c.updated_at){
-        var dt = new Date(c.updated_at);
-        var d8 = new Date(dt.getTime() + 8*3600000);
-        ts = d8.getUTCFullYear()+'-'+pad(d8.getUTCMonth()+1)+'-'+pad(d8.getUTCDate())+' '+pad(d8.getUTCHours())+':'+pad(d8.getUTCMinutes());
-      }
-      return '<tr><td style="color:var(--muted);font-weight:700">'+num+'</td><td style="word-break:break-all;font-family:monospace;max-width:200px">'+esc(c.site||'—')+'</td><td style="word-break:break-all;font-family:monospace;max-width:200px">'+esc(c.actual_url||'—')+'</td><td style="word-break:break-all;font-family:monospace;max-width:200px">'+esc(c.fallback_url||'—')+'</td><td>'+status+'</td><td style="max-width:300px">'+ruleHtml+'</td><td>'+(wl?wl+' 个':'—')+'</td><td><input type="text" class="dpRemarkInput" data-site="'+esc(c.site)+'" value="'+esc(c.remark||'')+'" placeholder="备注" style="min-width:110px"> <button class="btn btn-p btn-sm dpRemarkSave" data-site="'+esc(c.site)+'" style="white-space:nowrap">💾 保存</button></td><td style="color:var(--muted);font-size:.82rem;white-space:nowrap">'+(ts||'—')+'</td><td><button class="btn btn-p btn-sm dpEditBtn" data-site="'+esc(c.site)+'">✏️ 修改</button> <button class="btn btn-d btn-sm dpDelBtn" data-site="'+esc(c.site)+'">🗑 删除</button></td></tr>';
-    }).join('');
-    tb.innerHTML = html;
-    tb.querySelectorAll('.dpEditBtn').forEach(function(btn){
-      btn.onclick = function(){ _currentDpUrl = btn.getAttribute('data-site'); showDpConfig(true); };
-    });
-    tb.querySelectorAll('.dpDelBtn').forEach(function(btn){
-      btn.onclick = function(){ delDpSite(btn.getAttribute('data-site')); };
-    });
-    tb.querySelectorAll('.dpRemarkSave').forEach(function(btn){
-      btn.onclick = function(){
-        var inp = btn.parentNode.querySelector('.dpRemarkInput');
-        saveDpRemark(btn.getAttribute('data-site'), inp ? inp.value.trim() : '', btn);
-      };
-    });
-  }catch(e){ tb.innerHTML='<tr><td colspan="10" class="empty">加载失败: '+esc(e.message)+'</td></tr>'; }
+    if(d.error){
+      var tb = document.getElementById('dpQueryBody');
+      if(tb) tb.innerHTML='<tr><td colspan="10" class="empty">'+esc(d.error)+'</td></tr>';
+      return;
+    }
+    _dpQueryAll = d.configs||[];
+    renderDpQuery();
+  }catch(e){
+    var tb = document.getElementById('dpQueryBody');
+    if(tb) tb.innerHTML='<tr><td colspan="10" class="empty">加载失败: '+esc(e.message)+'</td></tr>';
+  }
+}
+
+// 按落地页地址渲染（支持完整地址 / 后缀 / 域名 模糊匹配，大小写不敏感）
+function renderDpQuery(){
+  var tb = document.getElementById('dpQueryBody');
+  if(!tb) return;
+  var q = (_dpQuerySearch||'').toLowerCase();
+  var configs = _dpQueryAll.filter(function(c){ return !q || (c.site||'').toLowerCase().indexOf(q) !== -1; });
+  document.getElementById('dpQueryCount').textContent = '共 '+_dpQueryAll.length+' 个落地页' + (q ? '，匹配 '+configs.length+' 个' : '');
+  if(!_dpQueryAll.length){ tb.innerHTML='<tr><td colspan="10" class="empty">暂无 DP 配置</td></tr>'; return; }
+  if(!configs.length){ tb.innerHTML='<tr><td colspan="10" class="empty">没有匹配「'+esc(_dpQuerySearch)+'」的落地页</td></tr>'; return; }
+  var html = configs.map(function(c, ci){
+    var num = (c.seq != null) ? c.seq : (ci + 1);
+    var rules = describeDpRules(c.rules);
+    var ruleHtml = rules.length
+      ? rules.map(function(x){ return '<span class="badge green" style="margin:2px 4px 2px 0" title="'+esc(x.detail||'')+'">'+esc(x.name)+(x.detail?' · '+esc(x.detail):'')+'</span>'; }).join('')
+      : '<span class="badge" style="background:rgba(255,255,255,.06);color:var(--muted)">未开启任何规则</span>';
+    var status = (!c.updated_at)
+      ? '<span class="badge" style="background:rgba(255,255,255,.06);color:var(--muted)">未配置</span>'
+      : (c.enabled ? '<span class="badge green">已启用</span>' : '<span class="badge red">已停用</span>');
+    var wl = (c.whitelist_ips||[]).length;
+    var ts = '';
+    if(c.updated_at){
+      var dt = new Date(c.updated_at);
+      var d8 = new Date(dt.getTime() + 8*3600000);
+      ts = d8.getUTCFullYear()+'-'+pad(d8.getUTCMonth()+1)+'-'+pad(d8.getUTCDate())+' '+pad(d8.getUTCHours())+':'+pad(d8.getUTCMinutes());
+    }
+    return '<tr><td style="color:var(--muted);font-weight:700">'+num+'</td><td style="word-break:break-all;font-family:monospace;max-width:200px">'+esc(c.site||'—')+'</td><td style="word-break:break-all;font-family:monospace;max-width:200px">'+esc(c.actual_url||'—')+'</td><td style="word-break:break-all;font-family:monospace;max-width:200px">'+esc(c.fallback_url||'—')+'</td><td>'+status+'</td><td style="max-width:300px">'+ruleHtml+'</td><td>'+(wl?wl+' 个':'—')+'</td><td><input type="text" class="dpRemarkInput" data-site="'+esc(c.site)+'" value="'+esc(c.remark||'')+'" placeholder="备注" style="min-width:110px"> <button class="btn btn-p btn-sm dpRemarkSave" data-site="'+esc(c.site)+'" style="white-space:nowrap">💾 保存</button></td><td style="color:var(--muted);font-size:.82rem;white-space:nowrap">'+(ts||'—')+'</td><td><button class="btn btn-p btn-sm dpEditBtn" data-site="'+esc(c.site)+'">✏️ 修改</button> <button class="btn btn-d btn-sm dpDelBtn" data-site="'+esc(c.site)+'">🗑 删除</button></td></tr>';
+  }).join('');
+  tb.innerHTML = html;
+  tb.querySelectorAll('.dpEditBtn').forEach(function(btn){
+    btn.onclick = function(){ _currentDpUrl = btn.getAttribute('data-site'); showDpConfig(true); };
+  });
+  tb.querySelectorAll('.dpDelBtn').forEach(function(btn){
+    btn.onclick = function(){ delDpSite(btn.getAttribute('data-site')); };
+  });
+  tb.querySelectorAll('.dpRemarkSave').forEach(function(btn){
+    btn.onclick = function(){
+      var inp = btn.parentNode.querySelector('.dpRemarkInput');
+      saveDpRemark(btn.getAttribute('data-site'), inp ? inp.value.trim() : '', btn);
+    };
+  });
 }
 
 // 删除某个落地页的 DP 配置（仅配置查询页使用）

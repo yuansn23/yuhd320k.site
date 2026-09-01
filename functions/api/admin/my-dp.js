@@ -43,9 +43,17 @@ function fillRuleDefaults(parsed) {
 }
 
 // ============ DP 落地页无限域名（短链式唯一地址生成） ============
-// 生成 {DP_LANDING_PREFIX}/{8位随机码} 作为落地页地址；
+// 生成 {域名前缀}/{8位随机码} 作为落地页地址；
 // 随机码对 dp_configs 全表按落地页地址查重，保证不与任何已配置的落地页重复。
-// 域名/路径前缀由 wrangler.toml [vars] 的 DP_LANDING_PREFIX 配置（env.DP_LANDING_PREFIX，带默认值兜底）。
+// 域名前缀由 wrangler.toml [vars] 的 DP_LANDING_PREFIX 配置（多个域名用英文逗号分隔，带默认值兜底）。
+
+// 解析可用落地页域名前缀列表（逗号分隔、去空白；未配置则回退默认单域名）
+function dpPrefixes(env) {
+  var raw = env.DP_LANDING_PREFIX || 'https://snk622ma.site/abwx';
+  var list = String(raw).split(',').map(function (s) { return s.trim(); }).filter(Boolean);
+  if (!list.length) list = ['https://snk622ma.site/abwx'];
+  return list;
+}
 
 function genDpId() {
   var chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
@@ -56,10 +64,11 @@ function genDpId() {
   return out;
 }
 
-async function uniqueDpId(env) {
+async function uniqueDpId(env, prefix) {
+  var base = prefix || dpPrefixes(env)[0];
   for (var i = 0; i < 10; i++) {
     var id = genDpId();
-    var full = (env.DP_LANDING_PREFIX || 'https://snk622ma.site/abwx') + '/' + id;
+    var full = base + '/' + id;
     try {
       var exist = await env.DB.prepare('SELECT site FROM dp_configs WHERE site = ?1').bind(full).first();
       if (!exist) return id;
@@ -107,7 +116,7 @@ export async function onRequest(context) {
           });
         }
       } catch (e) {}
-      return new Response(JSON.stringify({ configs: list }), {
+      return new Response(JSON.stringify({ prefixes: dpPrefixes(env), configs: list }), {
         headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
       });
     }
@@ -116,10 +125,14 @@ export async function onRequest(context) {
     if (request.method === 'POST') {
       const body = await request.json();
 
-      // 落地页无限域名：生成一个全局唯一的落地页地址并返回
+      // 落地页无限域名：用指定域名前缀生成一个全局唯一的落地页地址并返回
       if (body.action === 'gen') {
-        var gid = await uniqueDpId(env);
-        return new Response(JSON.stringify({ ok: true, id: gid, url: (env.DP_LANDING_PREFIX || 'https://snk622ma.site/abwx') + '/' + gid }), {
+        var prefixes = dpPrefixes(env);
+        var pfx = String(body.prefix || '').trim();
+        if (pfx && prefixes.indexOf(pfx) === -1) pfx = ''; // 非法/未选中前缀 → 用默认第一个
+        var usePfx = pfx || prefixes[0];
+        var gid = await uniqueDpId(env, usePfx);
+        return new Response(JSON.stringify({ ok: true, id: gid, url: usePfx + '/' + gid, prefix: usePfx }), {
           headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
         });
       }

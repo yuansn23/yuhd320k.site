@@ -14,8 +14,8 @@ CF_ZONE_ID = "af4e6aa04fe569eea70e8ecb0b63b6e1"
 IPINFO_TOKEN = ""
 # api.ipapi.is 付费 key（读取 is_datacenter/is_vpn/is_proxy/is_tor 精确字段）
 IPAPI_KEY = "1055cc9b97669de2214b"
-# DP落地页无限域名前缀（生成 https://snk622ma.site/abwx/{8位随机码}；改域名/路径只改这里）
-DP_LANDING_PREFIX = "https://snk622ma.site/abwx"
+# DP落地页无限域名前缀（生成 {域名}/{8位随机码}；多个域名用英文逗号分隔，改域名/路径只改这里）
+DP_LANDING_PREFIX = "https://snk622ma.site/abwx,https://amh626m.site/abwx,https://hte629d.site/abwx"
 
 # ── KV 命名空间（存储 APK URL + 上传历史）──
 [[kv_namespaces]]
