@@ -165,6 +165,7 @@ S.role = sessionStorage.getItem('st_role') || '';
 S.site = sessionStorage.getItem('st_site') || '';
 S.cloak_enabled = sessionStorage.getItem('st_cloak_enabled') === '1' ? 1 : 0;
 S.ab_enabled = sessionStorage.getItem('st_ab_enabled') === '1' ? 1 : 0;
+S.dp_enabled = sessionStorage.getItem('st_dp_enabled') === '1' ? 1 : 0;
 
 // ========== LOGIN ==========
 document.getElementById('loginBtn').onclick = login;
@@ -182,6 +183,7 @@ async function login(){
       S.token = d.token; S.user = d.user; S.role = d.role; S.site = d.site||'';
       S.cloak_enabled = d.cloak_enabled ? 1 : 0;
       S.ab_enabled = 0; sessionStorage.removeItem('st_ab_enabled');
+      S.dp_enabled = 0; sessionStorage.removeItem('st_dp_enabled');
       ['st_token','st_user','st_role','st_site','st_cloak_enabled'].forEach(function(k,i){ sessionStorage.setItem(k,[S.token,S.user,S.role,S.site,S.cloak_enabled][i]); });
       sessionStorage.removeItem('st_current_site'); // 登录后重置站点选择，避免沿用上一个账户的站点
       document.getElementById('loginPage').classList.add('hide');
@@ -189,13 +191,13 @@ async function login(){
       document.getElementById('sidebarUser').innerHTML = '👤 '+S.user + (S.role==='admin'?' <span class=\"badge green\">管理员</span>':' <span class=\"badge red\">子账户</span>');
       buildNav();
       if(S.role==='admin') showAccounts(); else showDashboard();
-      if(S.role !== 'admin') refreshAbPerm();
+      if(S.role !== 'admin'){ refreshAbPerm(); refreshDpPerm(); }
     }else{ msg('loginMsg','err',d.error||'登录失败'); }
   }catch(e){ msg('loginMsg','err','网络错误'); }
 }
 
 document.getElementById('logoutBtn').onclick = function(){
-  ['st_token','st_user','st_role','st_site','st_cloak_enabled','st_ab_enabled','st_current_site'].forEach(function(k){ sessionStorage.removeItem(k); });
+  ['st_token','st_user','st_role','st_site','st_cloak_enabled','st_ab_enabled','st_dp_enabled','st_current_site'].forEach(function(k){ sessionStorage.removeItem(k); });
   location.reload();
 };
 
@@ -211,7 +213,7 @@ function buildNav(){
       '<a class="nav-parent" data-p="abParent">🎭 AB页+斗篷 <span class="nav-arrow">▾</span></a>'+
       '<div class="nav-sub" id="abSubmenu"><a data-p="abDeploy">AB页如何部署</a><a data-p="abRules"'+(S.ab_enabled?'':' class="disabled"')+'>AB页规则设置</a><a data-p="abQuery">AB页配置查询</a><a data-p="abTraffic">AB页流量查询</a></div>'+
       '<a class="nav-parent" data-p="dpParent">🧭 DP配置 <span class="nav-arrow">▾</span></a>'+
-      '<div class="nav-sub" id="dpSubmenu"><a data-p="dpDeploy">DP如何部署</a><a data-p="dpRules">DP规则设置</a><a data-p="dpQuery">DP配置查询</a><a data-p="dpTraffic">DP流量查询</a></div>';
+      '<div class="nav-sub" id="dpSubmenu"><a data-p="dpDeploy">DP如何部署</a><a data-p="dpRules"'+(S.dp_enabled?'':' class="disabled"')+'>DP规则设置</a><a data-p="dpQuery">DP配置查询</a><a data-p="dpTraffic">DP流量查询</a></div>';
   }
   nav.querySelectorAll('a').forEach(function(a){
     a.onclick = function(){
@@ -266,7 +268,7 @@ function buildNav(){
       else if(p==='abQuery'){ showAbConfigQuery(); }
       else if(p==='abTraffic'){ showAbTraffic(); }
       else if(p==='dpDeploy'){ showDpDeploy(); }
-      else if(p==='dpRules'){ showDpConfig(); }
+      else if(p==='dpRules'){ openDpRules(); }
       else if(p==='dpQuery'){ showDpConfigQuery(); }
       else if(p==='dpTraffic'){ showDpTraffic(); }
     };
@@ -282,7 +284,7 @@ async function showAccounts(){
     '<div class="card"><h3>➕ 创建子账户</h3>'+
     '<div class="form-row"><input type="text" id="newUser" placeholder="用户名"><input type="text" id="newPass" placeholder="密码"><input type="text" id="newSite" placeholder="绑定域名 site1.example.com"><button class="btn btn-p" id="createBtn">创建</button></div><div id="createMsg"></div></div>'+
     '<div id="editModal" class="hide" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.7);z-index:99;display:flex;align-items:center;justify-content:center"><div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:28px;width:480px;max-width:95vw;max-height:90vh;overflow-y:auto"><h3 style="margin-bottom:16px">✏️ 编辑子账户 <span id="editUsername" style="color:var(--green)"></span></h3><label style="font-size:.8rem;color:var(--muted)">新用户名（留空不修改）</label><input type="text" id="editNewUser" placeholder="留空则不修改用户名" style="margin-bottom:8px"><label style="font-size:.8rem;color:var(--muted)">新密码（留空不修改）</label><input type="text" id="editPass" placeholder="留空则不修改密码" style="margin-bottom:8px"><label style="font-size:.8rem;color:var(--muted)">主站点域名</label><input type="text" id="editSite" placeholder="https://site.example.com/estest/" style="margin-bottom:12px"><label style="font-size:.8rem;color:var(--muted);display:flex;align-items:center;gap:8px">🌐 额外落地页 <button class="btn btn-p btn-sm" id="addSiteBtn" style="font-size:.68rem;padding:4px 10px">+ 添加</button></label><div id="editSitesList" style="margin-bottom:12px"></div><div class="form-row" id="addSiteRow" style="display:none"><input type="text" id="newSiteInput" placeholder="输入落地页域名 site.example.com"><button class="btn btn-p btn-sm" id="confirmAddSiteBtn">确定</button></div><div style="display:flex;gap:10px"><button class="btn btn-p" id="saveEditBtn">保存</button><button class="btn btn-o" id="cancelEditBtn">取消</button></div><div id="editMsg"></div></div></div>'+
-    '<div class="card"><h3>📋 子账户列表</h3><table><thead><tr><th>用户名</th><th>密码</th><th>绑定站点</th><th>点击/下载</th><th>像素</th><th>跳转地址</th><th>斗篷权限</th><th>AB权限</th><th>操作</th></tr></thead><tbody id="accountsBody"><tr><td colspan="9" class="empty">加载中...</td></tr></tbody></table></div>';
+    '<div class="card"><h3>📋 子账户列表</h3><table><thead><tr><th>用户名</th><th>密码</th><th>绑定站点</th><th>点击/下载</th><th>像素</th><th>跳转地址</th><th>斗篷权限</th><th>AB权限</th><th>DP权限</th><th>操作</th></tr></thead><tbody id="accountsBody"><tr><td colspan="10" class="empty">加载中...</td></tr></tbody></table></div>';
 
   document.getElementById('createBtn').onclick = createAccount;
   loadAccounts();
@@ -293,12 +295,18 @@ async function loadAccounts(){
   try{
     var r = await fetch('/api/admin/accounts',{headers:{'Authorization':'Basic '+S.token}});
     var list = await r.json();
-    if(!list.length){ tbody.innerHTML='<tr><td colspan="9" class="empty">暂无子账户</td></tr>'; return; }
+    if(!list.length){ tbody.innerHTML='<tr><td colspan="10" class="empty">暂无子账户</td></tr>'; return; }
     var abMap = {};
     try{
       var abr = await fetch('/api/admin/ab-perm',{headers:{'Authorization':'Basic '+S.token}});
       var abList = await abr.json();
       if(Array.isArray(abList)){ abList.forEach(function(x){ abMap[x.username] = x.ab_enabled ? 1 : 0; }); }
+    }catch(e){}
+    var dpMap = {};
+    try{
+      var dpr = await fetch('/api/admin/dp-perm',{headers:{'Authorization':'Basic '+S.token}});
+      var dpList = await dpr.json();
+      if(Array.isArray(dpList)){ dpList.forEach(function(x){ dpMap[x.username] = x.dp_enabled ? 1 : 0; }); }
     }catch(e){}
     tbody.innerHTML = list.map(function(a){
       var siteList = (a.stats.sites||[]).map(function(s){return s.site;});
@@ -311,9 +319,11 @@ async function loadAccounts(){
       var cloakOn = a.cloak_enabled ? 1 : 0;
       var abOn = abMap[a.username] ? 1 : 0;
       var abBtn = '<button class="btn '+(abOn?'btn-p':'btn-o')+' btn-sm" data-ab="'+esc(a.username)+'">'+(abOn?'已开启':'未开通')+'</button>';
+      var dpOn = dpMap[a.username] ? 1 : 0;
+      var dpBtn = '<button class="btn '+(dpOn?'btn-p':'btn-o')+' btn-sm" data-dp="'+esc(a.username)+'">'+(dpOn?'已开启':'未开通')+'</button>';
       var cloakBtn = '<button class=\"btn '+(cloakOn?'btn-p':'btn-o')+' btn-sm\" data-cloak=\"'+esc(a.username)+'\">'+(cloakOn?'已开启':'未开通')+'</button>';
       return '<tr style=\"'+(isDisabled?'opacity:.5':'')+'\"><td><strong>'+esc(a.username)+'</strong>'+statusBadge+'</td><td style=\"font-family:monospace\">'+esc(a.pw||'—')+'</td><td style=\"max-width:260px\">'+sitesHtml+'</td><td>'+a.stats.downloads+'</td><td>'+(a.stats.pixels||[]).length+'</td><td style=\"max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap\">'+esc(a.stats.apkUrl||'—')+'</td>'+
-        '<td>'+cloakBtn+'</td><td>'+abBtn+'</td>'+
+        '<td>'+cloakBtn+'</td><td>'+abBtn+'</td><td>'+dpBtn+'</td>'+
         '<td><button class=\"btn btn-p btn-sm\" data-edit=\"'+esc(a.username)+'\">编辑</button> <button class=\"btn '+toggleCls+' btn-sm\" data-toggle=\"'+esc(a.username)+'\">'+toggleLabel+'</button> <button class=\"btn btn-d btn-sm\" data-del=\"'+esc(a.username)+'\">删除</button></td></tr>';
     }).join('');
     tbody.querySelectorAll('[data-edit]').forEach(function(b){
@@ -331,7 +341,10 @@ async function loadAccounts(){
     tbody.querySelectorAll('[data-ab]').forEach(function(b){
       b.onclick = function(){ toggleAb(this.getAttribute('data-ab')); };
     });
-  }catch(e){ tbody.innerHTML='<tr><td colspan="9" class="empty">加载失败: '+esc(e.message)+'</td></tr>'; }
+    tbody.querySelectorAll('[data-dp]').forEach(function(b){
+      b.onclick = function(){ toggleDp(this.getAttribute('data-dp')); };
+    });
+  }catch(e){ tbody.innerHTML='<tr><td colspan="10" class="empty">加载失败: '+esc(e.message)+'</td></tr>'; }
 }
 
 async function toggleAccount(u){
@@ -353,6 +366,14 @@ async function toggleCloak(u){
 async function toggleAb(u){
   try{
     var r = await fetch('/api/admin/ab-perm',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Basic '+S.token},body:JSON.stringify({username:u,action:'toggle'})});
+    var d = await r.json();
+    if(d.ok) loadAccounts(); else alert(d.error);
+  }catch(e){ alert('网络错误'); }
+}
+
+async function toggleDp(u){
+  try{
+    var r = await fetch('/api/admin/dp-perm',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Basic '+S.token},body:JSON.stringify({username:u,action:'toggle'})});
     var d = await r.json();
     if(d.ok) loadAccounts(); else alert(d.error);
   }catch(e){ alert('网络错误'); }
@@ -2063,6 +2084,43 @@ var _dpTrafficPage = 1;
 var _dpTrafficSite = '';
 var _dpTrafficResult = '';
 
+// 从服务端拉取最新 DP 权限，同步到 S.dp_enabled / sessionStorage / 菜单灰态
+async function refreshDpPerm(){
+  if(S.role === 'admin'){ S.dp_enabled = 1; return; }
+  try{
+    var r = await fetch('/api/admin/my-dp',{headers:{'Authorization':'Basic '+S.token}});
+    var d = await r.json();
+    if(d && (d.dp_enabled === 0 || d.dp_enabled === 1)){
+      S.dp_enabled = d.dp_enabled;
+      sessionStorage.setItem('st_dp_enabled', S.dp_enabled ? '1' : '0');
+      var item = document.querySelector('[data-p="dpRules"]');
+      if(item){ if(S.dp_enabled) item.classList.remove('disabled'); else item.classList.add('disabled'); }
+    }
+  }catch(e){}
+}
+
+// 点击「DP规则设置」：先拉最新权限，再决定进配置页或弹锁定弹窗
+async function openDpRules(){
+  await refreshDpPerm();
+  if(S.dp_enabled){ showDpConfig(); }
+  else { showDpLocked(); }
+}
+
+// 无 DP 权限时点击「DP规则设置」：渲染页面内容 + 叠加不可关闭提示弹窗
+function showDpLocked(){
+  showDpConfig();
+  var overlay = document.createElement('div');
+  overlay.id = 'dpLockOverlay';
+  overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.72);z-index:9999;display:flex;align-items:center;justify-content:center';
+  overlay.innerHTML = '<div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:34px 42px;max-width:420px;width:90%;text-align:center;box-shadow:0 24px 70px rgba(0,0,0,.55)">'+
+    '<div style="font-size:3rem;line-height:1;margin-bottom:16px">🔒</div>'+
+    '<div style="font-size:1.12rem;font-weight:800;color:var(--text);margin-bottom:10px">DP配置未开通</div>'+
+    '<div style="color:var(--amber);font-size:.98rem;font-weight:800;margin-bottom:20px">请联系管理员开通权限</div>'+
+    '<button class="btn btn-p" onclick="location.reload()">🏠 回到首页</button>'+
+    '</div>';
+  document.body.appendChild(overlay);
+}
+
 // DP如何部署
 function showDpDeploy(){
   var main = document.getElementById('mainContent');
@@ -2411,6 +2469,7 @@ function renderDpQuery(){
   var tb = document.getElementById('dpQueryBody');
   if(!tb) return;
   var q = (_dpQuerySearch||'').toLowerCase();
+  var canWrite = (S.role === 'admin') || S.dp_enabled;
   var configs = _dpQueryAll.filter(function(c){ return !q || (c.site||'').toLowerCase().indexOf(q) !== -1 || (c.remark||'').toLowerCase().indexOf(q) !== -1; });
   document.getElementById('dpQueryCount').textContent = '共 '+_dpQueryAll.length+' 个落地页' + (q ? '，匹配 '+configs.length+' 个' : '');
   if(!_dpQueryAll.length){ tb.innerHTML='<tr><td colspan="10" class="empty">暂无 DP 配置</td></tr>'; return; }
@@ -2431,7 +2490,13 @@ function renderDpQuery(){
       var d8 = new Date(dt.getTime() + 8*3600000);
       ts = d8.getUTCFullYear()+'-'+pad(d8.getUTCMonth()+1)+'-'+pad(d8.getUTCDate())+' '+pad(d8.getUTCHours())+':'+pad(d8.getUTCMinutes());
     }
-    return '<tr><td style="color:var(--muted);font-weight:700">'+num+'</td><td style="word-break:break-all;font-family:monospace;max-width:200px">'+esc(c.site||'—')+'</td><td style="word-break:break-all;font-family:monospace;max-width:200px">'+esc(c.actual_url||'—')+'</td><td style="word-break:break-all;font-family:monospace;max-width:200px">'+esc(c.fallback_url||'—')+'</td><td>'+status+'</td><td style="max-width:300px">'+ruleHtml+'</td><td>'+(wl?wl+' 个':'—')+'</td><td><input type="text" class="dpRemarkInput" data-site="'+esc(c.site)+'" value="'+esc(c.remark||'')+'" placeholder="备注" style="min-width:110px"> <button class="btn btn-p btn-sm dpRemarkSave" data-site="'+esc(c.site)+'" style="white-space:nowrap">💾 保存</button></td><td style="color:var(--muted);font-size:.82rem;white-space:nowrap">'+(ts||'—')+'</td><td><button class="btn btn-p btn-sm dpEditBtn" data-site="'+esc(c.site)+'">✏️ 修改</button> <button class="btn btn-d btn-sm dpDelBtn" data-site="'+esc(c.site)+'">🗑 删除</button></td></tr>';
+    var remarkCell = canWrite
+      ? '<td><input type="text" class="dpRemarkInput" data-site="'+esc(c.site)+'" value="'+esc(c.remark||'')+'" placeholder="备注" style="min-width:110px"> <button class="btn btn-p btn-sm dpRemarkSave" data-site="'+esc(c.site)+'" style="white-space:nowrap">💾 保存</button></td>'
+      : '<td style="word-break:break-all;max-width:160px">'+(c.remark ? esc(c.remark) : '<span class="badge" style="background:rgba(255,255,255,.06);color:var(--muted)">—</span>')+'</td>';
+    var actionCell = canWrite
+      ? '<td><button class="btn btn-p btn-sm dpEditBtn" data-site="'+esc(c.site)+'">✏️ 修改</button> <button class="btn btn-d btn-sm dpDelBtn" data-site="'+esc(c.site)+'">🗑 删除</button></td>'
+      : '<td><span class="badge" style="background:rgba(240,136,62,.15);color:var(--amber);font-weight:800;white-space:nowrap">需开通权限</span></td>';
+    return '<tr><td style="color:var(--muted);font-weight:700">'+num+'</td><td style="word-break:break-all;font-family:monospace;max-width:200px">'+esc(c.site||'—')+'</td><td style="word-break:break-all;font-family:monospace;max-width:200px">'+esc(c.actual_url||'—')+'</td><td style="word-break:break-all;font-family:monospace;max-width:200px">'+esc(c.fallback_url||'—')+'</td><td>'+status+'</td><td style="max-width:300px">'+ruleHtml+'</td><td>'+(wl?wl+' 个':'—')+'</td>'+remarkCell+'<td style="color:var(--muted);font-size:.82rem;white-space:nowrap">'+(ts||'—')+'</td>'+actionCell+'</tr>';
   }).join('');
   tb.innerHTML = html;
   tb.querySelectorAll('.dpEditBtn').forEach(function(btn){

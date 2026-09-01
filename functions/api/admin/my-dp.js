@@ -25,7 +25,9 @@ async function getMyUser(request, env) {
     }
     if (!account) return null;
     if (auth !== 'Basic ' + btoa(user + ':' + role + ':' + (account.password || account.pw))) return null;
-    return { user, role, site: account.site || '' };
+    var dpEnabled = 0;
+    try { var dr = await env.DB.prepare('SELECT enabled FROM dp_permissions WHERE username = ?1').bind(user).first(); dpEnabled = (dr && dr.enabled === 1) ? 1 : 0; } catch (e) {}
+    return { user, role, site: account.site || '', dp_enabled: dpEnabled };
   } catch (e) { return null; }
 }
 
@@ -116,7 +118,7 @@ export async function onRequest(context) {
           });
         }
       } catch (e) {}
-      return new Response(JSON.stringify({ prefixes: dpPrefixes(env), configs: list }), {
+      return new Response(JSON.stringify({ prefixes: dpPrefixes(env), dp_enabled: me.dp_enabled, configs: list }), {
         headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
       });
     }
@@ -124,6 +126,13 @@ export async function onRequest(context) {
     // ── POST — 保存 DP 配置 ──
     if (request.method === 'POST') {
       const body = await request.json();
+
+      // DP 权限校验：未开通权限的子账户不能生成/保存/修改 DP 配置（只读查询不受限）
+      if (me.role !== 'admin' && !me.dp_enabled) {
+        return new Response(JSON.stringify({ ok: false, error: 'DP配置功能未开通，请联系管理员开通', code: 'DP_DISABLED' }), {
+          status: 403, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
 
       // 落地页无限域名：用指定域名前缀生成一个全局唯一的落地页地址并返回
       if (body.action === 'gen') {
@@ -188,6 +197,12 @@ export async function onRequest(context) {
 
     // ── DELETE — 删除自己名下某个落地页的 DP 配置 ──
     if (request.method === 'DELETE') {
+      // DP 权限校验：未开通权限的子账户不能删除 DP 配置
+      if (me.role !== 'admin' && !me.dp_enabled) {
+        return new Response(JSON.stringify({ ok: false, error: 'DP配置功能未开通，请联系管理员开通', code: 'DP_DISABLED' }), {
+          status: 403, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
       const url = new URL(request.url);
       const site = (url.searchParams.get('site') || '').trim();
       if (!site) {
