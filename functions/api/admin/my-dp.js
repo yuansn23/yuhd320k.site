@@ -47,9 +47,9 @@ function fillRuleDefaults(parsed) {
 // 随机码对 dp_configs 全表按落地页地址查重，保证不与任何已配置的落地页重复。
 // 域名前缀由 wrangler.toml [vars] 的 DP_LANDING_PREFIX 配置（多个域名用英文逗号分隔，带默认值兜底）。
 
-// 解析可用落地页域名前缀列表（逗号分隔、去空白；未配置则回退默认单域名）
+// 解析可用落地页域名前缀列表（逗号分隔、去空白；未配置环境变量则回退下面写死的3个域名）
 function dpPrefixes(env) {
-  var raw = env.DP_LANDING_PREFIX || 'https://snk622ma.site/abwx';
+  var raw = env.DP_LANDING_PREFIX || 'https://snk622ma.site/abwx,https://amh626m.site/abwx,https://hte629d.site/abwx';
   var list = String(raw).split(',').map(function (s) { return s.trim(); }).filter(Boolean);
   if (!list.length) list = ['https://snk622ma.site/abwx'];
   return list;
