@@ -2381,7 +2381,7 @@ function showDpConfigQuery(){
   var main = document.getElementById('mainContent');
   main.innerHTML = '<div class="page-header"><h1>🧭 DP配置查询</h1><button class="btn btn-o btn-sm" id="dpQueryRefresh">刷新</button></div>'+
     '<div class="card"><h3>📋 各落地页 DP 配置 <span id="dpQueryCount" style="font-weight:400;font-size:.8rem;color:var(--muted)"></span></h3>'+
-    '<div style="margin-bottom:12px"><input type="text" id="dpQuerySearch" placeholder="搜索落地页地址（支持完整地址 / 后缀 abmka / 域名 snk622ma.site）" style="max-width:480px;margin-bottom:0"></div>'+
+    '<div style="margin-bottom:12px"><input type="text" id="dpQuerySearch" placeholder="搜索（落地页地址 / 域名 snk622ma.site / 后缀 abmka / 备注）" style="max-width:480px;margin-bottom:0"></div>'+
     '<div style="overflow-x:auto"><table style="min-width:1200px"><thead><tr><th>序号</th><th>落地页地址</th><th>实际地址</th><th>不符合规则地址</th><th>状态</th><th>已开启的规则</th><th>白名单IP</th><th>备注</th><th>更新时间</th><th>操作</th></tr></thead><tbody id="dpQueryBody"><tr><td colspan="10" class="empty">加载中...</td></tr></tbody></table></div></div>';
   document.getElementById('dpQueryRefresh').onclick = function(){ loadDpConfigQuery(); };
   var s = document.getElementById('dpQuerySearch');
@@ -2411,7 +2411,7 @@ function renderDpQuery(){
   var tb = document.getElementById('dpQueryBody');
   if(!tb) return;
   var q = (_dpQuerySearch||'').toLowerCase();
-  var configs = _dpQueryAll.filter(function(c){ return !q || (c.site||'').toLowerCase().indexOf(q) !== -1; });
+  var configs = _dpQueryAll.filter(function(c){ return !q || (c.site||'').toLowerCase().indexOf(q) !== -1 || (c.remark||'').toLowerCase().indexOf(q) !== -1; });
   document.getElementById('dpQueryCount').textContent = '共 '+_dpQueryAll.length+' 个落地页' + (q ? '，匹配 '+configs.length+' 个' : '');
   if(!_dpQueryAll.length){ tb.innerHTML='<tr><td colspan="10" class="empty">暂无 DP 配置</td></tr>'; return; }
   if(!configs.length){ tb.innerHTML='<tr><td colspan="10" class="empty">没有匹配「'+esc(_dpQuerySearch)+'」的落地页</td></tr>'; return; }
