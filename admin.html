@@ -927,19 +927,30 @@ async function loadSiteSelector(){
 
 // ========== USER: 像素管理 ==========
 var _pixelIds = [];
+var _fbEvents = ['AddToCart','Contact','Lead','CompleteRegistration','Purchase','Download'];
+var FB_EVENT_OPTS = [
+  ['AddToCart','加购'],
+  ['Contact','联系'],
+  ['Lead','潜客'],
+  ['CompleteRegistration','完成注册'],
+  ['Purchase','购物'],
+  ['Download','自定义-下载']
+];
 async function showPixels(){
   var siteInfo = await loadSiteSelector();
   var main = document.getElementById('mainContent');
   main.innerHTML = '<div class="page-header"><h1>📡 像素管理</h1></div>'+
     '<div class="card"><h3>📍 当前落地页</h3><div style="margin-bottom:12px">'+siteInfo.html+'</div>'+
     '<h3>➕ 新增像素</h3><div style="background:rgba(88,166,255,.08);border:1px solid rgba(88,166,255,.2);border-radius:8px;padding:14px 18px;margin-bottom:14px"><span style="color:var(--blue);font-weight:800;font-size:.85rem">投放切记：</span><br><span style="color:var(--fg);font-weight:700;font-size:.82rem">1.后台只支持【购物】加【加购】【联系】【潜客】【完成注册】【自定义-下载】，广告组选择其他事件不会回传</span><br><span style="color:var(--fg);font-weight:700;font-size:.82rem">2.如果需要其他FB事件，请联系管理</span></div><div class="form-row"><input type="text" id="newPixelId" placeholder="输入像素ID"><button class="btn btn-p" id="addPixelBtn">新增</button></div><div id="pixelAddMsg"></div></div>'+
-    '<div class="card"><h3>📋 像素列表 <span id="pixelCount" style="font-weight:400;font-size:.8rem;color:var(--muted)"></span></h3><table><thead><tr><th>序号</th><th>像素ID</th><th>操作</th></tr></thead><tbody id="pixelBody"><tr><td colspan="4" class="empty">加载中...</td></tr></tbody></table></div>';
+    '<div class="card"><h3>📋 像素列表 <span id="pixelCount" style="font-weight:400;font-size:.8rem;color:var(--muted)"></span></h3><table><thead><tr><th>序号</th><th>像素ID</th><th>操作</th></tr></thead><tbody id="pixelBody"><tr><td colspan="4" class="empty">加载中...</td></tr></tbody></table></div>'+
+    '<div class="card"><h3>🎯 转化事件（下载时触发，可多选）</h3><p style="color:var(--muted);font-size:.84rem;margin-bottom:10px">勾选后点「保存事件」生效；每个落地页的事件互相独立，互不影响。</p><div id="fbEventsBox" style="margin-bottom:10px"></div><button class="btn btn-p" id="saveEventsBtn">💾 保存事件</button><div id="fbEventsMsg"></div></div>';
   document.getElementById('siteSelector').onchange = function(){
     _currentSite = this.value;
     sessionStorage.setItem('st_current_site', _currentSite);
     loadPixels();
   };
   document.getElementById('addPixelBtn').onclick = addPixel;
+  document.getElementById('saveEventsBtn').onclick = saveFbEvents;
   // 确保站点已选中再加载
   if(!_currentSite) _currentSite = document.getElementById('siteSelector').value;
   loadPixels();
@@ -956,6 +967,8 @@ async function loadPixels(){
     var r = await fetch('/api/admin/my-pixels?site='+encodeURIComponent(_currentSite)+'&_='+Date.now(),{headers:{'Authorization':'Basic '+S.token}});
     var d = await r.json();
     _pixelIds = d.ids||[];
+    if(Array.isArray(d.events)){ _fbEvents = d.events; } else { _fbEvents = ['AddToCart','Contact','Lead','CompleteRegistration','Purchase','Download']; }
+    renderFbEvents();
     document.getElementById('pixelCount').textContent = '共 '+_pixelIds.length+' 个';
     var tbody = document.getElementById('pixelBody');
     if(!_pixelIds.length){ tbody.innerHTML='<tr><td colspan="4" class="empty">暂无</td></tr>'; return; }
@@ -1018,6 +1031,29 @@ function savePixelsToServer(onSuccess){
     });
   }).catch(function(){ alert('网络错误'); });
   return _saveQueue;
+}
+
+// 渲染事件多选框（按当前站点 _fbEvents）
+function renderFbEvents(){
+  var box = document.getElementById('fbEventsBox');
+  if(!box) return;
+  box.innerHTML = FB_EVENT_OPTS.map(function(o){
+    var checked = _fbEvents.indexOf(o[0]) !== -1 ? 'checked' : '';
+    return '<label style="display:inline-flex;align-items:center;gap:6px;margin:4px 18px 4px 0;cursor:pointer;font-size:.9rem;white-space:nowrap"><input type="checkbox" class="fbEvChk" value="'+o[0]+'" '+checked+' style="width:16px;height:16px;accent-color:#21C064;cursor:pointer"> '+o[1]+'</label>';
+  }).join('');
+}
+
+// 保存事件选择（覆盖当前站点的 fb_events，不影响像素ID）
+async function saveFbEvents(){
+  var events = [];
+  document.querySelectorAll('.fbEvChk:checked').forEach(function(c){ events.push(c.value); });
+  _fbEvents = events;
+  try{
+    var r = await fetch('/api/admin/my-pixels',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Basic '+S.token},body:JSON.stringify({site:_currentSite, ids:_pixelIds, events:events})});
+    var d = await r.json();
+    if(d.ok){ msg('fbEventsMsg','ok','✅ 事件保存成功'); }
+    else { msg('fbEventsMsg','err',d.error||'保存失败'); }
+  }catch(e){ msg('fbEventsMsg','err','网络错误'); }
 }
 
 // ========== USER: 斗篷设置 ==========

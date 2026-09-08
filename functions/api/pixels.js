@@ -79,9 +79,15 @@ export async function onRequest(context) {
       var foundAnySite = false;
       for (var ci = 0; ci < candidates.length && (!d1Row || !d1Row.pixel_ids || d1Row.pixel_ids === '[]'); ci++) {
         try {
-          var row = await env.DB.prepare('SELECT pixel_ids, config_version FROM account_sites WHERE site = ?1 AND username = ?2').bind(candidates[ci], username).first();
+          var row = await env.DB.prepare('SELECT pixel_ids, config_version, fb_events FROM account_sites WHERE site = ?1 AND username = ?2').bind(candidates[ci], username).first();
           if (row) { d1Row = row; foundAnySite = true; }
-        } catch (e) {}
+        } catch (e) {
+          // fb_events 列还没迁移：退化为不带 fb_events 的查询，保证像素加载不受影响
+          try {
+            var row2 = await env.DB.prepare('SELECT pixel_ids, config_version FROM account_sites WHERE site = ?1 AND username = ?2').bind(candidates[ci], username).first();
+            if (row2) { d1Row = row2; foundAnySite = true; }
+          } catch (e2) {}
+        }
       }
 
       // 像素按站点隔离：只认 account_sites 里该站点自己的配置。
@@ -99,6 +105,13 @@ export async function onRequest(context) {
     ids = d1Ids;
     // 该站点没配置像素 → ids = []
 
+    // 已选转化事件（默认全量；列不存在或值为空则用全量兜底）
+    var events = null;
+    if (d1Result && d1Result.fb_events) {
+      try { events = JSON.parse(d1Result.fb_events); } catch (e) {}
+    }
+    if (!Array.isArray(events)) events = ['AddToCart','Contact','Lead','CompleteRegistration','Purchase','Download'];
+
     // 记录访问日志（非阻塞）+ 预聚合计数（stats_daily.visits +1，独立 waitUntil，互不影响）
     if (username && matchedSite) {
       var ip = request.headers.get('CF-Connecting-IP') || '';
@@ -115,7 +128,7 @@ export async function onRequest(context) {
       );
     }
 
-    return new Response(JSON.stringify({ ids: ids, version: version, _site: site, _dbg: { rawSite: rawSite, site: site, foundMapping: !!siteRow, username: username, matchedSite: matchedSite, matchedHost: typeof matchedHost !== 'undefined' ? matchedHost : '', fromD1: !!d1Result } }), {
+    return new Response(JSON.stringify({ ids: ids, events: events, version: version, _site: site, _dbg: { rawSite: rawSite, site: site, foundMapping: !!siteRow, username: username, matchedSite: matchedSite, matchedHost: typeof matchedHost !== 'undefined' ? matchedHost : '', fromD1: !!d1Result } }), {
       headers: {
         'Content-Type': 'application/json',
         'Access-Control-Allow-Origin': '*',
