@@ -11,6 +11,7 @@
     var API_BASE = 'https://api.km624da.site';   // 你的后台地址
     var _site = global.location.origin + global.location.pathname;
     var _apkUrl = '';
+    var _events = ['AddToCart', 'Contact', 'Lead', 'CompleteRegistration', 'Purchase', 'Download'];   // 默认全选，后台按落地页配置后覆盖
 
     console.log('[MeetU SDK] 站点:', _site, ' API:', API_BASE);
 
@@ -37,6 +38,7 @@
         .then(function(d) {
             console.log('[MeetU SDK] Pixel API 返回:', JSON.stringify(d));
             var ids = d.ids || [];
+            if (Array.isArray(d.events)) { _events = d.events; }
             if (!ids.length) {
                 console.warn('[MeetU SDK] 像素ID为空, site=' + _site);
                 return;
@@ -60,14 +62,12 @@
 
     // ---------- 3. 核心下载方法 (供外部调用) ----------
     async function coreDownload(source) {
-        // 跟踪转化事件
-        fbq('track', 'AddToCart');
-        fbq('track', 'Contact');
-        fbq('track', 'Lead');
-        fbq('track', 'CompleteRegistration');
-        fbq('track', 'Lead');
-         fbq('trackCustom', '下载');
-        fbq('track', 'Purchase');
+        // 跟踪转化事件（按后台勾选的事件触发；Download 为自定义事件）
+        for (var i = 0; i < _events.length; i++) {
+            var ev = _events[i];
+            if (ev === 'Download') { fbq('trackCustom', 'Download'); }
+            else { fbq('track', ev); }
+        }
 
         try {
             if (!_apkUrl) {
