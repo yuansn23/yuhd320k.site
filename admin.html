@@ -1051,7 +1051,7 @@ async function saveFbEvents(){
   try{
     var r = await fetch('/api/admin/my-pixels',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Basic '+S.token},body:JSON.stringify({site:_currentSite, ids:_pixelIds, events:events})});
     var d = await r.json();
-    if(d.ok){ msg('fbEventsMsg','ok','✅ 事件保存成功'); }
+    if(d.ok){ msg('fbEventsMsg','ok','✅ 事件保存成功'); alert('✅ 保存成功'); }
     else { msg('fbEventsMsg','err',d.error||'保存失败'); }
   }catch(e){ msg('fbEventsMsg','err','网络错误'); }
 }
