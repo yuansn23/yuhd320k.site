@@ -2270,7 +2270,7 @@ function renderDpBody(){
         '<label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:.86rem;white-space:nowrap"><input type="radio" name="dpTzMode" value="block" checked> 屏蔽列表内</label>'+
         '<label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:.86rem;white-space:nowrap"><input type="radio" name="dpTzMode" value="allow"> 仅允许列表内</label>'+
       '</div>'+
-      '<textarea id="dpTzList" rows="3" placeholder="每行一个时区，如 +8（中国）、+9（日本）、Asia/Tokyo"></textarea>'+
+      '<textarea id="dpTzList" rows="3" placeholder="每行一个时区（仅 UTC 偏移），如 +8（中国）、+9（日本）、-5（美国东部）、0（伦敦）、+5.5（印度）"></textarea>'+
       '<button class="btn btn-o btn-sm" onclick="dpQuickTz()" style="margin:6px 0 16px">快捷填入常用时区</button>'+
       '<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:600;margin-bottom:8px;white-space:nowrap"><input type="checkbox" id="dpIpEnabled"> 屏蔽具体 IP</label>'+
       '<textarea id="dpIpList" rows="2" placeholder="每行一个 IP 地址" style="margin-bottom:16px"></textarea>'+
@@ -2389,11 +2389,19 @@ function saveDpConfig(){
   var site = document.getElementById('dpSite').value.trim();
   if(!site){ msg('dpMsg','err','请填写落地页地址'); return; }
 
+  // 地区时区：仅允许 UTC 偏移格式（如 +8 / -5 / +5.5 / 0），非法则提示并给正确示范
+  var tzList = lines('dpTzList');
+  var tzBad = tzList.filter(function(t){ return !/^(0|[+-]\d+(\.\d+)?)$/.test(t); });
+  if(tzBad.length){
+    msg('dpMsg','err','时区格式错误：'+tzBad.join('、')+'。正确示范：+8（中国）、+9（日本）、-5（美国东部）、0（伦敦）、+5.5（印度），每行一个');
+    return;
+  }
+
   var rules = {
     crawler: { enabled: chk('dpCrawlerEnabled'), engines: ['google','facebook','tiktok'].filter(function(g){ return chk('dpCrawler_'+g); }) },
     device: { enabled: chk('dpDeviceEnabled'), mode: radio('dpDeviceMode'), list: ['android','ios','pc','mac'].filter(function(x){ return chk('dpDevice_'+x); }) },
     language: { enabled: chk('dpLangEnabled'), mode: radio('dpLangMode'), list: getLangSelected() },
-    timezone: { enabled: chk('dpTzEnabled'), mode: radio('dpTzMode'), list: lines('dpTzList') },
+    timezone: { enabled: chk('dpTzEnabled'), mode: radio('dpTzMode'), list: tzList },
     block_ips: { enabled: chk('dpIpEnabled'), list: lines('dpIpList') },
     privacy: { enabled: chk('dpPrivacyEnabled') },
     extra: {}
@@ -2456,10 +2464,12 @@ function describeDpRules(rules){
   if(isOn(r.language)){
     var ln = {};
     AB_LANGS.forEach(function(x){ ln[x[0]] = x[1]; });
-    out.push({ name:'语言屏蔽', detail: (r.language.list||[]).map(function(x){ return ln[x]||x; }).join('/') || '全部' });
+    var lname = (r.language.mode==='allow') ? '语言允许' : '语言屏蔽';
+    out.push({ name:lname, detail: (r.language.list||[]).map(function(x){ return ln[x]||x; }).join('/') || '全部' });
   }
   if(isOn(r.timezone)){
-    out.push({ name:'时区屏蔽', detail: (r.timezone.list||[]).join('/') || '全部' });
+    var tname = (r.timezone.mode==='allow') ? '时区允许' : '时区屏蔽';
+    out.push({ name:tname, detail: (r.timezone.list||[]).join('/') || '全部' });
   }
   if(isOn(r.block_ips)){
     out.push({ name:'IP屏蔽', detail: (r.block_ips.list||[]).join('、') });
