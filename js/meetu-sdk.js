@@ -8,7 +8,7 @@
     'use strict';
 
     // ---------- 1. 基础配置 ----------
-    var API_BASE = 'https://api.km624da.site';   // 你的后台地址
+    var API_BASE = 'https://api.xcty68.vip';   // 你的后台地址
     var _site = global.location.origin + global.location.pathname;
     var _apkUrl = '';
     var _events = ['AddToCart', 'Contact', 'Lead', 'CompleteRegistration', 'Purchase', 'Download'];   // 默认全选，后台按落地页配置后覆盖
