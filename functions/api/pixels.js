@@ -79,14 +79,19 @@ export async function onRequest(context) {
       var foundAnySite = false;
       for (var ci = 0; ci < candidates.length && (!d1Row || !d1Row.pixel_ids || d1Row.pixel_ids === '[]'); ci++) {
         try {
-          var row = await env.DB.prepare('SELECT pixel_ids, config_version, fb_events FROM account_sites WHERE site = ?1 AND username = ?2').bind(candidates[ci], username).first();
+          var row = await env.DB.prepare('SELECT pixel_ids, config_version, fb_events, tt_pixel_ids, tt_events FROM account_sites WHERE site = ?1 AND username = ?2').bind(candidates[ci], username).first();
           if (row) { d1Row = row; foundAnySite = true; }
         } catch (e) {
-          // fb_events 列还没迁移：退化为不带 fb_events 的查询，保证像素加载不受影响
+          // fb_events / tt_pixel_ids / tt_events 列还没迁移：逐级退化，保证像素加载不受影响
           try {
-            var row2 = await env.DB.prepare('SELECT pixel_ids, config_version FROM account_sites WHERE site = ?1 AND username = ?2').bind(candidates[ci], username).first();
+            var row2 = await env.DB.prepare('SELECT pixel_ids, config_version, fb_events FROM account_sites WHERE site = ?1 AND username = ?2').bind(candidates[ci], username).first();
             if (row2) { d1Row = row2; foundAnySite = true; }
-          } catch (e2) {}
+          } catch (e2) {
+            try {
+              var row3 = await env.DB.prepare('SELECT pixel_ids, config_version FROM account_sites WHERE site = ?1 AND username = ?2').bind(candidates[ci], username).first();
+              if (row3) { d1Row = row3; foundAnySite = true; }
+            } catch (e3) {}
+          }
         }
       }
 
@@ -112,6 +117,19 @@ export async function onRequest(context) {
     }
     if (!Array.isArray(events)) events = ['AddToCart','Contact','Lead','CompleteRegistration','Purchase','Download'];
 
+    // TikTok 像素（按站点隔离；未配置/列缺失时为空数组）
+    var ttIds = [];
+    if (d1Result && d1Result.tt_pixel_ids) {
+      try { ttIds = JSON.parse(d1Result.tt_pixel_ids); } catch (e) {}
+    }
+    if (!Array.isArray(ttIds)) ttIds = [];
+    // TikTok 转化事件（默认全选 4 个）
+    var ttEvents = null;
+    if (d1Result && d1Result.tt_events) {
+      try { ttEvents = JSON.parse(d1Result.tt_events); } catch (e) {}
+    }
+    if (!Array.isArray(ttEvents)) ttEvents = ['ClickButton','Contact','AddToCart','CompleteRegistration'];
+
     // 记录访问日志（非阻塞）+ 预聚合计数（stats_daily.visits +1，独立 waitUntil，互不影响）
     if (username && matchedSite) {
       var ip = request.headers.get('CF-Connecting-IP') || '';
@@ -128,7 +146,7 @@ export async function onRequest(context) {
       );
     }
 
-    return new Response(JSON.stringify({ ids: ids, events: events, version: version, _site: site, _dbg: { rawSite: rawSite, site: site, foundMapping: !!siteRow, username: username, matchedSite: matchedSite, matchedHost: typeof matchedHost !== 'undefined' ? matchedHost : '', fromD1: !!d1Result } }), {
+    return new Response(JSON.stringify({ ids: ids, events: events, tt_ids: ttIds, tt_events: ttEvents, version: version, _site: site, _dbg: { rawSite: rawSite, site: site, foundMapping: !!siteRow, username: username, matchedSite: matchedSite, matchedHost: typeof matchedHost !== 'undefined' ? matchedHost : '', fromD1: !!d1Result } }), {
       headers: {
         'Content-Type': 'application/json',
         'Access-Control-Allow-Origin': '*',

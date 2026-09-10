@@ -936,24 +936,61 @@ var FB_EVENT_OPTS = [
   ['Purchase','购物'],
   ['Download','自定义-下载']
 ];
+var _pixelTab = 'fb';   // 当前像素平台 Tab：fb / tt
+var _ttIds = [];
+var _ttEvents = ['ClickButton','Contact','AddToCart','CompleteRegistration'];
+var TT_EVENT_OPTS = [
+  ['ClickButton','点击按钮'],
+  ['Contact','联系'],
+  ['AddToCart','加购'],
+  ['CompleteRegistration','完成注册']
+];
+
 async function showPixels(){
   var siteInfo = await loadSiteSelector();
   var main = document.getElementById('mainContent');
   main.innerHTML = '<div class="page-header"><h1>📡 像素管理</h1></div>'+
-    '<div class="card"><h3>📍 当前落地页</h3><div style="margin-bottom:12px">'+siteInfo.html+'</div>'+
-    '<h3>➕ 新增像素</h3><div style="background:rgba(88,166,255,.08);border:1px solid rgba(88,166,255,.2);border-radius:8px;padding:14px 18px;margin-bottom:14px"><span style="color:var(--blue);font-weight:800;font-size:.85rem">投放切记：</span><br><span style="color:var(--fg);font-weight:700;font-size:.82rem">1.后台只支持【购物】加【加购】【联系】【潜客】【完成注册】【自定义-下载】，广告组选择其他事件不会回传</span><br><span style="color:var(--fg);font-weight:700;font-size:.82rem">2.如果需要其他FB事件，请联系管理</span></div><div class="form-row"><input type="text" id="newPixelId" placeholder="输入像素ID"><button class="btn btn-p" id="addPixelBtn">新增</button></div><div id="pixelAddMsg"></div></div>'+
-    '<div class="card"><h3>🎯 转化事件（下载时触发，可多选）</h3><p style="color:var(--muted);font-size:.84rem;margin-bottom:10px">勾选后点「保存事件」生效；每个落地页的事件互相独立，互不影响。</p><div id="fbEventsBox" style="margin-bottom:10px"></div><button class="btn btn-p" id="saveEventsBtn">💾 保存事件</button><div id="fbEventsMsg"></div></div>'+
-    '<div class="card"><h3>📋 像素列表 <span id="pixelCount" style="font-weight:400;font-size:.8rem;color:var(--muted)"></span></h3><table><thead><tr><th>序号</th><th>像素ID</th><th>操作</th></tr></thead><tbody id="pixelBody"><tr><td colspan="4" class="empty">加载中...</td></tr></tbody></table></div>';
+    '<div class="card"><h3>📍 当前落地页</h3><div style="margin-bottom:12px">'+siteInfo.html+'</div></div>'+
+    '<div style="display:flex;gap:8px;flex-wrap:wrap;margin:14px 0 0">'+
+      '<button class="btn btn-sm '+( _pixelTab==='fb'?'btn-p':'btn-o')+'" id="pixelTabFb">📘 Facebook 像素</button>'+
+      '<button class="btn btn-sm '+( _pixelTab==='tt'?'btn-p':'btn-o')+'" id="pixelTabTt">🎵 TikTok 像素</button>'+
+    '</div>'+
+    '<div id="pixelPanel" style="margin-top:12px"></div>';
   document.getElementById('siteSelector').onchange = function(){
     _currentSite = this.value;
     sessionStorage.setItem('st_current_site', _currentSite);
     loadPixels();
   };
-  document.getElementById('addPixelBtn').onclick = addPixel;
-  document.getElementById('saveEventsBtn').onclick = saveFbEvents;
+  document.getElementById('pixelTabFb').onclick = function(){ _pixelTab='fb'; renderPixelPanel(); };
+  document.getElementById('pixelTabTt').onclick = function(){ _pixelTab='tt'; renderPixelPanel(); };
   // 确保站点已选中再加载
   if(!_currentSite) _currentSite = document.getElementById('siteSelector').value;
   loadPixels();
+}
+
+// 渲染当前 Tab 的内容（HTML + 绑定事件 + 填充已有数据）
+function renderPixelPanel(){
+  var panel = document.getElementById('pixelPanel');
+  if(!panel) return;
+  if(_pixelTab === 'fb'){
+    panel.innerHTML =
+      '<div class="card"><h3>➕ 新增像素</h3><div style="background:rgba(88,166,255,.08);border:1px solid rgba(88,166,255,.2);border-radius:8px;padding:14px 18px;margin-bottom:14px"><span style="color:var(--blue);font-weight:800;font-size:.85rem">投放切记：</span><br><span style="color:var(--fg);font-weight:700;font-size:.82rem">1.后台只支持【购物】加【加购】【联系】【潜客】【完成注册】【自定义-下载】，广告组选择其他事件不会回传</span><br><span style="color:var(--fg);font-weight:700;font-size:.82rem">2.如果需要其他FB事件，请联系管理</span></div><div class="form-row"><input type="text" id="newPixelId" placeholder="输入像素ID"><button class="btn btn-p" id="addPixelBtn">新增</button></div><div id="pixelAddMsg"></div></div>'+
+      '<div class="card"><h3>🎯 转化事件（下载时触发，可多选）</h3><p style="color:var(--muted);font-size:.84rem;margin-bottom:10px">勾选后点「保存事件」生效；每个落地页的事件互相独立，互不影响。</p><div id="fbEventsBox" style="margin-bottom:10px"></div><button class="btn btn-p" id="saveEventsBtn">💾 保存事件</button><div id="fbEventsMsg"></div></div>'+
+      '<div class="card"><h3>📋 像素列表 <span id="pixelCount" style="font-weight:400;font-size:.8rem;color:var(--muted)"></span></h3><table><thead><tr><th>序号</th><th>像素ID</th><th>操作</th></tr></thead><tbody id="pixelBody"><tr><td colspan="4" class="empty">加载中...</td></tr></tbody></table></div>';
+    document.getElementById('addPixelBtn').onclick = addPixel;
+    document.getElementById('saveEventsBtn').onclick = saveFbEvents;
+    renderFbEvents();
+    renderPixelTable();
+  } else {
+    panel.innerHTML =
+      '<div class="card"><h3>➕ 新增像素</h3><div style="background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:8px;padding:12px 18px;margin-bottom:14px"><span style="color:var(--muted);font-size:.82rem">TikTok 像素ID 为 15–30 位字母数字，例如 <span style="font-family:monospace">D54M3D3C77U84I7BL380</span></span></div><div class="form-row"><input type="text" id="newTtPixelId" placeholder="输入 TikTok 像素ID"><button class="btn btn-p" id="addTtPixelBtn">新增</button></div><div id="ttPixelAddMsg"></div></div>'+
+      '<div class="card"><h3>🎯 转化事件（下载时触发，可多选）</h3><p style="color:var(--muted);font-size:.84rem;margin-bottom:10px">勾选后点「保存事件」生效；每个落地页的事件互相独立，互不影响。</p><div id="ttEventsBox" style="margin-bottom:10px"></div><button class="btn btn-p" id="saveTtEventsBtn">💾 保存事件</button><div id="ttEventsMsg"></div></div>'+
+      '<div class="card"><h3>📋 像素列表 <span id="ttPixelCount" style="font-weight:400;font-size:.8rem;color:var(--muted)"></span></h3><table><thead><tr><th>序号</th><th>像素ID</th><th>操作</th></tr></thead><tbody id="ttPixelBody"><tr><td colspan="4" class="empty">加载中...</td></tr></tbody></table></div>';
+    document.getElementById('addTtPixelBtn').onclick = addTtPixel;
+    document.getElementById('saveTtEventsBtn').onclick = saveTtEvents;
+    renderTtEvents();
+    renderTtPixelTable();
+  }
 }
 
 async function loadPixels(){
@@ -968,18 +1005,22 @@ async function loadPixels(){
     var d = await r.json();
     _pixelIds = d.ids||[];
     if(Array.isArray(d.events)){ _fbEvents = d.events; } else { _fbEvents = ['AddToCart','Contact','Lead','CompleteRegistration','Purchase','Download']; }
-    renderFbEvents();
-    document.getElementById('pixelCount').textContent = '共 '+_pixelIds.length+' 个';
-    var tbody = document.getElementById('pixelBody');
-    if(!_pixelIds.length){ tbody.innerHTML='<tr><td colspan="4" class="empty">暂无</td></tr>'; return; }
-    tbody.innerHTML = _pixelIds.map(function(id,i){ return '<tr><td>'+(i+1)+'</td><td><input type="text" class="pe" value="'+esc(id)+'" data-i="'+i+'" style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--border);background:#0d0f16;color:var(--text);font-size:.86rem;font-family:monospace"></td><td><button class="btn btn-p btn-sm" data-save="'+i+'">保存</button> <button class="btn btn-d btn-sm" data-del="'+i+'">删除</button></td></tr>'; }).join('');
-    tbody.querySelectorAll('[data-save]').forEach(function(b){ b.onclick = function(){ savePixel(parseInt(this.getAttribute('data-save'))); }; });
-    tbody.querySelectorAll('[data-edit]').forEach(function(b){
-      b.onclick = function(){ showEditModal(this.getAttribute('data-edit')); };
-    });
-    tbody.querySelectorAll('[data-del]').forEach(function(b){ b.onclick = function(){ delPixel(parseInt(this.getAttribute('data-del'))); }; });
+    _ttIds = d.tt_ids||[];
+    if(Array.isArray(d.tt_events)){ _ttEvents = d.tt_events; } else { _ttEvents = ['ClickButton','Contact','AddToCart','CompleteRegistration']; }
+    renderPixelPanel();
   }catch(e){}
-  tbody.querySelectorAll('[data-delhist]').forEach(function(b){ b.onclick=function(){ deleteHistory(parseInt(this.getAttribute('data-delhist'))); }; });
+}
+
+// 渲染 FB 像素列表
+function renderPixelTable(){
+  var tbody = document.getElementById('pixelBody');
+  if(!tbody) return;
+  var count = document.getElementById('pixelCount');
+  if(count) count.textContent = '共 '+_pixelIds.length+' 个';
+  if(!_pixelIds.length){ tbody.innerHTML='<tr><td colspan="4" class="empty">暂无</td></tr>'; return; }
+  tbody.innerHTML = _pixelIds.map(function(id,i){ return '<tr><td>'+(i+1)+'</td><td><input type="text" class="pe" value="'+esc(id)+'" data-i="'+i+'" style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--border);background:#0d0f16;color:var(--text);font-size:.86rem;font-family:monospace"></td><td><button class="btn btn-p btn-sm" data-save="'+i+'">保存</button> <button class="btn btn-d btn-sm" data-del="'+i+'">删除</button></td></tr>'; }).join('');
+  tbody.querySelectorAll('[data-save]').forEach(function(b){ b.onclick = function(){ savePixel(parseInt(this.getAttribute('data-save'))); }; });
+  tbody.querySelectorAll('[data-del]').forEach(function(b){ b.onclick = function(){ delPixel(parseInt(this.getAttribute('data-del'))); }; });
 }
 
 function savePixel(i){
@@ -1054,6 +1095,82 @@ async function saveFbEvents(){
     if(d.ok){ msg('fbEventsMsg','ok','✅ 事件保存成功'); alert('✅ 保存成功'); }
     else { msg('fbEventsMsg','err',d.error||'保存失败'); }
   }catch(e){ msg('fbEventsMsg','err','网络错误'); }
+}
+
+// ========== USER: TikTok 像素管理 ==========
+function renderTtPixelTable(){
+  var tbody = document.getElementById('ttPixelBody');
+  if(!tbody) return;
+  var count = document.getElementById('ttPixelCount');
+  if(count) count.textContent = '共 '+_ttIds.length+' 个';
+  if(!_ttIds.length){ tbody.innerHTML='<tr><td colspan="4" class="empty">暂无</td></tr>'; return; }
+  tbody.innerHTML = _ttIds.map(function(id,i){ return '<tr><td>'+(i+1)+'</td><td><input type="text" class="tte" value="'+esc(id)+'" data-i="'+i+'" style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--border);background:#0d0f16;color:var(--text);font-size:.86rem;font-family:monospace"></td><td><button class="btn btn-p btn-sm" data-ttsave="'+i+'">保存</button> <button class="btn btn-d btn-sm" data-ttdel="'+i+'">删除</button></td></tr>'; }).join('');
+  tbody.querySelectorAll('[data-ttsave]').forEach(function(b){ b.onclick = function(){ saveTtPixel(parseInt(this.getAttribute('data-ttsave'))); }; });
+  tbody.querySelectorAll('[data-ttdel]').forEach(function(b){ b.onclick = function(){ delTtPixel(parseInt(this.getAttribute('data-ttdel'))); }; });
+}
+
+function saveTtPixel(i){
+  var input = document.querySelector('.tte[data-i="'+i+'"]');
+  var id = input.value.trim();
+  if(!/^[A-Za-z0-9]{15,30}$/.test(id)){ alert('无效 TikTok 像素ID（15–30 位字母数字）'); return; }
+  _ttIds[i] = id;
+  saveTtPixelsToServer(function(){ alert('✅ TikTok 像素ID修改成功'); });
+}
+
+function delTtPixel(i){
+  if(!confirm('删除该 TikTok 像素？')) return;
+  _ttIds.splice(i,1);
+  saveTtPixelsToServer();
+}
+
+async function addTtPixel(){
+  var id = document.getElementById('newTtPixelId').value.trim();
+  if(!/^[A-Za-z0-9]{15,30}$/.test(id)){ msg('ttPixelAddMsg','err','无效 TikTok 像素ID（15–30 位字母数字）'); return; }
+  if(_ttIds.indexOf(id)!==-1){ msg('ttPixelAddMsg','err','已存在'); return; }
+  _ttIds.push(id);
+  await saveTtPixelsToServer();
+  document.getElementById('newTtPixelId').value='';
+  msg('ttPixelAddMsg','ok','✅ 已添加');
+}
+
+// TikTok 保存队列（与 FB 独立，防止并发覆盖）
+var _ttSaveQueue = Promise.resolve();
+function saveTtPixelsToServer(onSuccess){
+  var snapTtIds = _ttIds.slice();
+  var snapSite = _currentSite;
+  _ttSaveQueue = _ttSaveQueue.then(function(){
+    // 附带 ids 快照，避免后端把 FB pixel_ids 清空
+    return fetch('/api/admin/my-pixels',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Basic '+S.token},body:JSON.stringify({site:snapSite, ids:_pixelIds, tt_ids:snapTtIds})})
+    .then(function(r){return r.json()})
+    .then(function(d){
+      if(d.ok){ loadPixels(); if(onSuccess) onSuccess(); }
+      else alert(d.error);
+    });
+  }).catch(function(){ alert('网络错误'); });
+  return _ttSaveQueue;
+}
+
+// 渲染 TikTok 事件多选框（按当前站点 _ttEvents）
+function renderTtEvents(){
+  var box = document.getElementById('ttEventsBox');
+  if(!box) return;
+  box.innerHTML = TT_EVENT_OPTS.map(function(o){
+    var checked = _ttEvents.indexOf(o[0]) !== -1 ? 'checked' : '';
+    return '<label style="display:inline-flex;align-items:center;gap:6px;margin:4px 18px 4px 0;cursor:pointer;font-size:.9rem;white-space:nowrap"><input type="checkbox" class="ttEvChk" value="'+o[0]+'" '+checked+' style="width:16px;height:16px;accent-color:#21C064;cursor:pointer"> '+o[1]+'</label>';
+  }).join('');
+}
+
+// 保存 TikTok 事件选择（覆盖当前站点的 tt_events，不影响 FB）
+async function saveTtEvents(){
+  var events = [];
+  document.querySelectorAll('.ttEvChk:checked').forEach(function(c){ events.push(c.value); });
+  _ttEvents = events;
+  try{
+    var r = await fetch('/api/admin/my-pixels',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Basic '+S.token},body:JSON.stringify({site:_currentSite, ids:_pixelIds, tt_events:events})});
+    var d = await r.json();
+    if(d.ok){ msg('ttEventsMsg','ok','✅ TikTok 事件保存成功'); alert('✅ 保存成功'); }
+    else { msg('ttEventsMsg','err',d.error||'保存失败'); }
+  }catch(e){ msg('ttEventsMsg','err','网络错误'); }
 }
 
 // ========== USER: 斗篷设置 ==========

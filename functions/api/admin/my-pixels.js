@@ -40,24 +40,38 @@ export async function onRequest(context) {
       var qSite = (new URL(request.url)).searchParams.get('site') || me.site || '';
       var ids = [];
       var events = null;
+      var ttIds = [];
+      var ttEvents = null;
       // 只从 account_sites 读（按站点隔离：站点存在就用它的，空就是空，绝不回退到 accounts/KV 共享数据）
       if (qSite) {
         try {
-          var row = await env.DB.prepare('SELECT pixel_ids, fb_events FROM account_sites WHERE site = ?1 AND username = ?2').bind(qSite, me.user).first();
+          var row = await env.DB.prepare('SELECT pixel_ids, fb_events, tt_pixel_ids, tt_events FROM account_sites WHERE site = ?1 AND username = ?2').bind(qSite, me.user).first();
           if (row) {
             ids = JSON.parse(row.pixel_ids || '[]');
             try { events = JSON.parse(row.fb_events || '[]'); } catch (e) {}
+            try { ttIds = JSON.parse(row.tt_pixel_ids || '[]'); } catch (e) {}
+            try { ttEvents = JSON.parse(row.tt_events || '[]'); } catch (e) {}
           }
         } catch (e) {
-          // fb_events 列还没迁移：退化为只读 pixel_ids
+          // fb_events / tt_* 列还没迁移：逐级退化，只读已有列
           try {
-            var row2 = await env.DB.prepare('SELECT pixel_ids FROM account_sites WHERE site = ?1 AND username = ?2').bind(qSite, me.user).first();
-            if (row2) { ids = JSON.parse(row2.pixel_ids || '[]'); }
-          } catch (e2) {}
+            var row2 = await env.DB.prepare('SELECT pixel_ids, fb_events FROM account_sites WHERE site = ?1 AND username = ?2').bind(qSite, me.user).first();
+            if (row2) {
+              ids = JSON.parse(row2.pixel_ids || '[]');
+              try { events = JSON.parse(row2.fb_events || '[]'); } catch (e) {}
+            }
+          } catch (e2) {
+            try {
+              var row3 = await env.DB.prepare('SELECT pixel_ids FROM account_sites WHERE site = ?1 AND username = ?2').bind(qSite, me.user).first();
+              if (row3) { ids = JSON.parse(row3.pixel_ids || '[]'); }
+            } catch (e3) {}
+          }
         }
       }
       if (!Array.isArray(events)) events = ['AddToCart','Contact','Lead','CompleteRegistration','Purchase','Download'];
-      return new Response(JSON.stringify({ ids: ids, events: events }), {
+      if (!Array.isArray(ttIds)) ttIds = [];
+      if (!Array.isArray(ttEvents)) ttEvents = ['ClickButton','Contact','AddToCart','CompleteRegistration'];
+      return new Response(JSON.stringify({ ids: ids, events: events, tt_ids: ttIds, tt_events: ttEvents }), {
         headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
       });
     }
@@ -69,11 +83,20 @@ export async function onRequest(context) {
       const ids = Array.isArray(body.ids) ? body.ids.filter(function(id){ return /^\d{10,20}$/.test(id); }) : [];
       var idsJson = JSON.stringify(ids);
 
-      // 事件：可选字段。传了 events 就覆盖保存；没传则不动现有 fb_events（像素编辑不会误改事件）
+      // FB 事件：可选字段。传了 events 就覆盖保存；没传则不动现有 fb_events（像素编辑不会误改事件）
       var FB_EVENTS = ['AddToCart','Contact','Lead','CompleteRegistration','Purchase','Download'];
       var hasEvents = Array.isArray(body.events);
       var events = hasEvents ? body.events.filter(function(ev){ return FB_EVENTS.indexOf(ev) !== -1; }) : null;
       var eventsJson = hasEvents ? JSON.stringify(events) : null;
+
+      // TikTok 像素/事件：可选字段。传了 tt_ids / tt_events 才覆盖保存；没传则不动现有值
+      var TT_EVENTS = ['ClickButton','Contact','AddToCart','CompleteRegistration'];
+      var hasTtIds = Array.isArray(body.tt_ids);
+      var ttIds = hasTtIds ? body.tt_ids.filter(function(id){ return /^[A-Za-z0-9]{15,30}$/.test(id); }) : null;
+      var ttIdsJson = hasTtIds ? JSON.stringify(ttIds) : null;
+      var hasTtEvents = Array.isArray(body.tt_events);
+      var ttEvents = hasTtEvents ? body.tt_events.filter(function(ev){ return TT_EVENTS.indexOf(ev) !== -1; }) : null;
+      var ttEventsJson = hasTtEvents ? JSON.stringify(ttEvents) : null;
 
       if (site) {
         // 写入 account_sites（按站点隔离，不污染 accounts 共享表）
@@ -81,14 +104,23 @@ export async function onRequest(context) {
         try {
           var existingRow = await env.DB.prepare('SELECT 1 AS found FROM account_sites WHERE site = ?1 AND username = ?2').bind(site, me.user).first();
           if (existingRow) {
-            if (hasEvents) {
-              await env.DB.prepare('UPDATE account_sites SET pixel_ids = ?1, fb_events = ?2, config_version = config_version + 1 WHERE site = ?3 AND username = ?4').bind(idsJson, eventsJson, site, me.user).run();
-            } else {
-              await env.DB.prepare('UPDATE account_sites SET pixel_ids = ?1, config_version = config_version + 1 WHERE site = ?2 AND username = ?3').bind(idsJson, site, me.user).run();
-            }
+            // 动态拼 SET：只更新调用方显式传入的字段（pixel_ids 恒更新），避免误清空未传字段
+            var sets = ['pixel_ids = ?1'];
+            var vals = [idsJson];
+            var ni = 2;
+            if (hasEvents) { sets.push('fb_events = ?' + ni); vals.push(eventsJson); ni++; }
+            if (hasTtIds) { sets.push('tt_pixel_ids = ?' + ni); vals.push(ttIdsJson); ni++; }
+            if (hasTtEvents) { sets.push('tt_events = ?' + ni); vals.push(ttEventsJson); ni++; }
+            sets.push('config_version = config_version + 1');
+            var updSql = 'UPDATE account_sites SET ' + sets.join(', ') + ' WHERE site = ?' + ni + ' AND username = ?' + (ni + 1);
+            vals.push(site, me.user);
+            var stmt = env.DB.prepare(updSql);
+            await stmt.bind.apply(stmt, vals).run();
           } else {
             var newEventsJson = hasEvents ? eventsJson : JSON.stringify(FB_EVENTS);
-            await env.DB.prepare('INSERT INTO account_sites (site, username, pixel_ids, fb_events, apk_url, apk_history, config_version) VALUES (?1, ?2, ?3, ?4, ?5, ?6, 1)').bind(site, me.user, idsJson, newEventsJson, '', '[]').run();
+            var newTtIdsJson = hasTtIds ? ttIdsJson : '[]';
+            var newTtEventsJson = hasTtEvents ? ttEventsJson : JSON.stringify(TT_EVENTS);
+            await env.DB.prepare('INSERT INTO account_sites (site, username, pixel_ids, fb_events, tt_pixel_ids, tt_events, apk_url, apk_history, config_version) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, 1)').bind(site, me.user, idsJson, newEventsJson, newTtIdsJson, newTtEventsJson, '', '[]').run();
           }
         } catch (e) {
           return new Response(JSON.stringify({ ok: false, error: '像素保存失败: ' + (e && e.message ? e.message : String(e)) }), {
@@ -97,7 +129,7 @@ export async function onRequest(context) {
         }
       }
 
-      return new Response(JSON.stringify({ ok: true, ids: ids, count: ids.length }), {
+      return new Response(JSON.stringify({ ok: true, ids: ids, tt_ids: hasTtIds ? ttIds : null, count: ids.length }), {
         headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
       });
     }
