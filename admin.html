@@ -951,9 +951,9 @@ async function showPixels(){
   var main = document.getElementById('mainContent');
   main.innerHTML = '<div class="page-header"><h1>📡 像素管理</h1></div>'+
     '<div class="card"><h3>📍 当前落地页</h3><div style="margin-bottom:12px">'+siteInfo.html+'</div></div>'+
-    '<div style="display:flex;gap:8px;flex-wrap:wrap;margin:14px 0 0">'+
-      '<button class="btn btn-sm '+( _pixelTab==='fb'?'btn-p':'btn-o')+'" id="pixelTabFb">📘 Facebook 像素</button>'+
-      '<button class="btn btn-sm '+( _pixelTab==='tt'?'btn-p':'btn-o')+'" id="pixelTabTt">🎵 TikTok 像素</button>'+
+    '<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:16px 0 0">'+
+      '<button id="pixelTabFb" style="padding:11px 26px;font-size:.95rem;font-weight:800;border-radius:10px;cursor:pointer;border:1px solid var(--border);transition:all .2s;'+( _pixelTab==='fb'?'background:var(--green);color:#fff;border-color:var(--green);':'background:transparent;color:var(--muted);')+'">📘 Facebook 像素</button>'+
+      '<button id="pixelTabTt" style="padding:11px 26px;font-size:.95rem;font-weight:800;border-radius:10px;cursor:pointer;border:1px solid;transition:all .2s;'+( _pixelTab==='tt'?'background:#FE2C55;color:#fff;border-color:#FE2C55;box-shadow:0 0 16px rgba(254,44,85,.45);':'background:rgba(254,44,85,.08);color:#FE2C55;border-color:rgba(254,44,85,.55);')+'">🎵 TikTok 像素 <span style="display:inline-block;background:'+( _pixelTab==='tt'?'rgba(255,255,255,.32)':'#FE2C55')+';color:#fff;font-size:.66rem;font-weight:800;padding:2px 7px;border-radius:9px;margin-left:4px;letter-spacing:.5px">NEW</span></button>'+
     '</div>'+
     '<div id="pixelPanel" style="margin-top:12px"></div>';
   document.getElementById('siteSelector').onchange = function(){
