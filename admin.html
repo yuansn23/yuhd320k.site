@@ -284,67 +284,130 @@ async function showAccounts(){
     '<div class="card"><h3>➕ 创建子账户</h3>'+
     '<div class="form-row"><input type="text" id="newUser" placeholder="用户名"><input type="text" id="newPass" placeholder="密码"><input type="text" id="newSite" placeholder="绑定域名 site1.example.com"><button class="btn btn-p" id="createBtn">创建</button></div><div id="createMsg"></div></div>'+
     '<div id="editModal" class="hide" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.7);z-index:99;display:flex;align-items:center;justify-content:center"><div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:28px;width:480px;max-width:95vw;max-height:90vh;overflow-y:auto"><h3 style="margin-bottom:16px">✏️ 编辑子账户 <span id="editUsername" style="color:var(--green)"></span></h3><label style="font-size:.8rem;color:var(--muted)">新用户名（留空不修改）</label><input type="text" id="editNewUser" placeholder="留空则不修改用户名" style="margin-bottom:8px"><label style="font-size:.8rem;color:var(--muted)">新密码（留空不修改）</label><input type="text" id="editPass" placeholder="留空则不修改密码" style="margin-bottom:8px"><label style="font-size:.8rem;color:var(--muted)">主站点域名</label><input type="text" id="editSite" placeholder="https://site.example.com/estest/" style="margin-bottom:12px"><label style="font-size:.8rem;color:var(--muted);display:flex;align-items:center;gap:8px">🌐 额外落地页 <button class="btn btn-p btn-sm" id="addSiteBtn" style="font-size:.68rem;padding:4px 10px">+ 添加</button></label><div id="editSitesList" style="margin-bottom:12px"></div><div class="form-row" id="addSiteRow" style="display:none"><input type="text" id="newSiteInput" placeholder="输入落地页域名 site.example.com"><button class="btn btn-p btn-sm" id="confirmAddSiteBtn">确定</button></div><div style="display:flex;gap:10px"><button class="btn btn-p" id="saveEditBtn">保存</button><button class="btn btn-o" id="cancelEditBtn">取消</button></div><div id="editMsg"></div></div></div>'+
-    '<div class="card"><h3>📋 子账户列表</h3><table><thead><tr><th>用户名</th><th>密码</th><th>绑定站点</th><th>点击/下载</th><th>像素</th><th>跳转地址</th><th>斗篷权限</th><th>AB权限</th><th>DP权限</th><th>操作</th></tr></thead><tbody id="accountsBody"><tr><td colspan="10" class="empty">加载中...</td></tr></tbody></table></div>';
+    '<div class="card"><h3>📋 子账户列表</h3>'+
+    '<div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:12px;align-items:center">'+
+      '<label style="font-size:.78rem;color:var(--muted)">斗篷权限 <select id="fCloak" style="padding:6px 8px;border-radius:6px;border:1px solid var(--border);background:#0d0f16;color:var(--text);font-size:.8rem"><option value="">全部</option><option value="1">已开启</option><option value="0">未开通</option></select></label>'+
+      '<label style="font-size:.78rem;color:var(--muted)">AB权限 <select id="fAb" style="padding:6px 8px;border-radius:6px;border:1px solid var(--border);background:#0d0f16;color:var(--text);font-size:.8rem"><option value="">全部</option><option value="1">已开启</option><option value="0">未开通</option></select></label>'+
+      '<label style="font-size:.78rem;color:var(--muted)">DP权限 <select id="fDp" style="padding:6px 8px;border-radius:6px;border:1px solid var(--border);background:#0d0f16;color:var(--text);font-size:.8rem"><option value="">全部</option><option value="1">已开启</option><option value="0">未开通</option></select></label>'+
+    '</div>'+
+    '<table><thead><tr><th>用户名</th><th>备注</th><th>密码</th><th>绑定站点</th><th>点击/下载</th><th>像素</th><th>跳转地址</th><th>斗篷权限</th><th>AB权限</th><th>DP权限</th><th>操作</th></tr></thead><tbody id="accountsBody"><tr><td colspan="11" class="empty">加载中...</td></tr></tbody></table></div>';
 
   document.getElementById('createBtn').onclick = createAccount;
+  ['fCloak','fAb','fDp'].forEach(function(id){ var el = document.getElementById(id); if(el) el.onchange = renderAccounts; });
   loadAccounts();
 }
 
+var _accountsAll = [];
+var _abMap = {};
+var _dpMap = {};
+
 async function loadAccounts(){
-  var tbody = document.getElementById('accountsBody');
   try{
     var r = await fetch('/api/admin/accounts',{headers:{'Authorization':'Basic '+S.token}});
     var list = await r.json();
-    if(!list.length){ tbody.innerHTML='<tr><td colspan="10" class="empty">暂无子账户</td></tr>'; return; }
-    var abMap = {};
+    if(!Array.isArray(list)) list = [];
+    _abMap = {};
     try{
       var abr = await fetch('/api/admin/ab-perm',{headers:{'Authorization':'Basic '+S.token}});
       var abList = await abr.json();
-      if(Array.isArray(abList)){ abList.forEach(function(x){ abMap[x.username] = x.ab_enabled ? 1 : 0; }); }
+      if(Array.isArray(abList)){ abList.forEach(function(x){ _abMap[x.username] = x.ab_enabled ? 1 : 0; }); }
     }catch(e){}
-    var dpMap = {};
+    _dpMap = {};
     try{
       var dpr = await fetch('/api/admin/dp-perm',{headers:{'Authorization':'Basic '+S.token}});
       var dpList = await dpr.json();
-      if(Array.isArray(dpList)){ dpList.forEach(function(x){ dpMap[x.username] = x.dp_enabled ? 1 : 0; }); }
+      if(Array.isArray(dpList)){ dpList.forEach(function(x){ _dpMap[x.username] = x.dp_enabled ? 1 : 0; }); }
     }catch(e){}
-    tbody.innerHTML = list.map(function(a){
-      var siteList = (a.stats.sites||[]).map(function(s){return s.site;});
-      if(!siteList.length && a.site) siteList = [a.site];
-      var sitesHtml = siteList.length ? siteList.map(function(s){return '<span style="display:inline-block;background:rgba(255,255,255,.04);padding:2px 8px;border-radius:4px;font-size:.72rem;margin:2px 4px 2px 0;word-break:break-all">'+esc(s)+'</span>';}).join('') : esc(a.site||'—');
-      var isDisabled = a.status === 'disabled';
-      var statusBadge = isDisabled ? ' <span class=\"badge red\">已禁用</span>' : ' <span class=\"badge green\">正常</span>';
-      var toggleLabel = isDisabled ? '启用' : '禁用';
-      var toggleCls = isDisabled ? 'btn-p' : 'btn-o';
-      var cloakOn = a.cloak_enabled ? 1 : 0;
-      var abOn = abMap[a.username] ? 1 : 0;
-      var abBtn = '<button class="btn '+(abOn?'btn-p':'btn-o')+' btn-sm" data-ab="'+esc(a.username)+'">'+(abOn?'已开启':'未开通')+'</button>';
-      var dpOn = dpMap[a.username] ? 1 : 0;
-      var dpBtn = '<button class="btn '+(dpOn?'btn-p':'btn-o')+' btn-sm" data-dp="'+esc(a.username)+'">'+(dpOn?'已开启':'未开通')+'</button>';
-      var cloakBtn = '<button class=\"btn '+(cloakOn?'btn-p':'btn-o')+' btn-sm\" data-cloak=\"'+esc(a.username)+'\">'+(cloakOn?'已开启':'未开通')+'</button>';
-      return '<tr style=\"'+(isDisabled?'opacity:.5':'')+'\"><td><strong>'+esc(a.username)+'</strong>'+statusBadge+'</td><td style=\"font-family:monospace\">'+esc(a.pw||'—')+'</td><td style=\"max-width:260px\">'+sitesHtml+'</td><td>'+a.stats.downloads+'</td><td>'+(a.stats.pixels||[]).length+'</td><td style=\"max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap\">'+esc(a.stats.apkUrl||'—')+'</td>'+
-        '<td>'+cloakBtn+'</td><td>'+abBtn+'</td><td>'+dpBtn+'</td>'+
-        '<td><button class=\"btn btn-p btn-sm\" data-edit=\"'+esc(a.username)+'\">编辑</button> <button class=\"btn '+toggleCls+' btn-sm\" data-toggle=\"'+esc(a.username)+'\">'+toggleLabel+'</button> <button class=\"btn btn-d btn-sm\" data-del=\"'+esc(a.username)+'\">删除</button></td></tr>';
-    }).join('');
-    tbody.querySelectorAll('[data-edit]').forEach(function(b){
-      b.onclick = function(){ showEditModal(this.getAttribute('data-edit')); };
+    list.forEach(function(a){
+      a._abOn = _abMap[a.username] ? 1 : 0;
+      a._dpOn = _dpMap[a.username] ? 1 : 0;
     });
-    tbody.querySelectorAll('[data-del]').forEach(function(b){
-      b.onclick = function(){ deleteAccount(this.getAttribute('data-del')); };
-    });
-    tbody.querySelectorAll('[data-toggle]').forEach(function(b){
-      b.onclick = function(){ toggleAccount(this.getAttribute('data-toggle')); };
-    });
-    tbody.querySelectorAll('[data-cloak]').forEach(function(b){
-      b.onclick = function(){ toggleCloak(this.getAttribute('data-cloak')); };
-    });
-    tbody.querySelectorAll('[data-ab]').forEach(function(b){
-      b.onclick = function(){ toggleAb(this.getAttribute('data-ab')); };
-    });
-    tbody.querySelectorAll('[data-dp]').forEach(function(b){
-      b.onclick = function(){ toggleDp(this.getAttribute('data-dp')); };
-    });
-  }catch(e){ tbody.innerHTML='<tr><td colspan="10" class="empty">加载失败: '+esc(e.message)+'</td></tr>'; }
+    _accountsAll = list;
+    renderAccounts();
+  }catch(e){
+    var tbody0 = document.getElementById('accountsBody');
+    tbody0.innerHTML='<tr><td colspan="11" class="empty">加载失败: '+esc(e.message)+'</td></tr>';
+  }
+}
+
+function renderAccounts(){
+  var tbody = document.getElementById('accountsBody');
+  var fC = (document.getElementById('fCloak')||{}).value || '';
+  var fA = (document.getElementById('fAb')||{}).value || '';
+  var fD = (document.getElementById('fDp')||{}).value || '';
+  var rows = _accountsAll.filter(function(a){
+    if(fC==='1' && !a.cloak_enabled) return false;
+    if(fC==='0' && a.cloak_enabled) return false;
+    if(fA==='1' && !a._abOn) return false;
+    if(fA==='0' && a._abOn) return false;
+    if(fD==='1' && !a._dpOn) return false;
+    if(fD==='0' && a._dpOn) return false;
+    return true;
+  });
+  if(!rows.length){ tbody.innerHTML='<tr><td colspan="11" class="empty">'+(_accountsAll.length?'无匹配账户':'暂无子账户')+'</td></tr>'; return; }
+  tbody.innerHTML = rows.map(function(a){
+    var siteList = (a.stats.sites||[]).map(function(s){return s.site;});
+    if(!siteList.length && a.site) siteList = [a.site];
+    var sitesHtml = siteList.length ? siteList.map(function(s){return '<span style="display:inline-block;background:rgba(255,255,255,.04);padding:2px 8px;border-radius:4px;font-size:.72rem;margin:2px 4px 2px 0;word-break:break-all">'+esc(s)+'</span>';}).join('') : esc(a.site||'—');
+    var isDisabled = a.status === 'disabled';
+    var statusBadge = isDisabled ? ' <span class=\"badge red\">已禁用</span>' : ' <span class=\"badge green\">正常</span>';
+    var toggleLabel = isDisabled ? '启用' : '禁用';
+    var toggleCls = isDisabled ? 'btn-p' : 'btn-o';
+    var cloakOn = a.cloak_enabled ? 1 : 0;
+    var abOn = a._abOn ? 1 : 0;
+    var abBtn = '<button class="btn '+(abOn?'btn-p':'btn-o')+' btn-sm" data-ab="'+esc(a.username)+'">'+(abOn?'已开启':'未开通')+'</button>';
+    var dpOn = a._dpOn ? 1 : 0;
+    var dpBtn = '<button class="btn '+(dpOn?'btn-p':'btn-o')+' btn-sm" data-dp="'+esc(a.username)+'">'+(dpOn?'已开启':'未开通')+'</button>';
+    var cloakBtn = '<button class=\"btn '+(cloakOn?'btn-p':'btn-o')+' btn-sm\" data-cloak=\"'+esc(a.username)+'\">'+(cloakOn?'已开启':'未开通')+'</button>';
+    var remarkCell = '<td style="min-width:150px"><input type="text" id="acctRemark-'+esc(a.username)+'" value="'+esc(a.remark||'')+'" placeholder="备注" style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid var(--border);background:#0d0f16;color:var(--text);font-size:.8rem"><button class="btn btn-p btn-sm" data-save-acct-remark="'+esc(a.username)+'" style="margin-top:5px">保存</button></td>';
+    return '<tr style=\"'+(isDisabled?'opacity:.5':'')+'\"><td><strong>'+esc(a.username)+'</strong>'+statusBadge+'</td>'+remarkCell+'<td style=\"font-family:monospace\">'+esc(a.pw||'—')+'</td><td style=\"max-width:260px\">'+sitesHtml+'</td><td>'+a.stats.downloads+'</td><td>'+(a.stats.pixels||[]).length+'</td><td style=\"max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap\">'+esc(a.stats.apkUrl||'—')+'</td>'+
+      '<td>'+cloakBtn+'</td><td>'+abBtn+'</td><td>'+dpBtn+'</td>'+
+      '<td><button class=\"btn btn-p btn-sm\" data-edit=\"'+esc(a.username)+'\">编辑</button> <button class=\"btn '+toggleCls+' btn-sm\" data-toggle=\"'+esc(a.username)+'\">'+toggleLabel+'</button> <button class=\"btn btn-d btn-sm\" data-del=\"'+esc(a.username)+'\">删除</button></td></tr>';
+  }).join('');
+  tbody.querySelectorAll('[data-edit]').forEach(function(b){
+    b.onclick = function(){ showEditModal(this.getAttribute('data-edit')); };
+  });
+  tbody.querySelectorAll('[data-del]').forEach(function(b){
+    b.onclick = function(){ deleteAccount(this.getAttribute('data-del')); };
+  });
+  tbody.querySelectorAll('[data-toggle]').forEach(function(b){
+    b.onclick = function(){ toggleAccount(this.getAttribute('data-toggle')); };
+  });
+  tbody.querySelectorAll('[data-cloak]').forEach(function(b){
+    b.onclick = function(){ toggleCloak(this.getAttribute('data-cloak')); };
+  });
+  tbody.querySelectorAll('[data-ab]').forEach(function(b){
+    b.onclick = function(){ toggleAb(this.getAttribute('data-ab')); };
+  });
+  tbody.querySelectorAll('[data-dp]').forEach(function(b){
+    b.onclick = function(){ toggleDp(this.getAttribute('data-dp')); };
+  });
+  tbody.querySelectorAll('[data-save-acct-remark]').forEach(function(b){
+    b.onclick = function(){ saveAccountRemark(this.getAttribute('data-save-acct-remark')); };
+  });
+}
+
+async function saveAccountRemark(u){
+  var inp = document.getElementById('acctRemark-'+u);
+  var btn = document.querySelector('[data-save-acct-remark="'+u+'"]');
+  if(!inp) return;
+  var remark = inp.value;
+  if(btn){ btn.textContent = '保存中...'; btn.disabled = true; }
+  try{
+    var r = await fetch('/api/admin/accounts',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Basic '+S.token},body:JSON.stringify({username:u, action:'remark', remark:remark})});
+    var d = await r.json();
+    if(d.ok){
+      if(btn) btn.textContent = '✅ 保存成功';
+      alert('✅ 备注已保存');
+    } else {
+      if(btn) btn.textContent = '保存';
+      alert(d.error || '保存失败');
+    }
+  }catch(e){
+    if(btn) btn.textContent = '保存';
+    alert('网络错误');
+  }
+  if(btn) setTimeout(function(){ btn.textContent = '保存'; btn.disabled = false; }, 1500);
 }
 
 async function toggleAccount(u){

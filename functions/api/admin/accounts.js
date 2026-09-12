@@ -44,7 +44,7 @@ export async function onRequest(context) {
       var acctsResult = null;
       var useD1Columns = true;
       try {
-        acctsResult = await env.DB.prepare('SELECT username, password, role, site, created, pixel_ids, apk_url, status FROM accounts WHERE role = ?1 ORDER BY created DESC').bind('user').all();
+        acctsResult = await env.DB.prepare('SELECT username, password, role, site, created, pixel_ids, apk_url, status, remark FROM accounts WHERE role = ?1 ORDER BY created DESC').bind('user').all();
       } catch (e) {
         // 新列（pixel_ids, apk_url）还没建，回退
         useD1Columns = false;
@@ -161,6 +161,7 @@ export async function onRequest(context) {
               created: a.created || '',
               status: a.status || 'active',
               cloak_enabled: cloakMap[a.username] || 0,
+              remark: a.remark || '',
               stats: {
                 downloads: downloadMap[a.username] || 0,
                 apkUrl: apkUrl,
@@ -228,6 +229,26 @@ export async function onRequest(context) {
         var newCloak = accc.cloak_enabled ? 0 : 1;
         await env.DB.prepare('UPDATE accounts SET cloak_enabled = ?1 WHERE username = ?2').bind(newCloak, username).run();
         return new Response(JSON.stringify({ ok: true, cloak_enabled: newCloak, msg: newCloak ? '已开启斗篷权限' : '已关闭斗篷权限' }), {
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+      // -- 备注修改（账户级，管理员填写） --
+      if (action === 'remark') {
+        if (!username) {
+          return new Response(JSON.stringify({ error: '用户名不能为空' }), {
+            status: 400, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+          });
+        }
+        var rAcc = null;
+        try { rAcc = await env.DB.prepare('SELECT username FROM accounts WHERE username = ?1').bind(username).first(); } catch (e) {}
+        if (!rAcc) {
+          return new Response(JSON.stringify({ error: '账户不存在' }), {
+            status: 404, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+          });
+        }
+        var remark = (body.remark == null ? '' : String(body.remark)).slice(0, 200);
+        await env.DB.prepare('UPDATE accounts SET remark = ?1 WHERE username = ?2').bind(remark, username).run();
+        return new Response(JSON.stringify({ ok: true, username: username, remark: remark }), {
           headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
         });
       }
