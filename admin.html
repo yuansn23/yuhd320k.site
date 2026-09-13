@@ -2412,12 +2412,12 @@ function renderDpBody(){
       '<div id="dpListBox"></div>'+
       '<div style="border-top:1px solid var(--border);margin:14px 0"></div>'+
       '<h3>⚙️ 基础设置</h3>'+
-      '<label style="font-size:.8rem;color:var(--muted)">落地页域名（先选域名，再点「落地页无限域名」生成）</label>'+
+      '<label style="font-size:.8rem;color:var(--muted)">该域名是用于广告审核的，请先点击</label>'+
       '<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">'+
         '<select id="dpSitePrefix" style="margin-bottom:0;flex:1;max-width:340px"></select>'+
-        '<button class="btn btn-p" id="dpGenBtn" style="white-space:nowrap;font-size:.92rem" title="用所选域名生成一个永不重复的落地页地址并自动填入">🎲 落地页无限域名</button>'+
+        '<button class="btn btn-p" id="dpGenBtn" style="white-space:nowrap;font-size:.92rem" title="用所选域名生成一个永不重复的落地页地址并自动填入">🎲 选择斗篷审核的域名</button>'+
       '</div>'+
-      '<label style="font-size:.8rem;color:var(--muted)">落地页地址（给用户打开的页面，不可手动填写，须先点上方「🎲 落地页无限域名」生成）</label><input type="text" id="dpSite" readonly placeholder="请先点击上方「🎲 落地页无限域名」按钮生成" style="margin-bottom:14px;background:rgba(255,255,255,.04);cursor:pointer" title="不可手动填写，请点击「🎲 落地页无限域名」按钮生成">'+
+      '<label style="font-size:.8rem;color:var(--muted)">落地页地址（给用户打开的页面，不可手动填写，须先点上方「🎲 选择斗篷审核的域名」生成）</label><input type="text" id="dpSite" readonly placeholder="请先点击上方「🎲 选择斗篷审核的域名」按钮生成" style="margin-bottom:14px;background:rgba(255,255,255,.04);cursor:pointer" title="不可手动填写，请点击「🎲 选择斗篷审核的域名」按钮生成">'+
       '<label style="font-size:.8rem;color:var(--muted)">备注（可选，给自己看的标记，方便区分不同链接）</label><input type="text" id="dpRemark" placeholder="例如：谷歌广告主推 / 测试用" style="margin-bottom:14px">'+
       '<label style="font-size:.8rem;color:var(--green);font-weight:700">实际地址（符合规则 → 跳这里）</label><input type="text" id="dpActualUrl" placeholder="https://example.com/real" style="margin-bottom:14px">'+
       '<label style="font-size:.8rem;color:var(--red);font-weight:700">不符合规则地址（命中规则 → 跳这里）</label><input type="text" id="dpFallbackUrl" placeholder="https://www.facebook.com" style="margin-bottom:14px">'+
@@ -2473,7 +2473,7 @@ function renderDpBody(){
   document.getElementById('dpSaveBtn').onclick = saveDpConfig;
   document.getElementById('dpGenBtn').onclick = genDpLanding;
   var dpSiteInp = document.getElementById('dpSite');
-  if(dpSiteInp) dpSiteInp.onclick = function(){ msg('dpMsg','err','落地页地址不可手动填写，请先点击上方「🎲 落地页无限域名」按钮生成'); };
+  if(dpSiteInp) dpSiteInp.onclick = function(){ msg('dpMsg','err','落地页地址不可手动填写，请先点击上方「🎲 选择斗篷审核的域名」按钮生成'); };
   document.getElementById('dpSubBasic').onclick = function(){ setDpSubTab('basic'); };
   document.getElementById('dpSubCrawler').onclick = function(){ setDpSubTab('crawler'); };
   document.getElementById('dpSubDevice').onclick = function(){ setDpSubTab('device'); };
@@ -2520,7 +2520,7 @@ function renderDpList(){
   if(!box) return;
   box.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">'+
     '<label style="font-weight:800;color:var(--blue);font-size:.92rem">📍 正在配置的落地页</label>'+
-    '<button type="button" class="btn btn-p" id="dpNewBtn" style="font-size:.95rem;padding:10px 18px">➕ 新增落地页</button>'+
+    '<button type="button" class="btn btn-p" id="dpNewBtn" style="font-size:.95rem;padding:10px 18px">➕ 新增斗篷</button>'+
   '</div>';
   var nb = document.getElementById('dpNewBtn');
   if(nb) nb.onclick = function(){ _currentDpUrl=''; fillDpForm(null); };
@@ -2577,7 +2577,17 @@ function saveDpConfig(){
   function radio(name){ var el=document.querySelector('input[name="'+name+'"]:checked'); return el ? el.value : 'block'; }
 
   var site = document.getElementById('dpSite').value.trim();
-  if(!site){ msg('dpMsg','err','请先点击上方「🎲 落地页无限域名」按钮生成落地页地址'); return; }
+  if(!site){ msg('dpMsg','err','请先点击上方「🎲 选择斗篷审核的域名」按钮生成落地页地址'); return; }
+
+  // 环境屏蔽规则完整性：设备环境（终端屏蔽）、设备语言屏蔽 未开启时提醒用户
+  var missEnv = [];
+  if(!chk('dpDeviceEnabled')) missEnv.push('终端屏蔽（安卓 / iOS / 电脑 / Mac）');
+  if(!chk('dpLangEnabled')) missEnv.push('设备语言屏蔽');
+  if(missEnv.length){
+    if(!confirm('提示：以下「设备环境」屏蔽规则尚未开启：\n  ' + missEnv.join('\n  ') + '\n\n未开启会导致广告审核流量无法被准确识别分流，建议先开启再保存。\n\n确定仍要继续保存吗？')){
+      return;
+    }
+  }
 
   // 地区时区：仅允许 UTC 偏移格式（如 +8 / -5 / +5.5 / 0），非法则提示并给正确示范
   var tzList = lines('dpTzList');
