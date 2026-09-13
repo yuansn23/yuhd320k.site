@@ -2417,10 +2417,10 @@ function renderDpBody(){
         '<select id="dpSitePrefix" style="margin-bottom:0;flex:1;max-width:340px"></select>'+
         '<button class="btn btn-p" id="dpGenBtn" style="white-space:nowrap;font-size:.92rem" title="用所选域名生成一个永不重复的落地页地址并自动填入">🎲 落地页无限域名</button>'+
       '</div>'+
-      '<label style="font-size:.8rem;color:var(--muted)">落地页地址（给用户打开的页面）</label><input type="text" id="dpSite" placeholder="点「落地页无限域名」自动生成，或手动粘贴完整地址" style="margin-bottom:14px">'+
+      '<label style="font-size:.8rem;color:var(--muted)">落地页地址（给用户打开的页面，不可手动填写，须先点上方「🎲 落地页无限域名」生成）</label><input type="text" id="dpSite" readonly placeholder="请先点击上方「🎲 落地页无限域名」按钮生成" style="margin-bottom:14px;background:rgba(255,255,255,.04);cursor:pointer" title="不可手动填写，请点击「🎲 落地页无限域名」按钮生成">'+
       '<label style="font-size:.8rem;color:var(--muted)">备注（可选，给自己看的标记，方便区分不同链接）</label><input type="text" id="dpRemark" placeholder="例如：谷歌广告主推 / 测试用" style="margin-bottom:14px">'+
       '<label style="font-size:.8rem;color:var(--green);font-weight:700">实际地址（符合规则 → 跳这里）</label><input type="text" id="dpActualUrl" placeholder="https://example.com/real" style="margin-bottom:14px">'+
-      '<label style="font-size:.8rem;color:var(--red);font-weight:700">不符合规则地址（命中规则 → 跳这里）</label><input type="text" id="dpFallbackUrl" placeholder="https://www.google.com" style="margin-bottom:14px">'+
+      '<label style="font-size:.8rem;color:var(--red);font-weight:700">不符合规则地址（命中规则 → 跳这里）</label><input type="text" id="dpFallbackUrl" placeholder="https://www.facebook.com" style="margin-bottom:14px">'+
       '<label style="font-size:.8rem;color:var(--muted)">白名单 IP（每行一个，命中则视为真实用户，直接跳实际地址）</label><textarea id="dpWhitelist" rows="2" placeholder="1.2.3.4"></textarea>'+
     '</div>'+
 
@@ -2472,6 +2472,8 @@ function renderDpBody(){
 
   document.getElementById('dpSaveBtn').onclick = saveDpConfig;
   document.getElementById('dpGenBtn').onclick = genDpLanding;
+  var dpSiteInp = document.getElementById('dpSite');
+  if(dpSiteInp) dpSiteInp.onclick = function(){ msg('dpMsg','err','落地页地址不可手动填写，请先点击上方「🎲 落地页无限域名」按钮生成'); };
   document.getElementById('dpSubBasic').onclick = function(){ setDpSubTab('basic'); };
   document.getElementById('dpSubCrawler').onclick = function(){ setDpSubTab('crawler'); };
   document.getElementById('dpSubDevice').onclick = function(){ setDpSubTab('device'); };
@@ -2532,7 +2534,7 @@ function fillDpForm(cfg){
   var rules = (cfg && cfg.rules && typeof cfg.rules==='object') ? cfg.rules : { crawler:{enabled:true,engines:['google','facebook','tiktok']} };
   setVal('dpSite', cfg ? cfg.site : '');
   setVal('dpActualUrl', cfg ? cfg.actual_url : '');
-  setVal('dpFallbackUrl', cfg ? cfg.fallback_url : '');
+  setVal('dpFallbackUrl', cfg ? (cfg.fallback_url || 'https://www.facebook.com') : 'https://www.facebook.com');
   setChk('dpEnabled', cfg ? !!cfg.enabled : true);
   setVal('dpWhitelist', (cfg && Array.isArray(cfg.whitelist_ips)) ? cfg.whitelist_ips.join('\n') : '');
   setVal('dpRemark', cfg ? (cfg.remark || '') : '');
@@ -2575,7 +2577,7 @@ function saveDpConfig(){
   function radio(name){ var el=document.querySelector('input[name="'+name+'"]:checked'); return el ? el.value : 'block'; }
 
   var site = document.getElementById('dpSite').value.trim();
-  if(!site){ msg('dpMsg','err','请填写落地页地址'); return; }
+  if(!site){ msg('dpMsg','err','请先点击上方「🎲 落地页无限域名」按钮生成落地页地址'); return; }
 
   // 地区时区：仅允许 UTC 偏移格式（如 +8 / -5 / +5.5 / 0），非法则提示并给正确示范
   var tzList = lines('dpTzList');
