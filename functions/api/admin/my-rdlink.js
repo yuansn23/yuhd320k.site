@@ -144,7 +144,7 @@ export async function onRequest(context) {
         var binds = [me.user];
         if (linkId) { where += ' AND link_id = ?2'; binds.push(linkId); }
         var countRow = await env.DB.prepare('SELECT COUNT(*) AS c FROM rd_logs WHERE ' + where).bind(...binds).first();
-        var lg = await env.DB.prepare('SELECT link_id, domain, from_url, to_url, ip, device, created_at FROM rd_logs WHERE ' + where + ' ORDER BY id DESC LIMIT ?' + (binds.length + 1) + ' OFFSET ?' + (binds.length + 2))
+        var lg = await env.DB.prepare('SELECT link_id, domain, from_url, to_url, ip, device, status, reason, created_at FROM rd_logs WHERE ' + where + ' ORDER BY id DESC LIMIT ?' + (binds.length + 1) + ' OFFSET ?' + (binds.length + 2))
           .bind(...binds, limit, offset).all();
         return json({ logs: (lg && lg.results) || [], total: (countRow && countRow.c) ? countRow.c : 0 });
       }

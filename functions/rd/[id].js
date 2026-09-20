@@ -230,6 +230,11 @@ export async function onRequest(context) {
       }
       if (triggered.length) {
         var fb = protection.fallback_url || '';
+        // 记录拦截日志（与正常跳转同表，status=blocked 区分，reason 记录命中原因）
+        try {
+          await env.DB.prepare('INSERT INTO rd_logs (link_id, username, domain, from_url, to_url, ip, device, status, reason, created_at) VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10)')
+            .bind(id, link.username || '', link.domain || '', (link.domain || '') + '/' + id, fb, ip, detectDevice(ua), 'blocked', triggered.join(','), new Date().toISOString()).run();
+        } catch (e) {}
         if (fb) {
           return new Response(null, { status: 302, headers: { 'Location': fb, 'Cache-Control': 'no-store', 'Access-Control-Allow-Origin': '*' } });
         }
@@ -256,8 +261,8 @@ export async function onRequest(context) {
 
     // 记录跳转统计（不阻塞 302，失败静默）
     try {
-      await env.DB.prepare('INSERT INTO rd_logs (link_id, username, domain, from_url, to_url, ip, device, created_at) VALUES (?1,?2,?3,?4,?5,?6,?7,?8)')
-        .bind(id, link.username || '', link.domain || '', fromUrl, chosen.url, ip, device, new Date().toISOString()).run();
+      await env.DB.prepare('INSERT INTO rd_logs (link_id, username, domain, from_url, to_url, ip, device, status, reason, created_at) VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10)')
+        .bind(id, link.username || '', link.domain || '', fromUrl, chosen.url, ip, device, 'ok', '', new Date().toISOString()).run();
     } catch (e) {}
 
     return new Response(null, {

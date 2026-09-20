@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <meta name="color-scheme" content="dark light">
 <title>天御系统后台</title>
-<script>try{var _t=localStorage.getItem('st_theme')||'dark';if(_t!=='light')_t='dark';document.documentElement.setAttribute('data-theme',_t);}catch(e){}</script>
+<script>try{var _t=localStorage.getItem('st_theme')||'light';if(_t!=='light')_t='dark';document.documentElement.setAttribute('data-theme',_t);}catch(e){}</script>
 <style>
 :root{color-scheme:dark;--bg:#0f1119;--card:#181b28;--border:rgba(255,255,255,.06);--text:#e1e4ed;--muted:#7c8097;--green:#21C064;--red:#f85149;--blue:#58a6ff;--amber:#f0883e;--input:#0d0f16}
 html[data-theme="light"]{color-scheme:light;--bg:#f4f5f7;--card:#ffffff;--border:rgba(15,20,35,.10);--text:#161a24;--muted:#5b6270;--green:#16a34a;--red:#dc2626;--blue:#2563eb;--amber:#d97706;--input:#ffffff}
@@ -77,7 +77,7 @@ input[type=checkbox],input[type=radio]{width:auto;flex-shrink:0;accent-color:var
 .badge.green{background:rgba(33,192,100,.12);color:var(--green)}
 .badge.red{background:rgba(248,81,73,.12);color:var(--red)}
 .empty{text-align:center;padding:40px;color:var(--muted);font-size:.9rem}
-.login-wrap{display:flex;align-items:center;justify-content:center;min-height:100vh;gap:56px;padding:48px 24px;flex-wrap:wrap}
+.login-wrap{position:relative;display:flex;align-items:center;justify-content:center;min-height:100vh;gap:56px;padding:48px 24px;flex-wrap:wrap}
 .login-intro{max-width:520px;text-align:left;flex:1 1 440px}
 .login-intro h1{font-size:2.2rem;font-weight:800;letter-spacing:-.01em;margin-bottom:12px}
 .login-intro .lead{color:var(--muted);font-size:.95rem;line-height:1.75;margin-bottom:26px}
@@ -95,11 +95,12 @@ input[type=checkbox],input[type=radio]{width:auto;flex-shrink:0;accent-color:var
 .login-box input{margin-bottom:14px}
 .login-box .btn{width:100%;padding:13px;margin-top:6px}
 /* 登录页右上角 */
-.login-topright{position:fixed;top:18px;right:18px;z-index:60;display:flex;gap:10px;align-items:center}
+.login-topright{position:absolute;top:18px;right:18px;z-index:60;display:flex;gap:10px;align-items:center}
 .login-topright a,.login-topright button{display:inline-flex;align-items:center;gap:6px;padding:9px 16px;border-radius:8px;font-size:.84rem;font-weight:700;cursor:pointer;text-decoration:none;transition:all .2s;white-space:nowrap;border:1px solid var(--border);background:rgba(255,255,255,.03);color:var(--muted);font-family:inherit}
 .login-topright a:hover,.login-topright button:hover{color:var(--text);background:rgba(255,255,255,.06)}
 .login-topright .kf{background:rgba(88,166,255,.14);border-color:rgba(88,166,255,.5);color:var(--blue)}
 .login-topright .kf:hover{background:rgba(88,166,255,.22);color:var(--blue)}
+#adminPage{position:relative;min-height:100vh}
 @media(max-width:900px){.stat-row{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:720px){.sidebar{width:60px;padding:16px 0}.sidebar-logo span,.sidebar-nav a span,.sidebar-user span{display:none}.sidebar-logo{padding:0 12px 16px;justify-content:center}.sidebar-nav a{justify-content:center;padding:12px}.main{margin-left:60px;padding:20px 16px}.stat-row{grid-template-columns:1fr}}
 </style>
@@ -170,7 +171,7 @@ S.cloak_enabled = sessionStorage.getItem('st_cloak_enabled') === '1' ? 1 : 0;
 S.ab_enabled = sessionStorage.getItem('st_ab_enabled') === '1' ? 1 : 0;
 S.dp_enabled = sessionStorage.getItem('st_dp_enabled') === '1' ? 1 : 0;
 
-// ========== 主题切换（亮色/暗色，默认暗色）==========
+// ========== 主题切换（亮色/暗色，默认亮色）==========
 function applyTheme(t){
   if(t !== 'light') t = 'dark';
   document.documentElement.setAttribute('data-theme', t);
@@ -183,7 +184,7 @@ function toggleTheme(){
   var cur = document.documentElement.getAttribute('data-theme') || 'dark';
   applyTheme(cur === 'light' ? 'dark' : 'light');
 }
-applyTheme(document.documentElement.getAttribute('data-theme') || 'dark');
+applyTheme(document.documentElement.getAttribute('data-theme') || 'light');
 
 // ========== LOGIN ==========
 document.getElementById('loginBtn').onclick = login;
@@ -3014,7 +3015,7 @@ function renderRdLinks(){
     '<div class="card"><div style="display:flex;align-items:center;justify-content:space-between"><h3 style="margin:0">📋 短链列表</h3><button class="btn btn-p" id="rdAddBtn">➕ 新增短链</button></div>'+
     '<div style="font-size:.76rem;color:var(--muted);margin-top:10px;line-height:1.6">「分流链接」＝分享给访客的短链地址；「跳转后链接」＝访客最终跳转到的目标链接</div>'+
     '<div style="font-size:.78rem;color:var(--blue);margin-top:8px;line-height:1.7;background:rgba(88,166,255,.1);border:1px solid rgba(88,166,255,.3);border-radius:8px;padding:10px 12px">💡 此功能<b>不仅限于</b> WhatsApp / Line / Telegram 等社交链接——任意网址（落地页、下载页、商城链接、社群主页、App 下载等）都可作为「跳转后链接」进行随机或按比例分流。</div>'+
-    '<table style="margin-top:10px"><thead><tr><th style="white-space:nowrap">短链ID</th><th style="white-space:nowrap">分流链接</th><th style="white-space:nowrap">跳转后链接</th><th style="white-space:nowrap">分流方式</th><th style="white-space:nowrap">状态</th><th style="white-space:nowrap">防护</th><th style="white-space:nowrap">添加时间</th><th style="white-space:nowrap">备注</th><th style="white-space:nowrap">操作</th></tr></thead><tbody id="rdLinksBody"><tr><td colspan="9" class="empty">加载中...</td></tr></tbody></table></div>'+
+    '<div style="overflow-x:auto"><table style="margin-top:10px;min-width:1040px"><thead><tr><th style="white-space:nowrap">短链ID</th><th style="white-space:nowrap">分流链接</th><th style="white-space:nowrap">跳转后链接</th><th style="white-space:nowrap">分流方式</th><th style="white-space:nowrap">状态</th><th style="white-space:nowrap">防护</th><th style="white-space:nowrap">添加时间</th><th style="white-space:nowrap">备注</th><th style="white-space:nowrap">操作</th></tr></thead><tbody id="rdLinksBody"><tr><td colspan="9" class="empty">加载中...</td></tr></tbody></table></div></div>'+
     '<div id="rdModalWrap"></div><div id="rdProtectWrap"></div>';
   document.getElementById('rdAddBtn').onclick = function(){ openRdModal(null); };
   loadRdLinks();
@@ -3419,7 +3420,7 @@ function renderRdLogs(){
   c.innerHTML = '<div class="card"><h3>📈 跳转统计</h3>'+
     '<div class="form-row" style="margin-bottom:12px"><select id="rdLogLinkSel"><option value="">全部短链</option></select><button class="btn btn-o btn-sm" id="rdLogRefresh">刷新</button></div>'+
     '<div style="font-size:.78rem;color:var(--muted);margin-bottom:10px">跳转时间已按 +8 时区显示</div>'+
-    '<table><thead><tr><th style="white-space:nowrap">跳转时间(+8时区)</th><th style="white-space:nowrap">IP</th><th style="white-space:nowrap">分流链接</th><th style="white-space:nowrap">跳转后链接</th><th style="white-space:nowrap">设备</th></tr></thead><tbody id="rdLogsBody"><tr><td colspan="5" class="empty">加载中...</td></tr></tbody></table>'+
+    '<div style="overflow-x:auto"><table style="min-width:760px"><thead><tr><th style="white-space:nowrap">跳转时间(+8时区)</th><th style="white-space:nowrap">IP</th><th style="white-space:nowrap">分流链接</th><th style="white-space:nowrap">跳转后链接</th><th style="white-space:nowrap">设备</th><th style="white-space:nowrap">状态</th></tr></thead><tbody id="rdLogsBody"><tr><td colspan="6" class="empty">加载中...</td></tr></tbody></table></div>'+
     '<div id="rdLogPager" style="margin-top:12px;display:flex;gap:8px;align-items:center"></div></div>';
   fetch('/api/admin/my-rdlink?action=links&_='+Date.now(),{headers:{Authorization:'Basic '+S.token}}).then(function(r){return r.json()}).then(function(d){
     var links = d.links || [];
@@ -3447,12 +3448,19 @@ async function loadRdLogs(){
     var d = await r.json();
     var logs = d.logs || [];
     var total = d.total || 0;
-    if(!logs.length){ tbody.innerHTML='<tr><td colspan="5" class="empty">暂无跳转记录</td></tr>'; }
+    if(!logs.length){ tbody.innerHTML='<tr><td colspan="6" class="empty">暂无跳转记录</td></tr>'; }
     else {
       var devMap = { android:'🤖 安卓', ios:'🍎 苹果', pc:'💻 电脑', mac:'🖥️ Mac', other:'❓ 其他' };
+      var trigMap = { crawler:'🕷️爬虫', device:'📱设备', language:'🌐语言', timezone:'🕐时区', block_ips:'🚫IP', privacy:'🛡️隐私' };
       tbody.innerHTML = logs.map(function(l){
         var dev = devMap[l.device] || l.device || '—';
-        return '<tr><td style="white-space:nowrap">'+fmt8(l.created_at)+'</td><td style="font-family:monospace">'+esc(l.ip||'—')+'</td><td style="word-break:break-all;font-family:monospace;max-width:240px">'+esc(l.from_url||'')+'</td><td style="word-break:break-all;font-family:monospace;max-width:260px">'+esc(l.to_url||'')+'</td><td>'+dev+'</td></tr>';
+        var blocked = (l.status === 'blocked');
+        var trigs = (l.reason || '').split(',').filter(Boolean).map(function(t){ return trigMap[t] || t; });
+        var statusCell = blocked
+          ? '<span class="badge red" title="'+esc(trigs.join('、') || '命中防护规则')+'">🛡️ 拦截</span>'
+          : '<span class="badge green">正常</span>';
+        var toCell = blocked ? (l.to_url ? esc(l.to_url) : '<span style="color:var(--muted)">—（未跳转）</span>') : esc(l.to_url || '');
+        return '<tr><td style="white-space:nowrap">'+fmt8(l.created_at)+'</td><td style="font-family:monospace">'+esc(l.ip||'—')+'</td><td style="word-break:break-all;font-family:monospace;max-width:240px">'+esc(l.from_url||'')+'</td><td style="word-break:break-all;font-family:monospace;max-width:260px">'+toCell+'</td><td>'+dev+'</td><td style="white-space:nowrap">'+statusCell+'</td></tr>';
       }).join('');
     }
     var pages = Math.max(1, Math.ceil(total/20));
@@ -3460,7 +3468,7 @@ async function loadRdLogs(){
     var pb = document.getElementById('rdLogPrev'), nb = document.getElementById('rdLogNext');
     if(pb) pb.onclick = function(){ _rdLogPage--; loadRdLogs(); };
     if(nb) nb.onclick = function(){ _rdLogPage++; loadRdLogs(); };
-  }catch(e){ tbody.innerHTML='<tr><td colspan="5" class="empty">加载失败</td></tr>'; }
+  }catch(e){ tbody.innerHTML='<tr><td colspan="6" class="empty">加载失败</td></tr>'; }
 }
 
 function esc(s){ var d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
