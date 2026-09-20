@@ -3039,8 +3039,8 @@ async function loadRdLinks(){
         ? '<button class="btn btn-p btn-sm" onclick="openRdProtect(\''+l.id+'\')">🛡️ 新增防护</button>'
         : '<div style="display:flex;align-items:center;gap:6px;white-space:nowrap">'+(l.protection===1?'<span class="badge green">防护中</span>':'<span class="badge red">停用</span>')+'<button class="btn btn-o btn-sm" onclick="openRdProtect(\''+l.id+'\')">设置</button></div>';
       return '<tr><td style="font-family:monospace">'+esc(l.id)+'</td>'+
-        '<td style="word-break:break-all;font-family:monospace;max-width:240px">'+short+'</td>'+
-        '<td style="word-break:break-all;font-family:monospace;max-width:260px">'+bTxt+'</td>'+
+        '<td style="white-space:nowrap;font-family:monospace">'+short+'</td>'+
+        '<td style="white-space:nowrap;font-family:monospace">'+bTxt+'</td>'+
         '<td>'+modeTxt+'</td><td>'+st+'</td><td style="white-space:nowrap">'+protCell+'</td><td style="white-space:nowrap">'+fmtTime(l.created_at)+'</td>'+
         '<td style="min-width:200px"><input type="text" id="rdRemark-'+esc(l.id)+'" value="'+esc(l.remark||'')+'" placeholder="备注说明" style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid var(--border);background:var(--input);color:var(--text);font-size:.8rem"><button class="btn btn-p btn-sm" data-rd-save-remark="'+esc(l.id)+'" style="margin-top:5px">保存</button></td>'+
         '<td style="white-space:nowrap"><button class="btn btn-o btn-sm" onclick="rdEdit(\''+l.id+'\')">修改</button> <button class="btn btn-o btn-sm" style="color:var(--red)" onclick="rdDel(\''+l.id+'\')">删除</button> '+btn+'</td></tr>';
@@ -3420,7 +3420,7 @@ function renderRdLogs(){
   c.innerHTML = '<div class="card"><h3>📈 跳转统计</h3>'+
     '<div class="form-row" style="margin-bottom:12px"><select id="rdLogLinkSel"><option value="">全部短链</option></select><button class="btn btn-o btn-sm" id="rdLogRefresh">刷新</button></div>'+
     '<div style="font-size:.78rem;color:var(--muted);margin-bottom:10px">跳转时间已按 +8 时区显示</div>'+
-    '<div style="overflow-x:auto"><table style="min-width:760px"><thead><tr><th style="white-space:nowrap">跳转时间(+8时区)</th><th style="white-space:nowrap">IP</th><th style="white-space:nowrap">分流链接</th><th style="white-space:nowrap">跳转后链接</th><th style="white-space:nowrap">设备</th><th style="white-space:nowrap">状态</th></tr></thead><tbody id="rdLogsBody"><tr><td colspan="6" class="empty">加载中...</td></tr></tbody></table></div>'+
+    '<div style="overflow-x:auto"><table style="min-width:860px"><thead><tr><th style="white-space:nowrap">跳转时间(+8时区)</th><th style="white-space:nowrap">IP</th><th style="white-space:nowrap">分流链接</th><th style="white-space:nowrap">跳转后链接</th><th style="white-space:nowrap">设备</th><th style="white-space:nowrap">状态</th><th style="white-space:nowrap">拦截原因</th></tr></thead><tbody id="rdLogsBody"><tr><td colspan="7" class="empty">加载中...</td></tr></tbody></table></div>'+
     '<div id="rdLogPager" style="margin-top:12px;display:flex;gap:8px;align-items:center"></div></div>';
   fetch('/api/admin/my-rdlink?action=links&_='+Date.now(),{headers:{Authorization:'Basic '+S.token}}).then(function(r){return r.json()}).then(function(d){
     var links = d.links || [];
@@ -3448,7 +3448,7 @@ async function loadRdLogs(){
     var d = await r.json();
     var logs = d.logs || [];
     var total = d.total || 0;
-    if(!logs.length){ tbody.innerHTML='<tr><td colspan="6" class="empty">暂无跳转记录</td></tr>'; }
+    if(!logs.length){ tbody.innerHTML='<tr><td colspan="7" class="empty">暂无跳转记录</td></tr>'; }
     else {
       var devMap = { android:'🤖 安卓', ios:'🍎 苹果', pc:'💻 电脑', mac:'🖥️ Mac', other:'❓ 其他' };
       var trigMap = { crawler:'🕷️爬虫', device:'📱设备', language:'🌐语言', timezone:'🕐时区', block_ips:'🚫IP', privacy:'🛡️隐私' };
@@ -3457,10 +3457,11 @@ async function loadRdLogs(){
         var blocked = (l.status === 'blocked');
         var trigs = (l.reason || '').split(',').filter(Boolean).map(function(t){ return trigMap[t] || t; });
         var statusCell = blocked
-          ? '<span class="badge red" title="'+esc(trigs.join('、') || '命中防护规则')+'">🛡️ 拦截</span>'
+          ? '<span class="badge red">🛡️ 拦截</span>'
           : '<span class="badge green">正常</span>';
+        var reasonCell = blocked ? (trigs.join('、') || '命中防护规则') : '—';
         var toCell = blocked ? (l.to_url ? esc(l.to_url) : '<span style="color:var(--muted)">—（未跳转）</span>') : esc(l.to_url || '');
-        return '<tr><td style="white-space:nowrap">'+fmt8(l.created_at)+'</td><td style="font-family:monospace">'+esc(l.ip||'—')+'</td><td style="word-break:break-all;font-family:monospace;max-width:240px">'+esc(l.from_url||'')+'</td><td style="word-break:break-all;font-family:monospace;max-width:260px">'+toCell+'</td><td>'+dev+'</td><td style="white-space:nowrap">'+statusCell+'</td></tr>';
+        return '<tr><td style="white-space:nowrap">'+fmt8(l.created_at)+'</td><td style="white-space:nowrap;font-family:monospace">'+esc(l.ip||'—')+'</td><td style="white-space:nowrap;font-family:monospace">'+esc(l.from_url||'')+'</td><td style="white-space:nowrap;font-family:monospace">'+toCell+'</td><td>'+dev+'</td><td style="white-space:nowrap">'+statusCell+'</td><td style="white-space:nowrap">'+esc(reasonCell)+'</td></tr>';
       }).join('');
     }
     var pages = Math.max(1, Math.ceil(total/20));
@@ -3468,7 +3469,7 @@ async function loadRdLogs(){
     var pb = document.getElementById('rdLogPrev'), nb = document.getElementById('rdLogNext');
     if(pb) pb.onclick = function(){ _rdLogPage--; loadRdLogs(); };
     if(nb) nb.onclick = function(){ _rdLogPage++; loadRdLogs(); };
-  }catch(e){ tbody.innerHTML='<tr><td colspan="6" class="empty">加载失败</td></tr>'; }
+  }catch(e){ tbody.innerHTML='<tr><td colspan="7" class="empty">加载失败</td></tr>'; }
 }
 
 function esc(s){ var d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
