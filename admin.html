@@ -3443,7 +3443,7 @@ function fmt8(t){
 async function loadRdLogs(){
   var tbody = document.getElementById('rdLogsBody');
   try{
-    var q = '/api/admin/my-rdlink?action=logs&page='+_rdLogPage+'&limit=20'+(_rdLogLink?'&link_id='+encodeURIComponent(_rdLogLink):'')+'&_='+Date.now();
+    var q = '/api/admin/my-rdlink?action=logs&page='+_rdLogPage+'&limit=10'+(_rdLogLink?'&link_id='+encodeURIComponent(_rdLogLink):'')+'&_='+Date.now();
     var r = await fetch(q,{headers:{Authorization:'Basic '+S.token}});
     var d = await r.json();
     var logs = d.logs || [];
@@ -3464,7 +3464,7 @@ async function loadRdLogs(){
         return '<tr><td style="white-space:nowrap">'+fmt8(l.created_at)+'</td><td style="white-space:nowrap;font-family:monospace">'+esc(l.ip||'—')+'</td><td style="white-space:nowrap;font-family:monospace">'+esc(l.from_url||'')+'</td><td style="white-space:nowrap;font-family:monospace">'+toCell+'</td><td>'+dev+'</td><td style="white-space:nowrap">'+statusCell+'</td><td style="white-space:nowrap">'+esc(reasonCell)+'</td></tr>';
       }).join('');
     }
-    var pages = Math.max(1, Math.ceil(total/20));
+    var pages = Math.max(1, Math.ceil(total/10));
     document.getElementById('rdLogPager').innerHTML = '<button class="btn btn-o btn-sm" '+( _rdLogPage<=1?'disabled':'')+' id="rdLogPrev">上一页</button><span style="color:var(--muted);font-size:.8rem">第 '+_rdLogPage+' / '+pages+' 页（共 '+total+' 条）</span><button class="btn btn-o btn-sm" '+(_rdLogPage>=pages?'disabled':'')+' id="rdLogNext">下一页</button>';
     var pb = document.getElementById('rdLogPrev'), nb = document.getElementById('rdLogNext');
     if(pb) pb.onclick = function(){ _rdLogPage--; loadRdLogs(); };
