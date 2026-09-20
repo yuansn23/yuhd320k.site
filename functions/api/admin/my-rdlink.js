@@ -41,6 +41,8 @@ function normalizeDomain(d) {
 
 function cleanNumber(n) { return String(n || '').replace(/\D/g, ''); }
 
+function parseJson(s, d) { try { return JSON.parse(s); } catch (e) { return d; } }
+
 function genId() {
   var chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
   var out = '';
@@ -107,8 +109,29 @@ export async function onRequest(context) {
           var rmRes = await env.DB.prepare('SELECT link_id, remark FROM rd_link_remarks WHERE username = ?1').bind(me.user).all();
           if (rmRes && rmRes.results) { rmRes.results.forEach(function(x){ rmMap[x.link_id] = x.remark || ''; }); }
         } catch (e) {}
-        for (var r2 = 0; r2 < links.length; r2++) { links[r2].remark = rmMap[links[r2].id] || ''; }
+        // 防护状态：读 rd_protection 合并（未配置 = null，配置后 = 0/1）
+        var protMap = {};
+        try {
+          var pr = await env.DB.prepare('SELECT link_id, enabled FROM rd_protection WHERE username = ?1').bind(me.user).all();
+          if (pr && pr.results) { pr.results.forEach(function(x){ protMap[x.link_id] = x.enabled; }); }
+        } catch (e) {}
+        for (var r2 = 0; r2 < links.length; r2++) {
+          links[r2].remark = rmMap[links[r2].id] || '';
+          links[r2].protection = (protMap[links[r2].id] !== undefined) ? (protMap[links[r2].id] === 1 ? 1 : 0) : null;
+        }
         return json({ links: links });
+      }
+      if (action === 'protection') {
+        var pId = (url.searchParams.get('link_id') || '').trim().toLowerCase();
+        if (!/^[a-z0-9]{8}$/.test(pId)) return json({ error: '短链ID格式错误' }, 400);
+        var pOwn = await env.DB.prepare('SELECT id FROM rd_links WHERE id = ?1 AND username = ?2').bind(pId, me.user).first();
+        if (!pOwn) return json({ error: '无权查看该短链' }, 403);
+        var prot = null;
+        try {
+          var pr = await env.DB.prepare('SELECT link_id, enabled, whitelist_ips, rules, fallback_url, updated_at FROM rd_protection WHERE link_id = ?1').bind(pId).first();
+          if (pr) prot = { link_id: pr.link_id, enabled: pr.enabled, whitelist_ips: parseJson(pr.whitelist_ips, []), rules: parseJson(pr.rules, {}), fallback_url: pr.fallback_url || '', updated_at: pr.updated_at || '' };
+        } catch (e) {}
+        return json({ protection: prot });
       }
       if (action === 'logs') {
         var linkId = (url.searchParams.get('link_id') || '').trim();
@@ -202,6 +225,20 @@ export async function onRequest(context) {
         await env.DB.prepare('INSERT INTO rd_link_remarks (link_id, username, remark, updated_at) VALUES (?1, ?2, ?3, ?4) ON CONFLICT(link_id) DO UPDATE SET remark = excluded.remark, updated_at = excluded.updated_at')
           .bind(rkId, me.user, rkRemark, new Date().toISOString()).run();
         return json({ ok: true });
+      }
+
+      if (act === 'protection_save') {
+        var psId = String(body.id || '').toLowerCase().trim();
+        if (!/^[a-z0-9]{8}$/.test(psId)) return json({ error: '短链ID格式错误' }, 400);
+        var psOwn = await env.DB.prepare('SELECT id FROM rd_links WHERE id = ?1 AND username = ?2').bind(psId, me.user).first();
+        if (!psOwn) return json({ error: '无权修改该短链' }, 403);
+        var psEnabled = (body.enabled === true || body.enabled === 1) ? 1 : 0;
+        var psWhitelist = Array.isArray(body.whitelist_ips) ? body.whitelist_ips.map(function (s) { return String(s).trim(); }).filter(Boolean) : [];
+        var psRules = (body.rules && typeof body.rules === 'object') ? body.rules : {};
+        var psFallback = (body.fallback_url == null ? '' : String(body.fallback_url)).trim();
+        await env.DB.prepare('INSERT INTO rd_protection (link_id, username, enabled, whitelist_ips, rules, fallback_url, updated_at) VALUES (?1,?2,?3,?4,?5,?6,?7) ON CONFLICT(link_id) DO UPDATE SET username = excluded.username, enabled = excluded.enabled, whitelist_ips = excluded.whitelist_ips, rules = excluded.rules, fallback_url = excluded.fallback_url, updated_at = excluded.updated_at')
+          .bind(psId, me.user, psEnabled, JSON.stringify(psWhitelist), JSON.stringify(psRules), psFallback, new Date().toISOString()).run();
+        return json({ ok: true, id: psId });
       }
 
       return json({ error: '未知 action' }, 400);
