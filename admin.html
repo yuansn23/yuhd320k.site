@@ -3085,6 +3085,7 @@ function openRdModal(link){
 function renderRdModal(domains, link){
   _rdEditingId = link ? link.id : '';
   var mode = link ? link.mode : 'random';
+  var dedupChecked = link ? (link.dedup !== 0) : true;
   var selectedDomain = link ? link.domain : (domains[0] ? domains[0].domain : '');
   var domainOpts = domains.map(function(x){ return '<option value="'+esc(x.domain)+'"'+(x.domain===selectedDomain?' selected':'')+'>'+esc(x.domain)+'</option>'; }).join('');
   var stepWrap = 'display:flex;gap:10px;margin-bottom:18px;align-items:flex-start';
@@ -3113,6 +3114,11 @@ function renderRdModal(domains, link){
       '<div id="rdTargets"></div>'+
       '<button class="btn btn-o btn-sm" id="rdAddTargetBtn">➕ 添加一个链接</button>'+
       '<div style="font-size:.74rem;color:var(--muted);margin:8px 0 0;line-height:1.6">💬 类型选「WhatsApp」时：只填号码（一行一个、纯数字，<b>不要带国家区号</b>）；可选填「营销话术」，生成 https://wa.me/号码?text=话术</div>'+
+    '</div></div>'+
+    '<div style="'+stepWrap+'"><div style="'+stepNum+'">4</div><div style="flex:1;min-width:0">'+
+      '<div style="'+stepTitle+'">去重设置</div>'+
+      '<div style="'+stepHint+'">同一个访客（同一 cookie）只会固定跳转到同一个链接，避免每次打开都跳到不同链接。</div>'+
+      '<label style="display:flex;align-items:center;gap:10px;cursor:pointer;border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:8px"><input type="checkbox" id="rdDedup" '+(dedupChecked?'checked':'')+' style="margin:0"><div style="flex:1"><b>🎯 开启去重</b><div style="font-size:.78rem;color:var(--muted);line-height:1.5">同一访客重复点击，始终跳转到首次分配的那个链接（仅当跳转后链接多于 1 个时生效）。</div></div></label>'+
     '</div></div>'+
     '<div style="display:flex;gap:10px;margin-top:18px"><button class="btn btn-p" id="rdSaveBtn">保存</button><button class="btn btn-o" id="rdCancelBtn">取消</button></div>'+
     '<div id="rdModalMsg"></div>'+
@@ -3204,7 +3210,9 @@ async function saveRdLink(){
       if(u) targets.push({ type:'url', url:u, weight:weight });
     }
   });
-  var body = { action: _rdEditingId ? 'link_edit' : 'link_add', domain: domain, mode: mode, targets: targets };
+  var dedupEl = document.getElementById('rdDedup');
+  var dedup = dedupEl ? (dedupEl.checked ? 1 : 0) : 1;
+  var body = { action: _rdEditingId ? 'link_edit' : 'link_add', domain: domain, mode: mode, dedup: dedup, targets: targets };
   if(_rdEditingId) body.id = _rdEditingId;
   msg('rdModalMsg','ok','保存中...');
   try{

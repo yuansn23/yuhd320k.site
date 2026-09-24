@@ -9,6 +9,23 @@ const jsonHeaders = { 'Content-Type': 'application/json', 'Access-Control-Allow-
 function parseJson(s, d) { try { return JSON.parse(s); } catch (e) { return d; } }
 function on(t) { return !!(t && t.enabled); }
 
+function getCookie(header, name) {
+  if (!header) return '';
+  var parts = header.split(';');
+  for (var i = 0; i < parts.length; i++) {
+    var p = parts[i].trim();
+    if (p.indexOf(name + '=') === 0) return decodeURIComponent(p.substring(name.length + 1));
+  }
+  return '';
+}
+
+// 目标链接 → 短哈希，用于去重 cookie（同一 cookie 固定命中同一链接）
+function strHash(s) {
+  var h = 5381;
+  for (var i = 0; i < s.length; i++) { h = ((h << 5) + h + s.charCodeAt(i)) >>> 0; }
+  return h.toString(36);
+}
+
 function detectDevice(ua) {
   var u = ua || '';
   if (/Android/i.test(u)) return 'android';
@@ -196,7 +213,7 @@ export async function onRequest(context) {
 
     var link;
     try {
-      link = await env.DB.prepare('SELECT id, username, domain, mode, enabled FROM rd_links WHERE id = ?1').bind(id).first();
+      link = await env.DB.prepare('SELECT id, username, domain, mode, dedup, enabled FROM rd_links WHERE id = ?1').bind(id).first();
     } catch (e) { link = null; }
     if (!link || link.enabled !== 1) {
       return new Response(JSON.stringify({ error: '短链不存在或已禁用' }), { status: 404, headers: jsonHeaders });
@@ -251,7 +268,19 @@ export async function onRequest(context) {
       return new Response(JSON.stringify({ error: '短链未配置目标链接' }), { status: 404, headers: jsonHeaders });
     }
 
-    var chosen = pickTarget(targets, link.mode);
+    // 去重设置：同一 cookie 固定跳到同一目标（仅当开启去重且目标多于 1 个时生效）
+    var dedupCookie = 'rd_dedup_' + id;
+    var dedupOn = (link.dedup === 1) && targets.length > 1;
+    var chosen = null;
+    if (dedupOn) {
+      var prevKey = getCookie(request.headers.get('Cookie') || '', dedupCookie);
+      if (prevKey) {
+        for (var di = 0; di < targets.length; di++) {
+          if (strHash(targets[di].url) === prevKey) { chosen = targets[di]; break; }
+        }
+      }
+    }
+    if (!chosen) chosen = pickTarget(targets, link.mode);
     if (!chosen || !chosen.url) {
       return new Response(JSON.stringify({ error: '短链目标链接无效' }), { status: 404, headers: jsonHeaders });
     }
@@ -265,10 +294,11 @@ export async function onRequest(context) {
         .bind(id, link.username || '', link.domain || '', fromUrl, chosen.url, ip, device, 'ok', '', new Date().toISOString()).run();
     } catch (e) {}
 
-    return new Response(null, {
-      status: 302,
-      headers: { 'Location': chosen.url, 'Cache-Control': 'no-store', 'Access-Control-Allow-Origin': '*' }
-    });
+    var respHeaders = { 'Location': chosen.url, 'Cache-Control': 'no-store', 'Access-Control-Allow-Origin': '*' };
+    if (dedupOn && chosen && chosen.url) {
+      respHeaders['Set-Cookie'] = dedupCookie + '=' + strHash(chosen.url) + '; Path=/; Max-Age=31536000; SameSite=Lax';
+    }
+    return new Response(null, { status: 302, headers: respHeaders });
   } catch (e) {
     return new Response(JSON.stringify({ error: '服务异常' }), { status: 500, headers: jsonHeaders });
   }
