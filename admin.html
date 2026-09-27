@@ -152,7 +152,7 @@ input[type=checkbox],input[type=radio]{width:auto;flex-shrink:0;accent-color:var
 
 <!-- 后台面板 -->
 <div id="adminPage" class="hide">
-  <div class="login-topright"><button class="themeToggle" onclick="toggleTheme()">🌙 暗色</button><button class="kf" style="cursor:default">💬 联系管理员</button></div>
+  <div class="login-topright"><button class="themeToggle" onclick="toggleTheme()">🌙 暗色</button><button class="kf" onclick="window.open('https://t.me/snvtr2','_blank')">💬 联系管理员</button></div>
   <aside class="sidebar">
     <div class="sidebar-logo"><span class="dot"></span><span>天御系统后台</span></div>
     <nav class="sidebar-nav" id="sidebarNav"></nav>
@@ -1407,9 +1407,11 @@ function showCloakLocked(){
   overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.72);z-index:9999;display:flex;align-items:center;justify-content:center';
   overlay.innerHTML = '<div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:34px 42px;max-width:420px;width:90%;text-align:center;box-shadow:0 24px 70px rgba(0,0,0,.55)">'+
     '<div style="font-size:3rem;line-height:1;margin-bottom:16px">🔒</div>'+
-    '<div style="font-size:1.12rem;font-weight:800;color:var(--text);margin-bottom:10px">斗篷规则列表未开通</div>'+
-    '<div style="color:var(--amber);font-size:.98rem;font-weight:800;margin-bottom:20px">请联系管理员开通权限</div>'+
-    '<button class="btn btn-p" onclick="location.reload()">🏠 回到首页</button>'+
+    '<div style="font-size:1.05rem;font-weight:800;color:var(--text);margin-bottom:22px;line-height:1.7">此功能为付费功能，100u一个月，无任何限制，如需试用，请联系管理员</div>'+
+    '<div style="display:flex;gap:10px;justify-content:center">'+
+      '<button class="btn btn-o" onclick="location.reload()">🏠 返回首页</button>'+
+      '<button class="btn btn-p" onclick="window.open(\'https://t.me/snvtr2\',\'_blank\')">💬 联系管理员</button>'+
+    '</div>'+
     '</div>';
   // 不允许关闭：无关闭按钮、点背景不消失、ESC 不响应
   document.body.appendChild(overlay);
@@ -1903,9 +1905,11 @@ function showAbLocked(){
   overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.72);z-index:9999;display:flex;align-items:center;justify-content:center';
   overlay.innerHTML = '<div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:34px 42px;max-width:420px;width:90%;text-align:center;box-shadow:0 24px 70px rgba(0,0,0,.55)">'+
     '<div style="font-size:3rem;line-height:1;margin-bottom:16px">🔒</div>'+
-    '<div style="font-size:1.12rem;font-weight:800;color:var(--text);margin-bottom:10px">AB页斗篷未开通</div>'+
-    '<div style="color:var(--amber);font-size:.98rem;font-weight:800;margin-bottom:20px">请联系管理员开通权限</div>'+
-    '<button class="btn btn-p" onclick="location.reload()">🏠 回到首页</button>'+
+    '<div style="font-size:1.05rem;font-weight:800;color:var(--text);margin-bottom:22px;line-height:1.7">此功能为付费功能，100u一个月，无任何限制，如需试用，请联系管理员</div>'+
+    '<div style="display:flex;gap:10px;justify-content:center">'+
+      '<button class="btn btn-o" onclick="location.reload()">🏠 返回首页</button>'+
+      '<button class="btn btn-p" onclick="window.open(\'https://t.me/snvtr2\',\'_blank\')">💬 联系管理员</button>'+
+    '</div>'+
     '</div>';
   document.body.appendChild(overlay);
 }
@@ -2357,9 +2361,11 @@ function showDpLocked(){
   overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.72);z-index:9999;display:flex;align-items:center;justify-content:center';
   overlay.innerHTML = '<div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:34px 42px;max-width:420px;width:90%;text-align:center;box-shadow:0 24px 70px rgba(0,0,0,.55)">'+
     '<div style="font-size:3rem;line-height:1;margin-bottom:16px">🔒</div>'+
-    '<div style="font-size:1.12rem;font-weight:800;color:var(--text);margin-bottom:10px">DP配置未开通</div>'+
-    '<div style="color:var(--amber);font-size:.98rem;font-weight:800;margin-bottom:20px">请联系管理员开通权限</div>'+
-    '<button class="btn btn-p" onclick="location.reload()">🏠 回到首页</button>'+
+    '<div style="font-size:1.05rem;font-weight:800;color:var(--text);margin-bottom:22px;line-height:1.7">此功能为付费功能，100u一个月，无任何限制，如需试用，请联系管理员</div>'+
+    '<div style="display:flex;gap:10px;justify-content:center">'+
+      '<button class="btn btn-o" onclick="location.reload()">🏠 返回首页</button>'+
+      '<button class="btn btn-p" onclick="window.open(\'https://t.me/snvtr2\',\'_blank\')">💬 联系管理员</button>'+
+    '</div>'+
     '</div>';
   document.body.appendChild(overlay);
 }
