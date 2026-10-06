@@ -1,5 +1,23 @@
 // GET /api/pixels?site=k924uu.site — 返回对应站点的像素ID
-// v5: 不缓存，D1 + KV 并行读取，优先返回数据更多的一方
+// v5: 不缓存，只读 account_sites 按站点隔离的像素（无跨站/共享回退）
+// 解析站点字符串为 [hostname, pathname]；pathname 末尾斜杠归一化，根路径用 '' 表示
+function hostPath(s) {
+  var host = '';
+  var path = '';
+  try {
+    var u = new URL(s);
+    host = u.hostname;
+    path = u.pathname;
+  } catch (e) {
+    var i = s.indexOf('/');
+    if (i === -1) { host = s; path = ''; }
+    else { host = s.slice(0, i); path = s.slice(i); }
+  }
+  if (path === '/') { path = ''; }
+  else if (path.length > 1 && path.charAt(path.length - 1) === '/') { path = path.slice(0, -1); }
+  return [host, path];
+}
+
 export async function onRequest(context) {
   const { request, env } = context;
   try {
@@ -10,8 +28,18 @@ export async function onRequest(context) {
     var site = rawSite;
     try { site = new URL(rawSite).hostname; } catch (e) {}
 
-    // 精确匹配优先：先查 rawSite，再尝试加 .html（兼容 clean URL），再查域名
+    // 精确匹配优先：rawSite → 斜杠变体 → .html → 域名（兼容新旧数据格式）
     var siteRow = await env.DB.prepare('SELECT site, username FROM site_mappings WHERE site = ?1').bind(rawSite).first();
+    // 末尾斜杠变体：配置 /path 也能匹配 /path/（反之亦然）
+    var rawSiteAlt = '';
+    if (!siteRow) {
+      if (rawSite.charAt(rawSite.length - 1) === '/') {
+        rawSiteAlt = rawSite.slice(0, -1);
+      } else if (rawSite.indexOf('/') > 0) {
+        rawSiteAlt = rawSite + '/';
+      }
+      if (rawSiteAlt) siteRow = await env.DB.prepare('SELECT site, username FROM site_mappings WHERE site = ?1').bind(rawSiteAlt).first();
+    }
     if (!siteRow && rawSite.indexOf('.') > 0 && rawSite.indexOf('/') > 0 && rawSite.indexOf('.html') === -1) {
       siteRow = await env.DB.prepare('SELECT site, username FROM site_mappings WHERE site = ?1').bind(rawSite + '.html').first();
     }
@@ -21,17 +49,19 @@ export async function onRequest(context) {
     if (!siteRow) {
       var allMaps = await env.DB.prepare('SELECT site, username FROM site_mappings').all();
       if (allMaps && allMaps.results) {
-        // 第一轮：精确匹配 rawSite、rawSite+.html、site
+        // 第一轮：精确匹配
         for (var mi = 0; mi < allMaps.results.length && !siteRow; mi++) {
           var mapped = allMaps.results[mi];
-          if (mapped.site === rawSite || mapped.site === rawSite + '.html' || mapped.site === site) { siteRow = mapped; break; }
+          if (mapped.site === rawSite || mapped.site === rawSiteAlt || mapped.site === rawSite + '.html' || mapped.site === site) { siteRow = mapped; break; }
         }
-        // 第二轮：hostname 匹配（仅当精确匹配都没命中）
+        // 第二轮：hostname + pathname 匹配（仅当精确匹配都没命中）
+        // 必须同 hostname 且同 pathname，避免根域名误匹配到同域名的子路径站点（如 /bttv/ /volttv/）
         if (!siteRow) {
+          var reqHP = hostPath(rawSite);
           for (var mi = 0; mi < allMaps.results.length && !siteRow; mi++) {
             var mapped = allMaps.results[mi];
-            try { if (new URL(mapped.site).hostname === site) { siteRow = mapped; break; } } catch(e) {}
-            try { if (new URL('https://' + mapped.site).hostname === site) { siteRow = mapped; break; } } catch(e) {}
+            var mHP = hostPath(mapped.site);
+            if (mHP[0] === reqHP[0] && mHP[1] === reqHP[1]) { siteRow = mapped; break; }
           }
         }
       }
@@ -42,9 +72,8 @@ export async function onRequest(context) {
     var ids = [];
     var version = 0;
 
-    // 并行读 D1(account_sites → accounts) + KV
+    // 只读 account_sites（按站点隔离）
     var d1Result = null;
-    var kvResult = null;
 
     if (username) {
       // 标准化 matchedSite：site_mappings 可能存完整URL，account_sites 存纯域名，需要对齐
@@ -54,57 +83,90 @@ export async function onRequest(context) {
       try { rawHost = new URL(rawSite).hostname; } catch (e) {}
 
       // 多轮尝试 account_sites（每轮独立 try，不因缺列互相影响）
-      // 优先级：实际请求URL → 域名 → site_mappings（越具体越优先，避免串数据）
+      // 优先级：实际请求URL → 斜杠变体 → 域名 → site_mappings
       var d1Row = null;
       var candidates = [rawSite];
-      if (rawHost !== rawSite) candidates.push(rawHost);
-      if (matchedSite !== rawSite && matchedSite !== rawHost) candidates.push(matchedSite);
-      if (matchedHost !== matchedSite && matchedHost !== rawSite && matchedHost !== rawHost) candidates.push(matchedHost);
+      // 末尾斜杠变体：配置 /path 也能匹配 /path/（反之亦然）
+      if (rawSite.charAt(rawSite.length - 1) === '/') {
+        candidates.push(rawSite.slice(0, -1));
+      } else if (rawSite.indexOf('/') > 0) {
+        candidates.push(rawSite + '/');
+      }
+      if (rawHost !== rawSite && rawHost !== candidates[candidates.length-1]) candidates.push(rawHost);
+      if (matchedSite !== rawSite && matchedSite !== rawHost && matchedSite !== candidates[candidates.length-1]) candidates.push(matchedSite);
+      if (matchedHost !== matchedSite && matchedHost !== rawSite && matchedHost !== rawHost && matchedHost !== candidates[candidates.length-1]) candidates.push(matchedHost);
+      // 遍历候选（找到有数据的就停，但记录是否匹配到过任何行）
+      var foundAnySite = false;
       for (var ci = 0; ci < candidates.length && (!d1Row || !d1Row.pixel_ids || d1Row.pixel_ids === '[]'); ci++) {
-        try { d1Row = await env.DB.prepare('SELECT pixel_ids FROM account_sites WHERE site = ?1 AND username = ?2').bind(candidates[ci], username).first(); } catch (e) {}
+        try {
+          var row = await env.DB.prepare('SELECT pixel_ids, config_version, fb_events, tt_pixel_ids, tt_events FROM account_sites WHERE site = ?1 AND username = ?2').bind(candidates[ci], username).first();
+          if (row) { d1Row = row; foundAnySite = true; }
+        } catch (e) {
+          // fb_events / tt_pixel_ids / tt_events 列还没迁移：逐级退化，保证像素加载不受影响
+          try {
+            var row2 = await env.DB.prepare('SELECT pixel_ids, config_version, fb_events FROM account_sites WHERE site = ?1 AND username = ?2').bind(candidates[ci], username).first();
+            if (row2) { d1Row = row2; foundAnySite = true; }
+          } catch (e2) {
+            try {
+              var row3 = await env.DB.prepare('SELECT pixel_ids, config_version FROM account_sites WHERE site = ?1 AND username = ?2').bind(candidates[ci], username).first();
+              if (row3) { d1Row = row3; foundAnySite = true; }
+            } catch (e3) {}
+          }
+        }
       }
 
-      // 回退 accounts 表
-      if (!d1Row || !d1Row.pixel_ids || d1Row.pixel_ids === '[]') {
-        try { d1Row = await env.DB.prepare('SELECT pixel_ids, config_version FROM accounts WHERE username = ?1').bind(username).first(); } catch (e) {}
-      }
-
-      try { kvResult = await env.kvadmin.get(username + ':pixel_ids'); } catch (e) {}
-
+      // 像素按站点隔离：只认 account_sites 里该站点自己的配置。
+      // 该站点没配置像素（无记录或为空）就返回空，绝不回退到 accounts/KV 的共享数据，
+      // 避免「A 站点没配像素时，误用 B 站点或其他共享像素」。
       d1Result = d1Row;
     }
 
-    // 合并：D1 优先（按站点隔离的最新数据），KV 仅做回退
+    // 合并：只认 account_sites 里该站点的数据（按站点隔离，不做跨站回退）
     var d1Ids = [];
-    var kvIds = [];
     if (d1Result && d1Result.pixel_ids) {
       try { d1Ids = JSON.parse(d1Result.pixel_ids); } catch (e) {}
       version = d1Result.config_version || 1;
     }
-    if (kvResult) {
-      try { kvIds = JSON.parse(kvResult); } catch (e) {}
-    }
+    ids = d1Ids;
+    // 该站点没配置像素 → ids = []
 
-    if (d1Ids.length > 0) {
-      ids = d1Ids;                // D1 有数据，永远用它（按站点隔离，最新）
-    } else if (kvIds.length > 0) {
-      ids = kvIds;                // D1 无数据，回退 KV
-      version = Math.max(version, 1);
+    // 已选转化事件（默认全量；列不存在或值为空则用全量兜底）
+    var events = null;
+    if (d1Result && d1Result.fb_events) {
+      try { events = JSON.parse(d1Result.fb_events); } catch (e) {}
     }
-    // 两边都没数据 → ids = []，version = 0
+    if (!Array.isArray(events)) events = ['AddToCart','Contact','Lead','CompleteRegistration','Purchase','Download'];
 
-    // 记录访问日志（非阻塞）
+    // TikTok 像素（按站点隔离；未配置/列缺失时为空数组）
+    var ttIds = [];
+    if (d1Result && d1Result.tt_pixel_ids) {
+      try { ttIds = JSON.parse(d1Result.tt_pixel_ids); } catch (e) {}
+    }
+    if (!Array.isArray(ttIds)) ttIds = [];
+    // TikTok 转化事件（默认全选 4 个）
+    var ttEvents = null;
+    if (d1Result && d1Result.tt_events) {
+      try { ttEvents = JSON.parse(d1Result.tt_events); } catch (e) {}
+    }
+    if (!Array.isArray(ttEvents)) ttEvents = ['ClickButton','Contact','AddToCart','CompleteRegistration'];
+
+    // 记录访问日志（非阻塞）+ 预聚合计数（stats_daily.visits +1，独立 waitUntil，互不影响）
     if (username && matchedSite) {
       var ip = request.headers.get('CF-Connecting-IP') || '';
       var ua = request.headers.get('User-Agent') || '';
       var device = (/Mobile|Android|iPhone|iPad|iPod/i.test(ua)) ? '手机' : '电脑';
+      var visitIso = new Date().toISOString();
       context.waitUntil(
         env.DB.prepare('INSERT INTO visit_logs (username, site, visit_time, ip, device, user_agent) VALUES (?1, ?2, ?3, ?4, ?5, ?6)')
-          .bind(username, matchedSite, new Date().toISOString(), ip, device, ua.substring(0, 500)).run().catch(function(){})
+          .bind(username, matchedSite, visitIso, ip, device, ua.substring(0, 500)).run().catch(function(){})
+      );
+      context.waitUntil(
+        env.DB.prepare('INSERT INTO stats_daily (username, date, visits, clicks) VALUES (?1, ?2, 1, 0) ON CONFLICT(username, date) DO UPDATE SET visits = visits + 1')
+          .bind(username, visitIso.slice(0, 10)).run().catch(function(){})
       );
     }
 
-    return new Response(JSON.stringify({ ids: ids, version: version, _site: site, _dbg: { rawSite: rawSite, site: site, foundMapping: !!siteRow, username: username, matchedSite: matchedSite, matchedHost: typeof matchedHost !== 'undefined' ? matchedHost : '', fromD1: !!d1Result, fromKV: !!kvResult } }), {
+    return new Response(JSON.stringify({ ids: ids, events: events, tt_ids: ttIds, tt_events: ttEvents, version: version, _site: site, _dbg: { rawSite: rawSite, site: site, foundMapping: !!siteRow, username: username, matchedSite: matchedSite, matchedHost: typeof matchedHost !== 'undefined' ? matchedHost : '', fromD1: !!d1Result } }), {
       headers: {
         'Content-Type': 'application/json',
         'Access-Control-Allow-Origin': '*',

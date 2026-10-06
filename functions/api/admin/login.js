@@ -42,7 +42,7 @@ export async function onRequest(context) {
             }
             context.waitUntil(recordLogin(env, request, user, kvAccount.role || 'user'));
             const token = btoa(user + ':' + (kvAccount.role || 'user') + ':' + kvAccount.pw);
-            return new Response(JSON.stringify({ ok: true, token, role: kvAccount.role || 'user', user, site: kvAccount.site || '' }), {
+            return new Response(JSON.stringify({ ok: true, token, role: kvAccount.role || 'user', user, site: kvAccount.site || '', cloak_enabled: 0 }), {
               headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
             });
           }
@@ -57,7 +57,7 @@ export async function onRequest(context) {
         await env.DB.prepare('INSERT OR IGNORE INTO accounts (username, password, role, site, created) VALUES (?1, ?2, ?3, ?4, ?5)')
           .bind(user, pass, 'admin', '', new Date().toISOString()).run();
         const token = btoa(user + ':admin:' + pass);
-        return new Response(JSON.stringify({ ok: true, token, role: 'admin', user, site: '' }), {
+        return new Response(JSON.stringify({ ok: true, token, role: 'admin', user, site: '', cloak_enabled: 1 }), {
           headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
         });
       }
@@ -81,7 +81,7 @@ export async function onRequest(context) {
     context.waitUntil(recordLogin(env, request, user, account.role));
 
     const token = btoa(user + ':' + account.role + ':' + account.password);
-    return new Response(JSON.stringify({ ok: true, token, role: account.role, user, site: account.site || '' }), {
+    return new Response(JSON.stringify({ ok: true, token, role: account.role, user, site: account.site || '', cloak_enabled: account.cloak_enabled ? 1 : 0 }), {
       headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
     });
   } catch (e) {

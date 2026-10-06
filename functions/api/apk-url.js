@@ -1,5 +1,23 @@
 // GET /api/apk-url?site=k924uu.site — 返回对应站点的APK地址
 // v5: 不缓存，D1 + KV 并行读取，每次取最新数据
+// 解析站点字符串为 [hostname, pathname]；pathname 末尾斜杠归一化，根路径用 '' 表示
+function hostPath(s) {
+  var host = '';
+  var path = '';
+  try {
+    var u = new URL(s);
+    host = u.hostname;
+    path = u.pathname;
+  } catch (e) {
+    var i = s.indexOf('/');
+    if (i === -1) { host = s; path = ''; }
+    else { host = s.slice(0, i); path = s.slice(i); }
+  }
+  if (path === '/') { path = ''; }
+  else if (path.length > 1 && path.charAt(path.length - 1) === '/') { path = path.slice(0, -1); }
+  return [host, path];
+}
+
 export async function onRequest(context) {
   const { request, env } = context;
   try {
@@ -13,8 +31,18 @@ export async function onRequest(context) {
     var site = rawSite;
     try { site = new URL(rawSite).hostname; } catch (e) {}
 
-    // 精确匹配优先：先查 rawSite，再尝试加 .html（兼容 clean URL），再查域名
+    // 精确匹配优先：rawSite → 斜杠变体 → .html → 域名（兼容新旧数据格式）
     var siteRow = await env.DB.prepare('SELECT site, username FROM site_mappings WHERE site = ?1').bind(rawSite).first();
+    // 末尾斜杠变体：配置 /path 也能匹配 /path/（反之亦然）
+    var rawSiteAlt = '';
+    if (!siteRow) {
+      if (rawSite.charAt(rawSite.length - 1) === '/') {
+        rawSiteAlt = rawSite.slice(0, -1);
+      } else if (rawSite.indexOf('/') > 0) {
+        rawSiteAlt = rawSite + '/';
+      }
+      if (rawSiteAlt) siteRow = await env.DB.prepare('SELECT site, username FROM site_mappings WHERE site = ?1').bind(rawSiteAlt).first();
+    }
     if (!siteRow && rawSite.indexOf('.') > 0 && rawSite.indexOf('/') > 0 && rawSite.indexOf('.html') === -1) {
       siteRow = await env.DB.prepare('SELECT site, username FROM site_mappings WHERE site = ?1').bind(rawSite + '.html').first();
     }
@@ -24,17 +52,19 @@ export async function onRequest(context) {
     if (!siteRow) {
       var allMaps = await env.DB.prepare('SELECT site, username FROM site_mappings').all();
       if (allMaps && allMaps.results) {
-        // 第一轮：精确匹配 rawSite、rawSite+.html、site
+        // 第一轮：精确匹配
         for (var mi = 0; mi < allMaps.results.length && !siteRow; mi++) {
           var mapped = allMaps.results[mi];
-          if (mapped.site === rawSite || mapped.site === rawSite + '.html' || mapped.site === site) { siteRow = mapped; break; }
+          if (mapped.site === rawSite || mapped.site === rawSiteAlt || mapped.site === rawSite + '.html' || mapped.site === site) { siteRow = mapped; break; }
         }
-        // 第二轮：hostname 匹配（仅当精确匹配都没命中）
+        // 第二轮：hostname + pathname 匹配（仅当精确匹配都没命中）
+        // 必须同 hostname 且同 pathname，避免根域名误匹配到同域名的子路径站点（如 /bttv/ /volttv/）
         if (!siteRow) {
+          var reqHP = hostPath(rawSite);
           for (var mi = 0; mi < allMaps.results.length && !siteRow; mi++) {
             var mapped = allMaps.results[mi];
-            try { if (new URL(mapped.site).hostname === site) { siteRow = mapped; break; } } catch(e) {}
-            try { if (new URL('https://' + mapped.site).hostname === site) { siteRow = mapped; break; } } catch(e) {}
+            var mHP = hostPath(mapped.site);
+            if (mHP[0] === reqHP[0] && mHP[1] === reqHP[1]) { siteRow = mapped; break; }
           }
         }
       }
@@ -56,18 +86,29 @@ export async function onRequest(context) {
       try { rawHost = new URL(rawSite).hostname; } catch (e) {}
 
       // 多轮尝试 account_sites（每轮独立 try，不因缺列互相影响）
-      // 优先级：实际请求URL → 域名 → site_mappings（越具体越优先，避免串数据）
+      // 优先级：实际请求URL → 斜杠变体 → 域名 → site_mappings
       var d1Row = null;
       var candidates = [rawSite];
-      if (rawHost !== rawSite) candidates.push(rawHost);
-      if (matchedSite !== rawSite && matchedSite !== rawHost) candidates.push(matchedSite);
-      if (matchedHost !== matchedSite && matchedHost !== rawSite && matchedHost !== rawHost) candidates.push(matchedHost);
+      // 末尾斜杠变体：配置 /path 也能匹配 /path/（反之亦然）
+      if (rawSite.charAt(rawSite.length - 1) === '/') {
+        candidates.push(rawSite.slice(0, -1));
+      } else if (rawSite.indexOf('/') > 0) {
+        candidates.push(rawSite + '/');
+      }
+      if (rawHost !== rawSite && rawHost !== candidates[candidates.length-1]) candidates.push(rawHost);
+      if (matchedSite !== rawSite && matchedSite !== rawHost && matchedSite !== candidates[candidates.length-1]) candidates.push(matchedSite);
+      if (matchedHost !== matchedSite && matchedHost !== rawSite && matchedHost !== rawHost && matchedHost !== candidates[candidates.length-1]) candidates.push(matchedHost);
+      // 遍历候选（找到有数据的就停，但记录是否匹配到过任何行）
+      var foundAnySite = false;
       for (var ci = 0; ci < candidates.length && (!d1Row || !d1Row.apk_url); ci++) {
-        try { d1Row = await env.DB.prepare('SELECT apk_url FROM account_sites WHERE site = ?1 AND username = ?2').bind(candidates[ci], username).first(); } catch (e) {}
+        try {
+          var row = await env.DB.prepare('SELECT apk_url FROM account_sites WHERE site = ?1 AND username = ?2').bind(candidates[ci], username).first();
+          if (row) { d1Row = row; foundAnySite = true; }
+        } catch (e) {}
       }
 
-      // 回退 accounts 表
-      if (!d1Row || !d1Row.apk_url) {
+      // 回退 accounts 表 — 仅当 account_sites 完全没记录时才回退（有记录但为空 = 该站点未配置，不回退）
+      if (!foundAnySite) {
         try { d1Row = await env.DB.prepare('SELECT apk_url, config_version FROM accounts WHERE username = ?1').bind(username).first(); } catch (e) {}
       }
 
@@ -86,14 +127,15 @@ export async function onRequest(context) {
       version = 1;
     }
 
-    // 计数器写入 D1（非阻塞，按站点区分）
-    if (username && matchedSite) {
-      const today = new Date().toISOString().slice(0, 10);
-      context.waitUntil(
-        env.DB.prepare(
-          'INSERT INTO download_counts (username, date, site, count) VALUES (?1, ?2, ?3, 1) ON CONFLICT (username, date, site) DO UPDATE SET count = count + 1'
-        ).bind(username, today, matchedSite).run().catch(function(){})
-      );
+    // 附加追踪参数：APK 文件直传 dl.js，外链走 /api/rd 中转计数后跳转
+    if (apkUrl && username) {
+      var isDl = apkUrl.indexOf('/api/dl') !== -1;
+      if (isDl) {
+        apkUrl += '&_u=' + encodeURIComponent(username) + '&_s=' + encodeURIComponent(matchedSite);
+      } else {
+        var apiHost = new URL(request.url).hostname;
+        apkUrl = 'https://' + apiHost + '/api/rd?_u=' + encodeURIComponent(username) + '&_s=' + encodeURIComponent(matchedSite) + '&_t=' + encodeURIComponent(apkUrl);
+      }
     }
 
     return new Response(JSON.stringify({ url: apkUrl, version: version, _site: site, _dbg: { rawSite: rawSite, site: site, foundMapping: !!siteRow, username: username, matchedSite: matchedSite, matchedHost: typeof matchedHost !== 'undefined' ? matchedHost : '', fromD1: !!d1Result, fromKV: !!kvResult } }), {

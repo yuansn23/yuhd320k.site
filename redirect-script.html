@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>正在跳转...</title>
+  <style>
+    body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;
+      background:#0f1119;color:#e1e4ed;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+    .spinner{width:34px;height:34px;border:3px solid rgba(255,255,255,.15);border-top-color:#58a6ff;
+      border-radius:50%;margin:0 auto 16px;animation:spin 1s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+  </style>
+</head>
+<body>
+  <div style="text-align:center"><div class="spinner"></div><div>正在跳转...</div></div>
+  <script>
+    (function(){
+      // 后端地址（你的 Cloudflare Pages 域名），部署时如域名变化改这里即可
+      var BACKEND = 'https://url.yuhd320k.site';
+      // 从路径读取跳转 id：https://km37acd.top/t/smd76and → smd76and（8位字母数字）
+      function getId(){
+        var seg = location.pathname.replace(/\/+$/, '').split('/');
+        var last = seg[seg.length - 1];
+        return /^[a-z0-9]{8}$/i.test(last) ? last.toLowerCase() : '';
+      }
+      var id = getId();
+      if(!id){
+        document.body.innerHTML = '<div style="text-align:center">链接无效</div>';
+        return;
+      }
+      // 交给后端做 302（后端按 随机/权重 选目标 + 记录跳转统计）
+      location.replace(BACKEND + '/rd/' + id);
+    })();
+  </script>
+</body>
+</html>

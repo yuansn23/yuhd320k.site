@@ -1,0 +1,19 @@
+# ============================================================
+# StreamFlix — 每周清理 Worker（独立于 Pages，提供定时任务）
+# Pages 本身不支持 cron，用一个 Worker 的 scheduled() 每周一清理 5 天前的日志
+# 部署：在本目录执行  npx wrangler deploy
+# ============================================================
+name = "streamflix-cleanup"
+main = "src/index.js"
+compatibility_date = "2026-01-01"
+account_id = "6809a7bf7a3a1fef6302b52cc05a46d9"
+
+# 每周一 UTC 03:37（北京时间 11:37）清理一次
+[triggers]
+crons = ["37 3 * * 1"]
+
+# 绑定同一个 D1 数据库（只读清理，不写新数据）
+[[d1_databases]]
+binding = "DB"
+database_name = "streamflix-db"
+database_id = "da9473c1-8e1b-4470-be46-5e67b0c1c946"
