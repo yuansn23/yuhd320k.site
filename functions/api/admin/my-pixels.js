@@ -68,7 +68,7 @@ export async function onRequest(context) {
           }
         }
       }
-      if (!Array.isArray(events)) events = ['AddToCart','Contact','Lead','CompleteRegistration','Purchase','Download'];
+      if (!Array.isArray(events)) events = ['AddToCart','Contact','Lead','CompleteRegistration','Purchase','Download','Subscribe','InitiateCheckout'];
       if (!Array.isArray(ttIds)) ttIds = [];
       if (!Array.isArray(ttEvents)) ttEvents = ['ClickButton','Contact','AddToCart','CompleteRegistration'];
       return new Response(JSON.stringify({ ids: ids, events: events, tt_ids: ttIds, tt_events: ttEvents }), {
@@ -84,7 +84,7 @@ export async function onRequest(context) {
       var idsJson = JSON.stringify(ids);
 
       // FB 事件：可选字段。传了 events 就覆盖保存；没传则不动现有 fb_events（像素编辑不会误改事件）
-      var FB_EVENTS = ['AddToCart','Contact','Lead','CompleteRegistration','Purchase','Download'];
+      var FB_EVENTS = ['AddToCart','Contact','Lead','CompleteRegistration','Purchase','Download','Subscribe','InitiateCheckout'];
       var hasEvents = Array.isArray(body.events);
       var events = hasEvents ? body.events.filter(function(ev){ return FB_EVENTS.indexOf(ev) !== -1; }) : null;
       var eventsJson = hasEvents ? JSON.stringify(events) : null;
