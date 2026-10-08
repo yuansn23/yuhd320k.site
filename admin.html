@@ -3314,6 +3314,10 @@ function addRdTargetRow(t){
     tinp.style.display = isW ? '' : 'none';
     textinp.style.display = isW ? '' : 'none';
   };
+  uinp.onblur = function(){
+    var v = uinp.value.trim();
+    if(v && !/^https?:\/\//i.test(v) && v.indexOf('.') !== -1){ uinp.value = 'https://' + v; }
+  };
   row.querySelector('.rdtdel').onclick = function(){ box.removeChild(row); renumberRdTargets(); };
   refreshRdTargetWeights();
 }
@@ -3332,12 +3336,26 @@ function refreshRdTargetWeights(){
   document.querySelectorAll('#rdTargets .rdtwWrap').forEach(function(w){ w.style.display = weighted ? 'flex' : 'none'; });
 }
 
+// 目标链接容错：去空白、缺协议自动补 https://；不是「带域名的完整网址」返回空
+function rdNormalizeUrl(u){
+  var s = String(u||'').trim();
+  if(!s) return '';
+  if(!/^https?:\/\//i.test(s)) s = 'https://' + s;
+  try {
+    var p = new URL(s);
+    if(p.hostname && p.hostname.indexOf('.') !== -1) return p.href;
+    return '';
+  } catch(e){ return ''; }
+}
+
 async function saveRdLink(){
   var domain = document.getElementById('rdModalDomain').value;
   var modeR = document.querySelector('input[name="rdMode"]:checked');
   var mode = modeR ? modeR.value : 'random';
   var targets = [];
-  document.querySelectorAll('#rdTargets > div').forEach(function(row){
+  var rdRows = document.querySelectorAll('#rdTargets > div');
+  for(var ri=0; ri<rdRows.length; ri++){
+    var row = rdRows[ri];
     var type = row.querySelector('.rdtt').value;
     var weight = Math.min(9, Math.max(1, parseInt(row.querySelector('.rdtw').value, 10) || 1));
     if(type === 'whatsapp'){
@@ -3346,9 +3364,13 @@ async function saveRdLink(){
       if(numbers.trim()) targets.push({ type:'whatsapp', numbers:numbers, text:text, weight:weight });
     } else {
       var u = row.querySelector('.rdtu').value.trim();
-      if(u) targets.push({ type:'url', url:u, weight:weight });
+      if(u){
+        var nu = rdNormalizeUrl(u);
+        if(!nu){ msg('rdModalMsg','err','第 '+(ri+1)+' 个链接格式不正确，请输入完整网址（如 https://example.com）'); row.querySelector('.rdtu').focus(); return; }
+        targets.push({ type:'url', url:nu, weight:weight });
+      }
     }
-  });
+  }
   var dedupEl = document.getElementById('rdDedup');
   var dedup = dedupEl ? (dedupEl.checked ? 1 : 0) : 1;
   var body = { action: _rdEditingId ? 'link_edit' : 'link_add', domain: domain, mode: mode, dedup: dedup, targets: targets };
