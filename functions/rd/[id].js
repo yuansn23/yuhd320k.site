@@ -211,13 +211,26 @@ export async function onRequest(context) {
       return new Response(JSON.stringify({ error: '短链不存在' }), { status: 404, headers: jsonHeaders });
     }
 
-    var link;
+    // 并行读取三张表（rd_links / rd_protection / rd_targets），减少串行等待
+    var link = null, pRow = null, tr = null;
     try {
-      link = await env.DB.prepare('SELECT id, username, domain, mode, dedup, enabled FROM rd_links WHERE id = ?1').bind(id).first();
-    } catch (e) { link = null; }
+      var reads = await Promise.all([
+        env.DB.prepare('SELECT id, username, domain, mode, dedup, enabled FROM rd_links WHERE id = ?1').bind(id).first().catch(function () { return null; }),
+        env.DB.prepare('SELECT enabled, whitelist_ips, rules, fallback_url FROM rd_protection WHERE link_id = ?1').bind(id).first().catch(function () { return null; }),
+        env.DB.prepare('SELECT type, url, weight FROM rd_targets WHERE link_id = ?1 ORDER BY sort ASC, id ASC').bind(id).all().catch(function () { return null; })
+      ]);
+      link = reads[0]; pRow = reads[1]; tr = reads[2];
+    } catch (e) {}
     if (!link || link.enabled !== 1) {
       return new Response(JSON.stringify({ error: '短链不存在或已禁用' }), { status: 404, headers: jsonHeaders });
     }
+
+    // 直链极速跳转：fast=1 时跳过一切防护判断（列不存在则默认 0）
+    var fast = 0;
+    try {
+      var fRow = await env.DB.prepare('SELECT fast FROM rd_links WHERE id = ?1').bind(id).first();
+      if (fRow && fRow.fast === 1) fast = 1;
+    } catch (e) {}
 
     var ip = request.headers.get('CF-Connecting-IP') || '';
     var ua = request.headers.get('User-Agent') || '';
@@ -225,12 +238,9 @@ export async function onRequest(context) {
 
     // ── 短链防护（rd_protection）：开启后先判定，命中规则则拦截 ──
     var protection = null;
-    try {
-      var pRow = await env.DB.prepare('SELECT enabled, whitelist_ips, rules, fallback_url FROM rd_protection WHERE link_id = ?1').bind(id).first();
-      if (pRow) protection = { enabled: pRow.enabled, whitelist_ips: parseJson(pRow.whitelist_ips, []), rules: parseJson(pRow.rules, {}), fallback_url: pRow.fallback_url || '' };
-    } catch (e) {}
+    if (pRow) protection = { enabled: pRow.enabled, whitelist_ips: parseJson(pRow.whitelist_ips, []), rules: parseJson(pRow.rules, {}), fallback_url: pRow.fallback_url || '' };
 
-    if (protection && protection.enabled === 1) {
+    if (fast !== 1 && protection && protection.enabled === 1) {
       var whitelist = protection.whitelist_ips || [];
       var whitelisted = Array.isArray(whitelist) && ip && whitelist.indexOf(ip) !== -1;
       var triggered = [];
@@ -241,17 +251,23 @@ export async function onRequest(context) {
         var needIntel = on(rules.privacy) || on(rules.vpn) || on(rules.proxy);
         var ipTz = '';
         var ipIntel = null;
-        if (needTz) { var ipInfo = await getIpInfo(env, ip); if (ipInfo) ipTz = ipInfo.timezone || ''; }
-        if (needIntel) { ipIntel = await getIpIntel(env, ip); }
+        if (needTz || needIntel) {
+          var ipRes = await Promise.all([
+            needTz ? getIpInfo(env, ip) : Promise.resolve(null),
+            needIntel ? getIpIntel(env, ip) : Promise.resolve(null)
+          ]);
+          if (needTz && ipRes[0]) ipTz = ipRes[0].timezone || '';
+          if (needIntel) ipIntel = ipRes[1];
+        }
         triggered = evaluateProtection(rules, { ip: ip, ua: ua, device: device, lang: acceptLang, tzOffset: ianaOffset(ipTz), tzIANA: ipTz, ipIntel: ipIntel });
       }
       if (triggered.length) {
         var fb = protection.fallback_url || '';
-        // 记录拦截日志（与正常跳转同表，status=blocked 区分，reason 记录命中原因）
-        try {
-          await env.DB.prepare('INSERT INTO rd_logs (link_id, username, domain, from_url, to_url, ip, device, status, reason, created_at) VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10)')
-            .bind(id, link.username || '', link.domain || '', (link.domain || '') + '/' + id, fb, ip, detectDevice(ua), 'blocked', triggered.join(','), new Date().toISOString()).run();
-        } catch (e) {}
+        // 记录拦截日志（waitUntil 不阻塞跳转；status=blocked 区分，reason 记录命中原因）
+        context.waitUntil(
+          env.DB.prepare('INSERT INTO rd_logs (link_id, username, domain, from_url, to_url, ip, device, status, reason, created_at) VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10)')
+            .bind(id, link.username || '', link.domain || '', (link.domain || '') + '/' + id, fb, ip, detectDevice(ua), 'blocked', triggered.join(','), new Date().toISOString()).run().catch(function () {})
+        );
         if (fb) {
           return new Response(null, { status: 302, headers: { 'Location': fb, 'Cache-Control': 'no-store', 'Access-Control-Allow-Origin': '*' } });
         }
@@ -259,10 +275,6 @@ export async function onRequest(context) {
       }
     }
 
-    var tr;
-    try {
-      tr = await env.DB.prepare('SELECT type, url, weight FROM rd_targets WHERE link_id = ?1 ORDER BY sort ASC, id ASC').bind(id).all();
-    } catch (e) { tr = null; }
     var targets = (tr && tr.results) ? tr.results : [];
     if (!targets.length) {
       return new Response(JSON.stringify({ error: '短链未配置目标链接' }), { status: 404, headers: jsonHeaders });
@@ -288,11 +300,11 @@ export async function onRequest(context) {
     var device = detectDevice(ua);
     var fromUrl = (link.domain || '') + '/' + id;
 
-    // 记录跳转统计（不阻塞 302，失败静默）
-    try {
-      await env.DB.prepare('INSERT INTO rd_logs (link_id, username, domain, from_url, to_url, ip, device, status, reason, created_at) VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10)')
-        .bind(id, link.username || '', link.domain || '', fromUrl, chosen.url, ip, device, 'ok', '', new Date().toISOString()).run();
-    } catch (e) {}
+    // 记录跳转统计（waitUntil 不阻塞 302，失败静默）
+    context.waitUntil(
+      env.DB.prepare('INSERT INTO rd_logs (link_id, username, domain, from_url, to_url, ip, device, status, reason, created_at) VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10)')
+        .bind(id, link.username || '', link.domain || '', fromUrl, chosen.url, ip, device, 'ok', '', new Date().toISOString()).run().catch(function () {})
+    );
 
     var respHeaders = { 'Location': chosen.url, 'Cache-Control': 'no-store', 'Access-Control-Allow-Origin': '*' };
     if (dedupOn && chosen && chosen.url) {

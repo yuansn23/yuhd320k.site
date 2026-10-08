@@ -132,9 +132,16 @@ export async function onRequest(context) {
           var pr = await env.DB.prepare('SELECT link_id, enabled FROM rd_protection WHERE username = ?1').bind(me.user).all();
           if (pr && pr.results) { pr.results.forEach(function(x){ protMap[x.link_id] = x.enabled; }); }
         } catch (e) {}
+        // 极速跳转状态：读 rd_links.fast 合并（列不存在则默认 0）
+        var fastMap = {};
+        try {
+          var fRes = await env.DB.prepare('SELECT id, fast FROM rd_links WHERE username = ?1').bind(me.user).all();
+          if (fRes && fRes.results) { fRes.results.forEach(function(x){ fastMap[x.id] = (x.fast === 1) ? 1 : 0; }); }
+        } catch (e) {}
         for (var r2 = 0; r2 < links.length; r2++) {
           links[r2].remark = rmMap[links[r2].id] || '';
           links[r2].protection = (protMap[links[r2].id] !== undefined) ? (protMap[links[r2].id] === 1 ? 1 : 0) : null;
+          links[r2].fast = fastMap[links[r2].id] || 0;
         }
         return json({ links: links });
       }
@@ -180,6 +187,7 @@ export async function onRequest(context) {
         var d = normalizeDomain(body.domain);
         var mode = body.mode === 'weighted' ? 'weighted' : 'random';
         var dedup = (body.dedup === false || body.dedup === 0) ? 0 : 1;
+        var fast = (body.fast === true || body.fast === 1) ? 1 : 0;
         var rawTargets = Array.isArray(body.targets) ? body.targets : [];
         if (!d) return json({ error: '请选择跳转域名' }, 400);
 
@@ -212,11 +220,19 @@ export async function onRequest(context) {
           if (!/^[a-z0-9]{8}$/.test(linkId)) return json({ error: '短链ID格式错误' }, 400);
           var own = await env.DB.prepare('SELECT id FROM rd_links WHERE id = ?1 AND username = ?2').bind(linkId, me.user).first();
           if (!own) return json({ error: '无权修改该短链' }, 403);
-          await env.DB.prepare('UPDATE rd_links SET domain = ?1, mode = ?2, dedup = ?3, updated_at = ?4 WHERE id = ?5').bind(d, mode, dedup, new Date().toISOString(), linkId).run();
+          try {
+            await env.DB.prepare('UPDATE rd_links SET domain = ?1, mode = ?2, dedup = ?3, fast = ?4, updated_at = ?5 WHERE id = ?6').bind(d, mode, dedup, fast, new Date().toISOString(), linkId).run();
+          } catch (e) {
+            await env.DB.prepare('UPDATE rd_links SET domain = ?1, mode = ?2, dedup = ?3, updated_at = ?4 WHERE id = ?5').bind(d, mode, dedup, new Date().toISOString(), linkId).run();
+          }
           await env.DB.prepare('DELETE FROM rd_targets WHERE link_id = ?1').bind(linkId).run();
         } else {
           linkId = await uniqueId(env);
-          await env.DB.prepare('INSERT INTO rd_links (id, username, domain, mode, dedup, enabled, created_at, updated_at) VALUES (?1,?2,?3,?4,?5,1,?6,?6)').bind(linkId, me.user, d, mode, dedup, new Date().toISOString()).run();
+          try {
+            await env.DB.prepare('INSERT INTO rd_links (id, username, domain, mode, dedup, enabled, fast, created_at, updated_at) VALUES (?1,?2,?3,?4,?5,1,?6,?7,?7)').bind(linkId, me.user, d, mode, dedup, fast, new Date().toISOString()).run();
+          } catch (e) {
+            await env.DB.prepare('INSERT INTO rd_links (id, username, domain, mode, dedup, enabled, created_at, updated_at) VALUES (?1,?2,?3,?4,?5,1,?6,?6)').bind(linkId, me.user, d, mode, dedup, new Date().toISOString()).run();
+          }
         }
         for (var k = 0; k < targets.length; k++) {
           await env.DB.prepare('INSERT INTO rd_targets (link_id, type, url, weight, sort, created_at) VALUES (?1,?2,?3,?4,?5,?6)').bind(linkId, targets[k].type, targets[k].url, targets[k].weight, k, new Date().toISOString()).run();

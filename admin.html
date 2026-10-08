@@ -3252,6 +3252,7 @@ function renderRdModal(domains, link){
   _rdEditingId = link ? link.id : '';
   var mode = link ? link.mode : 'random';
   var dedupChecked = link ? (link.dedup !== 0) : true;
+  var fastChecked = link ? (link.fast === 1) : false;
   var selectedDomain = link ? link.domain : (domains[0] ? domains[0].domain : '');
   var domainOpts = domains.map(function(x){ return '<option value="'+esc(x.domain)+'"'+(x.domain===selectedDomain?' selected':'')+'>'+esc(x.domain)+'</option>'; }).join('');
   var stepWrap = 'display:flex;gap:10px;margin-bottom:18px;align-items:flex-start';
@@ -3279,12 +3280,16 @@ function renderRdModal(domains, link){
       '<div style="'+stepHint+'">访客打开短链后，会跳到下面其中一个链接，可添加多个。</div>'+
       '<div id="rdTargets"></div>'+
       '<button class="btn btn-o btn-sm" id="rdAddTargetBtn">➕ 添加一个链接</button>'+
-      '<div style="font-size:.74rem;color:var(--muted);margin:8px 0 0;line-height:1.6">💬 类型选「WhatsApp」时：只填号码（一行一个、纯数字，<b>不要带国家区号</b>）；可选填「营销话术」，生成 https://wa.me/号码?text=话术</div>'+
+      '<div style="font-size:.74rem;color:var(--muted);margin:8px 0 0;line-height:1.6">💬 类型选「WhatsApp」时：只填号码（一行一个、纯数字，<b>需要带国家区号：比如中国 WhatsApp 8613900001111</b>）；可选填「营销话术」，生成 https://wa.me/号码?text=话术</div>'+
     '</div></div>'+
     '<div style="'+stepWrap+'"><div style="'+stepNum+'">4</div><div style="flex:1;min-width:0">'+
       '<div style="'+stepTitle+'">去重设置</div>'+
       '<div style="'+stepHint+'">同一个访客（同一 cookie）只会固定跳转到同一个链接，避免每次打开都跳到不同链接。</div>'+
       '<label style="display:flex;align-items:center;gap:10px;cursor:pointer;border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:8px"><input type="checkbox" id="rdDedup" '+(dedupChecked?'checked':'')+' style="margin:0"><div style="flex:1"><b>🎯 开启去重</b><div style="font-size:.78rem;color:var(--muted);line-height:1.5">同一访客重复点击，始终跳转到首次分配的那个链接（仅当跳转后链接多于 1 个时生效）。</div></div></label>'+
+    '</div></div>'+
+    '<div style="'+stepWrap+'"><div style="'+stepNum+'">5</div><div style="flex:1;min-width:0">'+
+      '<div style="'+stepTitle+'">直链极速跳转（可选）</div>'+
+      '<label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;border:1px solid var(--border);border-radius:8px;padding:10px 12px"><input type="checkbox" id="rdFast" '+(fastChecked?'checked':'')+' style="margin:3px 0 0"><div style="flex:1"><b>⚡ 开启直链极速跳转</b><div style="font-size:.78rem;color:var(--muted);line-height:1.5;margin-top:4px">开启后<b>不做任何防护判断</b>（爬虫/设备/VPN/代理/时区等全部不检测），访客打开短链立即跳转、速度最快。<b>适合 WhatsApp 等不需要防护的链接</b>；需要防护请保持关闭。</div></div></label>'+
     '</div></div>'+
     '<div style="display:flex;gap:10px;margin-top:18px"><button class="btn btn-p" id="rdSaveBtn">保存</button><button class="btn btn-o" id="rdCancelBtn">取消</button></div>'+
     '<div id="rdModalMsg"></div>'+
@@ -3323,7 +3328,7 @@ function addRdTargetRow(t){
     '<button class="btn btn-o btn-sm rdtdel" style="flex:0 0 auto;padding:4px 12px">✕ 删除</button>'+
     '</div>'+
     '<input class="rdtu" placeholder="粘贴跳转地址，例如 https://example.com" value="'+esc(url)+'" style="width:100%;box-sizing:border-box;'+(type==='whatsapp'?'display:none':'')+'">'+
-    '<textarea class="rdtn" placeholder="WhatsApp 号码，一行一个（纯数字，不要带国家区号）" style="width:100%;box-sizing:border-box;min-height:60px;'+(type==='whatsapp'?'':'display:none')+'">'+esc(numbers)+'</textarea>'+
+    '<textarea class="rdtn" placeholder="WhatsApp 号码，一行一个（纯数字，需要带国家区号，如 8613900001111）" style="width:100%;box-sizing:border-box;min-height:60px;'+(type==='whatsapp'?'':'display:none')+'">'+esc(numbers)+'</textarea>'+
     '<input class="rdtext" placeholder="营销话术（选填），例如：你好，想咨询一下" value="'+esc(text)+'" style="width:100%;box-sizing:border-box;margin-top:8px;'+(type==='whatsapp'?'':'display:none')+'">'+
     '<div class="rdtwWrap" style="margin-top:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">'+
       '<span style="font-size:.78rem;color:var(--muted);white-space:nowrap">⚖️ 权重（比例）</span>'+
@@ -3405,7 +3410,9 @@ async function saveRdLink(){
   }
   var dedupEl = document.getElementById('rdDedup');
   var dedup = dedupEl ? (dedupEl.checked ? 1 : 0) : 1;
-  var body = { action: _rdEditingId ? 'link_edit' : 'link_add', domain: domain, mode: mode, dedup: dedup, targets: targets };
+  var fastEl = document.getElementById('rdFast');
+  var fast = fastEl ? (fastEl.checked ? 1 : 0) : 0;
+  var body = { action: _rdEditingId ? 'link_edit' : 'link_add', domain: domain, mode: mode, dedup: dedup, fast: fast, targets: targets };
   if(_rdEditingId) body.id = _rdEditingId;
   msg('rdModalMsg','ok','保存中...');
   try{
