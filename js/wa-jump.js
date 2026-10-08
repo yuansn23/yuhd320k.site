@@ -2,7 +2,7 @@
 //  WhatsApp 直链跳转 SDK（落地页埋点，CTA 按钮触发）
 //  用法：
 //    <script src="https://api.wenk918d.site/js/wa-jump.js" data-rd="短链ID"></script>
-//    <button onclick="MeetU.wa()">💬 联系客服</button>
+//    <button onclick="waJump()">💬 联系客服</button>
 //  点击后 → 后台 /rd/{短链ID}（记录跳转统计）→ 302 到 WhatsApp 目标
 // ============================================================
 (function(global){
