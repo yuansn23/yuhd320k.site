@@ -51,6 +51,11 @@ function normalizeTargetUrl(u) {
   } catch (e) { return ''; }
 }
 
+// 是否为 WhatsApp 链接（wa.me / api.whatsapp.com），用于引导用户把「链接形式」选成 WhatsApp
+function isWhatsappUrl(u) {
+  return /wa\.me\/|api\.whatsapp\.com/i.test(String(u || ''));
+}
+
 function cleanNumber(n) { return String(n || '').replace(/\D/g, ''); }
 
 function parseJson(s, d) { try { return JSON.parse(s); } catch (e) { return d; } }
@@ -194,6 +199,7 @@ export async function onRequest(context) {
           } else {
             var u = String(rt.url || '').trim();
             if (u) {
+              if (isWhatsappUrl(u)) return json({ error: '第 ' + (t + 1) + ' 个是 WhatsApp 链接，请把「链接形式」选择为 WhatsApp（💬）' }, 400);
               var nu = normalizeTargetUrl(u);
               if (!nu) return json({ error: '第 ' + (t + 1) + ' 个链接格式不正确，请输入完整网址（如 https://example.com）：' + u }, 400);
               targets.push({ type: 'url', url: nu, weight: weight });
