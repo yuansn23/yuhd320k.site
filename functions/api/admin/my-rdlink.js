@@ -39,6 +39,18 @@ function normalizeDomain(d) {
   return s;
 }
 
+// 目标链接容错：去空白、缺协议自动补 https://；无法解析为「带域名的完整网址」则返回空（拦截 333333 这类误填）
+function normalizeTargetUrl(u) {
+  var s = String(u || '').trim();
+  if (!s) return '';
+  if (!/^https?:\/\//i.test(s)) s = 'https://' + s;
+  try {
+    var p = new URL(s);
+    if (p.hostname && p.hostname.indexOf('.') !== -1) return p.href;
+    return '';
+  } catch (e) { return ''; }
+}
+
 function cleanNumber(n) { return String(n || '').replace(/\D/g, ''); }
 
 function parseJson(s, d) { try { return JSON.parse(s); } catch (e) { return d; } }
@@ -181,7 +193,11 @@ export async function onRequest(context) {
             }
           } else {
             var u = String(rt.url || '').trim();
-            if (u) targets.push({ type: 'url', url: u, weight: weight });
+            if (u) {
+              var nu = normalizeTargetUrl(u);
+              if (!nu) return json({ error: '第 ' + (t + 1) + ' 个链接格式不正确，请输入完整网址（如 https://example.com）：' + u }, 400);
+              targets.push({ type: 'url', url: nu, weight: weight });
+            }
           }
         }
         if (!targets.length) return json({ error: '请至少添加一个有效的目标链接（B链接）' }, 400);
