@@ -3436,7 +3436,7 @@ async function saveRdLink(){
 }
 
 function rdCopyJs(id){
-  var code = '<script src="'+location.origin+'/js/wa-jump.js" data-rd="'+id+'"></script>\n<button onclick="MeetU.wa()">💬 联系客服</button>';
+  var code = '<script src="'+location.origin+'/js/wa-jump.js" data-rd="'+id+'"><\/script>\n<button onclick="MeetU.wa()">💬 联系客服</button>';
   if (navigator.clipboard && navigator.clipboard.writeText) {
     navigator.clipboard.writeText(code).then(function(){ msg('rdResult','ok','✅ 已复制落地页 JS 代码'); }).catch(function(){ rdFallbackCopy(code); });
   } else {
