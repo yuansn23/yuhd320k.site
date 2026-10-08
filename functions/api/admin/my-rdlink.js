@@ -202,7 +202,7 @@ export async function onRequest(context) {
             var msg = String(rt.text || '').trim();
             for (var n = 0; n < numbers.length; n++) {
               var num = cleanNumber(numbers[n]);
-              if (num) targets.push({ type: 'whatsapp', url: 'https://wa.me/' + num + (msg ? '?text=' + encodeURIComponent(msg) : ''), weight: weight });
+              if (num) targets.push({ type: 'whatsapp', url: 'https://api.whatsapp.com/send/?phone=' + num + '&text=' + encodeURIComponent(msg) + '&type=phone_number&app_absent=0', weight: weight });
             }
           } else {
             var u = String(rt.url || '').trim();

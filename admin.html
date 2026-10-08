@@ -3209,7 +3209,7 @@ async function loadRdLinks(){
         '<td style="white-space:nowrap;font-family:monospace">'+bTxt+'</td>'+
         '<td>'+modeTxt+'</td><td>'+st+'</td><td style="white-space:nowrap">'+protCell+'</td><td style="white-space:nowrap">'+fmtTime(l.created_at)+'</td>'+
         '<td style="min-width:200px"><input type="text" id="rdRemark-'+esc(l.id)+'" value="'+esc(l.remark||'')+'" placeholder="备注说明" style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid var(--border);background:var(--input);color:var(--text);font-size:.8rem"><button class="btn btn-p btn-sm" data-rd-save-remark="'+esc(l.id)+'" style="margin-top:5px">保存</button></td>'+
-        '<td style="white-space:nowrap"><button class="btn btn-o btn-sm" onclick="rdEdit(\''+l.id+'\')">修改</button> <button class="btn btn-o btn-sm" style="color:var(--red)" onclick="rdDel(\''+l.id+'\')">删除</button> '+btn+'</td></tr>';
+        '<td style="white-space:nowrap"><button class="btn btn-o btn-sm" onclick="rdEdit(\''+l.id+'\')">修改</button> <button class="btn btn-p btn-sm" onclick="rdCopyJs(\''+l.id+'\')">📋 落地页JS</button> <button class="btn btn-o btn-sm" style="color:var(--red)" onclick="rdDel(\''+l.id+'\')">删除</button> '+btn+'</td></tr>';
     }).join('');
     tbody.querySelectorAll('[data-rd-save-remark]').forEach(function(b){
       b.onclick = function(){ rdSaveRemark(this.getAttribute('data-rd-save-remark')); };
@@ -3280,7 +3280,7 @@ function renderRdModal(domains, link){
       '<div style="'+stepHint+'">访客打开短链后，会跳到下面其中一个链接，可添加多个。</div>'+
       '<div id="rdTargets"></div>'+
       '<button class="btn btn-o btn-sm" id="rdAddTargetBtn">➕ 添加一个链接</button>'+
-      '<div style="font-size:.74rem;color:var(--muted);margin:8px 0 0;line-height:1.6">💬 类型选「WhatsApp」时：只填号码（一行一个、纯数字，<b>需要带国家区号：比如中国 WhatsApp 8613900001111</b>）；可选填「营销话术」，生成 https://wa.me/号码?text=话术</div>'+
+      '<div style="font-size:.74rem;color:var(--muted);margin:8px 0 0;line-height:1.6">💬 类型选「WhatsApp」时：只填号码（一行一个、纯数字，<b>需要带国家区号：比如中国 WhatsApp 8613900001111</b>）；可选填「营销话术」，访客点击后直接打开 WhatsApp 聊天。</div>'+
     '</div></div>'+
     '<div style="'+stepWrap+'"><div style="'+stepNum+'">4</div><div style="flex:1;min-width:0">'+
       '<div style="'+stepTitle+'">去重设置</div>'+
@@ -3313,9 +3313,18 @@ function addRdTargetRow(t){
   var numbers = '';
   var text = '';
   if(type === 'whatsapp'){
-    var m = url.match(/^https:\/\/wa\.me\/(\d+)(?:\?text=(.*))?$/i);
-    numbers = m ? m[1] : url.replace(/^https:\/\/wa\.me\//i,'').replace(/\?.*$/,'');
-    if(m && m[2]){ try{ text = decodeURIComponent(m[2]); }catch(e){ text = m[2]; } }
+    if(/api\.whatsapp\.com\/send/i.test(url)){
+      try {
+        var wu = new URL(url);
+        numbers = wu.searchParams.get('phone') || '';
+        text = wu.searchParams.get('text') || '';
+      } catch(e){ numbers = ''; text = ''; }
+    } else {
+      // 兼容旧版 wa.me 格式
+      var m = url.match(/^https:\/\/wa\.me\/(\d+)(?:\?text=(.*))?$/i);
+      numbers = m ? m[1] : url.replace(/^https:\/\/wa\.me\//i,'').replace(/\?.*$/,'');
+      if(m && m[2]){ try{ text = decodeURIComponent(m[2]); }catch(e){ text = m[2]; } }
+    }
   }
   var weight = t ? (t.weight || 1) : 1;
   var idx = box.children.length + 1;
@@ -3424,6 +3433,27 @@ async function saveRdLink(){
       loadRdLinks();
     } else msg('rdModalMsg','err', d.error || '保存失败');
   }catch(e){ msg('rdModalMsg','err','网络错误'); }
+}
+
+function rdCopyJs(id){
+  var code = '<script src="'+location.origin+'/js/wa-jump.js" data-rd="'+id+'"></script>\n<button onclick="MeetU.wa()">💬 联系客服</button>';
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(code).then(function(){ msg('rdResult','ok','✅ 已复制落地页 JS 代码'); }).catch(function(){ rdFallbackCopy(code); });
+  } else {
+    rdFallbackCopy(code);
+  }
+}
+
+function rdFallbackCopy(text){
+  var ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.position = 'fixed';
+  ta.style.left = '-9999px';
+  document.body.appendChild(ta);
+  ta.select();
+  try { document.execCommand('copy'); msg('rdResult','ok','✅ 已复制落地页 JS 代码'); }
+  catch(e){ msg('rdResult','err','复制失败，请手动复制'); }
+  document.body.removeChild(ta);
 }
 
 function rdEdit(id){
