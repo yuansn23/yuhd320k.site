@@ -3348,6 +3348,10 @@ function rdNormalizeUrl(u){
   } catch(e){ return ''; }
 }
 
+function rdIsWhatsappUrl(u){
+  return /wa\.me\/|api\.whatsapp\.com/i.test(String(u||''));
+}
+
 async function saveRdLink(){
   var domain = document.getElementById('rdModalDomain').value;
   var modeR = document.querySelector('input[name="rdMode"]:checked');
@@ -3365,6 +3369,7 @@ async function saveRdLink(){
     } else {
       var u = row.querySelector('.rdtu').value.trim();
       if(u){
+        if(rdIsWhatsappUrl(u)){ msg('rdModalMsg','err','第 '+(ri+1)+' 个是 WhatsApp 链接，请把「链接形式」改为 💬 WhatsApp'); row.querySelector('.rdtt').focus(); return; }
         var nu = rdNormalizeUrl(u);
         if(!nu){ msg('rdModalMsg','err','第 '+(ri+1)+' 个链接格式不正确，请输入完整网址（如 https://example.com）'); row.querySelector('.rdtu').focus(); return; }
         targets.push({ type:'url', url:nu, weight:weight });
