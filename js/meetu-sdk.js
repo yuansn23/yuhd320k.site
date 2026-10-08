@@ -8,7 +8,7 @@
     'use strict';
 
     // ---------- 1. 基础配置 ----------
-    var API_BASE = 'https://api.xcty68.vip';   // 你的后台地址
+    var API_BASE = 'https://api.wenk918d.site';   // 你的后台地址
     var _site = global.location.origin + global.location.pathname;
     var _apkUrl = '';
     var _events = ['AddToCart', 'Contact', 'Lead', 'CompleteRegistration', 'Purchase', 'Download'];   // 默认全选，后台按落地页配置后覆盖
@@ -80,8 +80,8 @@
             console.warn('[MeetU SDK] 像素获取失败');
         });
 
-    // ---------- 3. 核心下载方法 (供外部调用) ----------
-    async function coreDownload(source) {
+    // ---------- 3. 触发转化事件（只触发、不跳转，供下载/WhatsApp 等按钮复用） ----------
+    function fireEvents() {
         // Facebook 转化事件（按后台勾选的事件触发；Download 为自定义事件）
         for (var i = 0; i < _events.length; i++) {
             var ev = _events[i];
@@ -96,6 +96,11 @@
                 inst.track(_ttEvents[j]);
             }
         }
+    }
+
+    // ---------- 4. 核心下载方法（触发事件 + 跳转 APK） ----------
+    async function coreDownload(source) {
+        fireEvents();
 
         try {
             if (!_apkUrl) {
@@ -119,6 +124,7 @@
     // 方式 A：挂载到全局对象 MeetU（推荐，避免命名冲突）
     global.MeetU = {
         download: coreDownload,
+        track: fireEvents,
         version: '1.0'
     };
 
