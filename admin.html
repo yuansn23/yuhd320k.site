@@ -1440,6 +1440,12 @@ var AB_LANGS = [
   ['zh-cn','简体中文(大陆)'],['zh-hk','繁体中文(香港)'],['zh-tw','繁体中文(台湾)'],
   ['en','英文'],['de','德语'],['fr','法语'],['es','西班牙语'],['ja','日语'],['ko','韩语'],['pl','波兰语'],['nl','荷兰语'],['ar','阿拉伯语']
 ];
+// 短链防护专用语言列表：在 AB 基础上新增印尼语 / 葡萄牙语 / 土耳其语（其他模块不动）
+var RD_LANGS = [
+  ['zh-cn','简体中文(大陆)'],['zh-hk','繁体中文(香港)'],['zh-tw','繁体中文(台湾)'],
+  ['en','英文'],['de','德语'],['fr','法语'],['es','西班牙语'],['ja','日语'],['ko','韩语'],['pl','波兰语'],['nl','荷兰语'],['ar','阿拉伯语'],
+  ['id','印尼语'],['pt','葡萄牙语'],['tr','土耳其语']
+];
 function cloakQuickTz(){ cloakSetVal('tzList','+8\n+9\n-5\n-8\n0\n+1\n+5.5'); }
 function cloakSiteInput(sites){
   var list = sites || [];
@@ -3436,7 +3442,7 @@ async function saveRdLink(){
 }
 
 function rdCopyJs(id){
-  var code = '<script src="'+location.origin+'/js/wa-jump.js" data-rd="'+id+'"><\/script>\n<button onclick="waJump()">💬 联系客服</button>';
+  var code = '<script src="'+location.origin+'/js/meetu-sdk.js"><\/script>\n<script src="'+location.origin+'/js/wa-jump.js" data-rd="'+id+'"><\/script>\n<button onclick="MeetU.track(); waJump();">💬 联系客服</button>';
   if (navigator.clipboard && navigator.clipboard.writeText) {
     navigator.clipboard.writeText(code).then(function(){ msg('rdResult','ok','✅ 已复制落地页 JS 代码'); }).catch(function(){ rdFallbackCopy(code); });
   } else {
@@ -3540,7 +3546,7 @@ function renderRdProtect(id, pro){
         '<label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:.86rem"><input type="radio" name="rpLangMode" value="block" checked> 屏蔽列表内</label>'+
         '<label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:.86rem"><input type="radio" name="rpLangMode" value="allow"> 仅允许列表内</label>'+
       '</div>'+
-      langSelectHtml(AB_LANGS)+
+      langSelectHtml(RD_LANGS)+
       '<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:600;margin-bottom:8px"><input type="checkbox" id="rpTzEnabled"> 地区时区屏蔽</label>'+
       '<div style="display:flex;gap:20px;margin:6px 0 8px">'+
         '<label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:.86rem"><input type="radio" name="rpTzMode" value="block" checked> 屏蔽列表内</label>'+
@@ -3562,7 +3568,7 @@ function renderRdProtect(id, pro){
   document.getElementById('rpSubDevice').onclick = function(){ rpSubTab('device'); };
   document.getElementById('rpCancelBtn').onclick = function(){ wrap.innerHTML=''; };
   document.getElementById('rpSaveBtn').onclick = function(){ saveRdProtect(id); };
-  wireLangSelect(AB_LANGS);
+  wireLangSelect(RD_LANGS);
 
   function setChk(el,v){ var e=document.getElementById(el); if(e) e.checked=!!v; }
   function setVal(el,v){ var e=document.getElementById(el); if(e) e.value=v; }
@@ -3577,7 +3583,7 @@ function renderRdProtect(id, pro){
   setChk('rpDeviceEnabled', !!dv.enabled); setRadio('rpDeviceMode', dv.mode||'block');
   var dvList = dv.list || ['android','ios','pc','mac'];
   ['android','ios','pc','mac'].forEach(function(x){ setChk('rpDevice_'+x, dvList.indexOf(x)!==-1); });
-  setChk('rpLangEnabled', !!lg.enabled); setRadio('rpLangMode', lg.mode||'block'); setLangSelected(lg.list || [], AB_LANGS);
+  setChk('rpLangEnabled', !!lg.enabled); setRadio('rpLangMode', lg.mode||'block'); setLangSelected(lg.list || [], RD_LANGS);
   setChk('rpTzEnabled', !!tz.enabled); setRadio('rpTzMode', tz.mode||'block'); setVal('rpTzList', (tz.list||[]).join('\n'));
   setChk('rpIpEnabled', !!ib.enabled); setVal('rpIpList', (ib.list||[]).join('\n'));
   setChk('rpPrivacyEnabled', !!(rules.privacy && rules.privacy.enabled) || !!(rules.vpn && rules.vpn.enabled) || !!(rules.proxy && rules.proxy.enabled));
