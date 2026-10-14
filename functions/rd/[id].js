@@ -106,6 +106,36 @@ function ianaOffset(iana) {
   return (map[t] !== undefined) ? map[t] : null;
 }
 
+// 国家码 → 主时区 IANA 名（仅单一时区国家，其余返回 null，回退 ipinfo）
+// 用 Cloudflare 免费 CF-IPCountry 直接推断时区，省掉外部 ipinfo 查询。
+// 只收录「全国单一时区」的国家；多时区国家（US/CA/MX/BR/RU/AU/ID/NZ 等）一律返回 null。
+function countryToIana(country) {
+  var c = String(country || '').toUpperCase();
+  var map = {
+    CN: 'Asia/Shanghai', HK: 'Asia/Hong_Kong', MO: 'Asia/Macau', TW: 'Asia/Taipei',
+    SG: 'Asia/Singapore', MY: 'Asia/Kuala_Lumpur', PH: 'Asia/Manila', BN: 'Asia/Brunei',
+    JP: 'Asia/Tokyo', KR: 'Asia/Seoul', KP: 'Asia/Pyongyang',
+    TH: 'Asia/Bangkok', VN: 'Asia/Ho_Chi_Minh',
+    IN: 'Asia/Kolkata', LK: 'Asia/Colombo', NP: 'Asia/Kathmandu', BD: 'Asia/Dhaka',
+    PK: 'Asia/Karachi', AF: 'Asia/Kabul',
+    AE: 'Asia/Dubai', OM: 'Asia/Muscat', SA: 'Asia/Riyadh', QA: 'Asia/Qatar',
+    KW: 'Asia/Kuwait', BH: 'Asia/Bahrain', IQ: 'Asia/Baghdad', IR: 'Asia/Tehran',
+    TR: 'Europe/Istanbul',
+    GB: 'Europe/London', IE: 'Europe/Dublin', PT: 'Europe/Lisbon', IS: 'Europe/Reykjavik',
+    ES: 'Europe/Madrid', FR: 'Europe/Paris', DE: 'Europe/Berlin', NL: 'Europe/Amsterdam',
+    BE: 'Europe/Brussels', IT: 'Europe/Rome', CH: 'Europe/Zurich', AT: 'Europe/Vienna',
+    CZ: 'Europe/Prague', PL: 'Europe/Warsaw', SE: 'Europe/Stockholm', DK: 'Europe/Copenhagen',
+    NO: 'Europe/Oslo', HU: 'Europe/Budapest', GR: 'Europe/Athens', FI: 'Europe/Helsinki',
+    LV: 'Europe/Riga', EE: 'Europe/Tallinn', LT: 'Europe/Vilnius', BG: 'Europe/Sofia',
+    RO: 'Europe/Bucharest', UA: 'Europe/Kyiv',
+    CO: 'America/Bogota', PE: 'America/Lima', AR: 'America/Argentina/Buenos_Aires',
+    CL: 'America/Santiago', BO: 'America/La_Paz', VE: 'America/Caracas',
+    EG: 'Africa/Cairo', ZA: 'Africa/Johannesburg', NG: 'Africa/Lagos', KE: 'Africa/Nairobi',
+    GH: 'Africa/Accra', MA: 'Africa/Casablanca', DZ: 'Africa/Algiers'
+  };
+  return map[c] || null;
+}
+
 // 短链防护规则评估（服务端信号：UA / Accept-Language / IP / IP情报，无浏览器时区与 WebRTC）
 function evaluateProtection(rules, ctx) {
   var r = rules || {};
@@ -157,7 +187,7 @@ async function getIpInfo(env, ip) {
     if (!res.ok) return null;
     var data = await res.json();
     var out = { timezone: data.timezone || '', country: data.country || '', region: data.region || '' };
-    try { await env.kvadmin.put(cacheKey, JSON.stringify(out), { expirationTtl: 600 }); } catch (e) {}
+    try { await env.kvadmin.put(cacheKey, JSON.stringify(out), { expirationTtl: 86400 }); } catch (e) {}
     return out;
   } catch (e) { return null; }
 }
@@ -212,25 +242,22 @@ export async function onRequest(context) {
     }
 
     // 并行读取三张表（rd_links / rd_protection / rd_targets），减少串行等待
-    var link = null, pRow = null, tr = null;
+    var link = null, pRow = null, tr = null, fRow = null;
     try {
       var reads = await Promise.all([
         env.DB.prepare('SELECT id, username, domain, mode, dedup, enabled FROM rd_links WHERE id = ?1').bind(id).first().catch(function () { return null; }),
         env.DB.prepare('SELECT enabled, whitelist_ips, rules, fallback_url FROM rd_protection WHERE link_id = ?1').bind(id).first().catch(function () { return null; }),
-        env.DB.prepare('SELECT type, url, weight FROM rd_targets WHERE link_id = ?1 ORDER BY sort ASC, id ASC').bind(id).all().catch(function () { return null; })
+        env.DB.prepare('SELECT type, url, weight FROM rd_targets WHERE link_id = ?1 ORDER BY sort ASC, id ASC').bind(id).all().catch(function () { return null; }),
+        env.DB.prepare('SELECT fast FROM rd_links WHERE id = ?1').bind(id).first().catch(function () { return null; })
       ]);
-      link = reads[0]; pRow = reads[1]; tr = reads[2];
+      link = reads[0]; pRow = reads[1]; tr = reads[2]; fRow = reads[3];
     } catch (e) {}
     if (!link || link.enabled !== 1) {
       return new Response(JSON.stringify({ error: '短链不存在或已禁用' }), { status: 404, headers: jsonHeaders });
     }
 
     // 直链极速跳转：fast=1 时跳过一切防护判断（列不存在则默认 0）
-    var fast = 0;
-    try {
-      var fRow = await env.DB.prepare('SELECT fast FROM rd_links WHERE id = ?1').bind(id).first();
-      if (fRow && fRow.fast === 1) fast = 1;
-    } catch (e) {}
+    var fast = (fRow && fRow.fast === 1) ? 1 : 0;
 
     var ip = request.headers.get('CF-Connecting-IP') || '';
     var ua = request.headers.get('User-Agent') || '';
@@ -252,11 +279,17 @@ export async function onRequest(context) {
         var ipTz = '';
         var ipIntel = null;
         if (needTz || needIntel) {
+          // 快速路径：用 Cloudflare 免费的 CF-IPCountry 直接推断时区，省掉外部 ipinfo 查询（仅单一时区国家，其余回退 ipinfo）
+          if (needTz) {
+            var country = (request.headers.get('CF-IPCountry') || '').toUpperCase();
+            var cIana = countryToIana(country);
+            if (cIana) ipTz = cIana;
+          }
           var ipRes = await Promise.all([
-            needTz ? getIpInfo(env, ip) : Promise.resolve(null),
+            (needTz && !ipTz) ? getIpInfo(env, ip) : Promise.resolve(null),
             needIntel ? getIpIntel(env, ip) : Promise.resolve(null)
           ]);
-          if (needTz && ipRes[0]) ipTz = ipRes[0].timezone || '';
+          if (needTz && !ipTz && ipRes[0]) ipTz = ipRes[0].timezone || '';
           if (needIntel) ipIntel = ipRes[1];
         }
         triggered = evaluateProtection(rules, { ip: ip, ua: ua, device: device, lang: acceptLang, tzOffset: ianaOffset(ipTz), tzIANA: ipTz, ipIntel: ipIntel });
