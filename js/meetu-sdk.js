@@ -14,6 +14,7 @@
     var _events = ['AddToCart', 'Contact', 'Lead', 'CompleteRegistration', 'Purchase', 'Download'];   // 默认全选，后台按落地页配置后覆盖
     var _ttIds = [];                                                                                     // TikTok 像素ID（后台按落地页配置后覆盖）
     var _ttEvents = ['ClickButton', 'Contact', 'AddToCart', 'CompleteRegistration'];                     // TikTok 转化事件默认全选
+    var _eventMode = 'pixel';                                                                            // FB 转化事件回传通道：pixel=前端浏览器像素 / capi=后端API token
 
     console.log('[MeetU SDK] 站点:', _site, ' API:', API_BASE);
 
@@ -48,6 +49,7 @@
             if (Array.isArray(d.events)) { _events = d.events; }
             _ttIds = Array.isArray(d.tt_ids) ? d.tt_ids : [];
             if (Array.isArray(d.tt_events)) { _ttEvents = d.tt_events; }
+            if (typeof d.event_mode === 'string') { _eventMode = d.event_mode; }
 
             // Facebook 像素
             if (ids.length) {
@@ -81,15 +83,41 @@
         });
 
     // ---------- 3. 触发转化事件（只触发、不跳转，供下载/WhatsApp 等按钮复用） ----------
+    // 读取 Meta 第一方 cookie（_fbp 浏览器ID / _fbc 点击ID，供服务端 CAPI 匹配去重用）
+    function readCookie(name) {
+        var m = document.cookie.match(new RegExp('(?:^|; )' + name + '=([^;]*)'));
+        return m ? m[1] : '';
+    }
+
+    // 后端 API token 通道：POST 到 /api/fb-capi，由服务端转发 Graph API（火后不理，不阻塞跳转）
+    function fireCapi() {
+        try {
+            fetch(API_BASE + '/api/fb-capi', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    site: _site,
+                    event_source_url: global.location.href,
+                    fbp: readCookie('_fbp'),
+                    fbc: readCookie('_fbc')
+                })
+            }).catch(function(){});
+        } catch (e) {}
+    }
+
     function fireEvents() {
-        // Facebook 转化事件（按后台勾选的事件触发；Download 为自定义事件）
-        for (var i = 0; i < _events.length; i++) {
-            var ev = _events[i];
-            if (ev === 'Download') { fbq('trackCustom', 'Download'); }
-            else { fbq('track', ev); }
+        // Facebook 转化事件：按后台「回传通道」二选一（pixel=前端 / capi=后端 token）
+        if (_eventMode === 'capi') {
+            fireCapi();
+        } else {
+            for (var i = 0; i < _events.length; i++) {
+                var ev = _events[i];
+                if (ev === 'Download') { fbq('trackCustom', 'Download'); }
+                else { fbq('track', ev); }
+            }
         }
 
-        // TikTok 转化事件（每个像素 × 每个已选事件）
+        // TikTok 转化事件（每个像素 × 每个已选事件；不受 FB 通道影响，始终浏览器端触发）
         for (var k = 0; k < _ttIds.length; k++) {
             var inst = ttq.instance(_ttIds[k]);
             for (var j = 0; j < _ttEvents.length; j++) {
