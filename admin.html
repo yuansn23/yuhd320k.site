@@ -1168,6 +1168,8 @@ async function loadSiteSelector(){
 // ========== USER: 像素管理 ==========
 var _pixelIds = [];
 var _fbEvents = ['AddToCart','Contact','Lead','CompleteRegistration','Purchase','Download','Subscribe','InitiateCheckout'];
+var _fbEventMode = 'pixel';   // FB 转化事件回传通道：pixel=前端浏览器像素 / capi=后端API token
+var _fbCapiToken = '';
 var FB_EVENT_OPTS = [
   ['AddToCart','加购'],
   ['Contact','联系'],
@@ -1224,11 +1226,15 @@ function renderPixelPanel(){
   if(_pixelTab === 'fb'){
     panel.innerHTML =
       '<div class="card"><h3>➕ 新增像素</h3><div style="background:rgba(88,166,255,.08);border:1px solid rgba(88,166,255,.2);border-radius:8px;padding:14px 18px;margin-bottom:14px"><span style="color:var(--blue);font-weight:800;font-size:.85rem">投放切记：</span><br><span style="color:var(--fg);font-weight:700;font-size:.82rem">1.后台只支持【购物】加【加购】【联系】【潜客】【完成注册】【自定义-下载】【订阅】【发起结账】，广告组选择其他事件不会回传</span><br><span style="color:var(--fg);font-weight:700;font-size:.82rem">2.如果需要其他FB事件，请联系管理</span></div><div class="form-row"><input type="text" id="newPixelId" placeholder="输入像素ID"><button class="btn btn-p" id="addPixelBtn">新增</button></div><div id="pixelAddMsg"></div></div>'+
+      '<div class="card"><h3>🔄 回传通道（二选一）</h3><p style="color:var(--muted);font-size:.84rem;margin-bottom:12px">转化事件（下载时触发）走哪条路：<b>前端浏览器像素</b>，还是 <b>后端 API Token</b>（Conversions API）。PageView 始终走前端像素。</p><label style="display:inline-flex;align-items:center;gap:6px;margin-right:24px;cursor:pointer;font-size:.9rem"><input type="radio" name="fbEventMode" value="pixel" style="width:16px;height:16px;accent-color:#21C064;cursor:pointer"> 前端浏览器像素</label><label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;font-size:.9rem"><input type="radio" name="fbEventMode" value="capi" style="width:16px;height:16px;accent-color:#21C064;cursor:pointer"> 后端 API Token</label><div style="margin-top:10px"><button class="btn btn-p" id="saveEventModeBtn">💾 保存通道</button><span id="fbEventModeMsg" style="margin-left:10px;font-size:.82rem"></span></div><div id="fbCapiTokenBox" style="margin-top:14px;display:none;background:rgba(88,166,255,.06);border:1px solid var(--border);border-radius:8px;padding:12px 16px"><div style="background:rgba(255,193,7,.10);border:1px solid rgba(255,193,7,.35);border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:.84rem;line-height:1.9;color:var(--text)"><b style="color:#FFC107">📖 怎么拿到 Token（照着做就行）</b><br><b>1.</b> 打开 <a href="https://business.facebook.com/events_manager2/" target="_blank" rel="noopener" style="color:var(--blue)">事件管理工具 Events Manager</a><br><b>2.</b> 左侧「数据源」→ 点开你的 <b>像素 Pixel</b><br><b>3.</b> 顶部点「设置」→ 往下滚到「<b>Conversions API</b>」<br><b>4.</b> 点「<b>生成访问令牌 Generate Access Token</b>」<br><b>5.</b> 复制那串 <b style="font-family:monospace">EAAG</b> 开头的长码，粘到下面 → 点「保存 Token」<br><span style="color:var(--red)">⚠️ 选了「后端 API Token」但没填 token，转化事件会收不到。</span></div><label style="font-size:.84rem;color:var(--text)">API 访问令牌（access token）</label><div class="form-row" style="margin-top:8px"><input type="text" id="fbCapiToken" placeholder="粘贴 EAAG 开头的 token" style="font-family:monospace"><button class="btn btn-p" id="saveCapiTokenBtn">保存 Token</button></div><div id="fbCapiMsg" style="margin-top:8px"></div></div></div>'+
       '<div class="card"><h3>🎯 转化事件（下载时触发，可多选）</h3><p style="color:var(--muted);font-size:.84rem;margin-bottom:10px">勾选后点「保存事件」生效；每个落地页的事件互相独立，互不影响。</p><div id="fbEventsBox" style="margin-bottom:10px"></div><button class="btn btn-p" id="saveEventsBtn">💾 保存事件</button><div id="fbEventsMsg"></div></div>'+
       '<div class="card"><h3>📋 像素列表 <span id="pixelCount" style="font-weight:400;font-size:.8rem;color:var(--muted)"></span></h3><table><thead><tr><th>序号</th><th>像素ID</th><th>操作</th></tr></thead><tbody id="pixelBody"><tr><td colspan="4" class="empty">加载中...</td></tr></tbody></table></div>';
     document.getElementById('addPixelBtn').onclick = addPixel;
     document.getElementById('saveEventsBtn').onclick = saveFbEvents;
+    document.getElementById('saveEventModeBtn').onclick = saveFbEventMode;
+    document.getElementById('saveCapiTokenBtn').onclick = saveFbCapiToken;
     renderFbEvents();
+    renderFbEventMode();
     renderPixelTable();
   } else {
     panel.innerHTML =
@@ -1257,6 +1263,8 @@ async function loadPixels(){
     if(Array.isArray(d.events)){ _fbEvents = d.events; } else { _fbEvents = ['AddToCart','Contact','Lead','CompleteRegistration','Purchase','Download','Subscribe','InitiateCheckout']; }
     _ttIds = d.tt_ids||[];
     if(Array.isArray(d.tt_events)){ _ttEvents = d.tt_events; } else { _ttEvents = ['ClickButton','Contact','AddToCart','CompleteRegistration']; }
+    _fbEventMode = (typeof d.event_mode==='string') ? d.event_mode : 'pixel';
+    _fbCapiToken = d.capi_token || '';
     renderPixelPanel();
   }catch(e){}
 }
@@ -1345,6 +1353,60 @@ async function saveFbEvents(){
     if(d.ok){ msg('fbEventsMsg','ok','✅ 事件保存成功'); alert('✅ 保存成功'); }
     else { msg('fbEventsMsg','err',d.error||'保存失败'); }
   }catch(e){ msg('fbEventsMsg','err','网络错误'); }
+}
+
+// 渲染回传通道单选 + token 输入（按当前站点 _fbEventMode / _fbCapiToken）
+function renderFbEventMode(){
+  var radios = document.querySelectorAll('input[name="fbEventMode"]');
+  radios.forEach(function(r){
+    r.checked = (r.value === _fbEventMode);
+    r.onchange = function(){
+      var box = document.getElementById('fbCapiTokenBox');
+      if(box) box.style.display = (this.value==='capi')?'block':'none';
+      if(this.value==='capi'){
+        var tokEl = document.getElementById('fbCapiToken');
+        if(tokEl && !tokEl.value.trim()){
+          msg('fbEventModeMsg','err','⚠️ 选「后端」需先填写 Token，否则收不到转化事件');
+        }
+      }
+    };
+  });
+  var tok = document.getElementById('fbCapiToken');
+  if(tok) tok.value = _fbCapiToken;
+  var box = document.getElementById('fbCapiTokenBox');
+  if(box) box.style.display = (_fbEventMode==='capi')?'block':'none';
+}
+
+async function saveFbEventMode(){
+  var checked = document.querySelector('input[name="fbEventMode"]:checked');
+  if(!checked) return;
+  _fbEventMode = checked.value;
+  if(_fbEventMode === 'capi'){
+    var tokEl = document.getElementById('fbCapiToken');
+    var tok = tokEl ? tokEl.value.trim() : _fbCapiToken;
+    if(!tok){
+      alert('⚠️ 你选了「后端 API Token」，但还没有填写 Token。\n\n请先照下方「怎么拿到 Token」的步骤生成，粘贴保存后，再保存通道。否则转化事件会收不到。');
+      msg('fbEventModeMsg','err','请先填写并保存 API Token');
+      return;
+    }
+  }
+  try{
+    var r = await fetch('/api/admin/my-pixels',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Basic '+S.token},body:JSON.stringify({site:_currentSite, ids:_pixelIds, fb_event_mode:_fbEventMode})});
+    var d = await r.json();
+    if(d.ok){ msg('fbEventModeMsg','ok','✅ 通道已保存'); loadPixels(); }
+    else { msg('fbEventModeMsg','err',d.error||'保存失败'); }
+  }catch(e){ msg('fbEventModeMsg','err','网络错误'); }
+}
+
+async function saveFbCapiToken(){
+  var tok = document.getElementById('fbCapiToken').value.trim();
+  _fbCapiToken = tok;
+  try{
+    var r = await fetch('/api/admin/my-pixels',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Basic '+S.token},body:JSON.stringify({site:_currentSite, ids:_pixelIds, fb_capi_token:tok})});
+    var d = await r.json();
+    if(d.ok){ msg('fbCapiMsg','ok','✅ Token 已保存'); }
+    else { msg('fbCapiMsg','err',d.error||'保存失败'); }
+  }catch(e){ msg('fbCapiMsg','err','网络错误'); }
 }
 
 // ========== USER: TikTok 像素管理 ==========
