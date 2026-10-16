@@ -42,15 +42,19 @@ export async function onRequest(context) {
       var events = null;
       var ttIds = [];
       var ttEvents = null;
+      var capiToken = '';
+      var eventMode = 'pixel';
       // 只从 account_sites 读（按站点隔离：站点存在就用它的，空就是空，绝不回退到 accounts/KV 共享数据）
       if (qSite) {
         try {
-          var row = await env.DB.prepare('SELECT pixel_ids, fb_events, tt_pixel_ids, tt_events FROM account_sites WHERE site = ?1 AND username = ?2').bind(qSite, me.user).first();
+          var row = await env.DB.prepare('SELECT pixel_ids, fb_events, tt_pixel_ids, tt_events, fb_capi_token, fb_event_mode FROM account_sites WHERE site = ?1 AND username = ?2').bind(qSite, me.user).first();
           if (row) {
             ids = JSON.parse(row.pixel_ids || '[]');
             try { events = JSON.parse(row.fb_events || '[]'); } catch (e) {}
             try { ttIds = JSON.parse(row.tt_pixel_ids || '[]'); } catch (e) {}
             try { ttEvents = JSON.parse(row.tt_events || '[]'); } catch (e) {}
+            capiToken = row.fb_capi_token || '';
+            eventMode = row.fb_event_mode || 'pixel';
           }
         } catch (e) {
           // fb_events / tt_* 列还没迁移：逐级退化，只读已有列
@@ -71,7 +75,7 @@ export async function onRequest(context) {
       if (!Array.isArray(events)) events = ['AddToCart','Contact','Lead','CompleteRegistration','Purchase','Download','Subscribe','InitiateCheckout'];
       if (!Array.isArray(ttIds)) ttIds = [];
       if (!Array.isArray(ttEvents)) ttEvents = ['ClickButton','Contact','AddToCart','CompleteRegistration'];
-      return new Response(JSON.stringify({ ids: ids, events: events, tt_ids: ttIds, tt_events: ttEvents }), {
+      return new Response(JSON.stringify({ ids: ids, events: events, tt_ids: ttIds, tt_events: ttEvents, capi_token: capiToken, event_mode: eventMode }), {
         headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
       });
     }
@@ -98,6 +102,12 @@ export async function onRequest(context) {
       var ttEvents = hasTtEvents ? body.tt_events.filter(function(ev){ return TT_EVENTS.indexOf(ev) !== -1; }) : null;
       var ttEventsJson = hasTtEvents ? JSON.stringify(ttEvents) : null;
 
+      // FB Conversions API：可选字段。传了 fb_capi_token / fb_event_mode 才覆盖保存；没传则不动现有值
+      var hasCapiToken = typeof body.fb_capi_token === 'string';
+      var capiToken = hasCapiToken ? body.fb_capi_token.trim().slice(0, 500) : null;
+      var hasEventMode = typeof body.fb_event_mode === 'string';
+      var eventMode = hasEventMode ? (['pixel', 'capi'].indexOf(body.fb_event_mode) !== -1 ? body.fb_event_mode : 'pixel') : null;
+
       if (site) {
         // 写入 account_sites（按站点隔离，不污染 accounts 共享表）
         // 不用 ON CONFLICT 上插（表若无 (site,username) 唯一约束会报错被吞，导致新账户写不进去），改为显式「查→更/插」
@@ -111,6 +121,8 @@ export async function onRequest(context) {
             if (hasEvents) { sets.push('fb_events = ?' + ni); vals.push(eventsJson); ni++; }
             if (hasTtIds) { sets.push('tt_pixel_ids = ?' + ni); vals.push(ttIdsJson); ni++; }
             if (hasTtEvents) { sets.push('tt_events = ?' + ni); vals.push(ttEventsJson); ni++; }
+            if (hasCapiToken) { sets.push('fb_capi_token = ?' + ni); vals.push(capiToken); ni++; }
+            if (hasEventMode) { sets.push('fb_event_mode = ?' + ni); vals.push(eventMode); ni++; }
             sets.push('config_version = config_version + 1');
             var updSql = 'UPDATE account_sites SET ' + sets.join(', ') + ' WHERE site = ?' + ni + ' AND username = ?' + (ni + 1);
             vals.push(site, me.user);
@@ -120,7 +132,9 @@ export async function onRequest(context) {
             var newEventsJson = hasEvents ? eventsJson : JSON.stringify(FB_EVENTS);
             var newTtIdsJson = hasTtIds ? ttIdsJson : '[]';
             var newTtEventsJson = hasTtEvents ? ttEventsJson : JSON.stringify(TT_EVENTS);
-            await env.DB.prepare('INSERT INTO account_sites (site, username, pixel_ids, fb_events, tt_pixel_ids, tt_events, apk_url, apk_history, config_version) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, 1)').bind(site, me.user, idsJson, newEventsJson, newTtIdsJson, newTtEventsJson, '', '[]').run();
+            var newCapiToken = hasCapiToken ? capiToken : '';
+            var newEventMode = hasEventMode ? eventMode : 'pixel';
+            await env.DB.prepare('INSERT INTO account_sites (site, username, pixel_ids, fb_events, tt_pixel_ids, tt_events, fb_capi_token, fb_event_mode, apk_url, apk_history, config_version) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, 1)').bind(site, me.user, idsJson, newEventsJson, newTtIdsJson, newTtEventsJson, newCapiToken, newEventMode, '', '[]').run();
           }
         } catch (e) {
           return new Response(JSON.stringify({ ok: false, error: '像素保存失败: ' + (e && e.message ? e.message : String(e)) }), {

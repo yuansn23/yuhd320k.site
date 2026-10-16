@@ -99,7 +99,7 @@ export async function onRequest(context) {
       var foundAnySite = false;
       for (var ci = 0; ci < candidates.length && (!d1Row || !d1Row.pixel_ids || d1Row.pixel_ids === '[]'); ci++) {
         try {
-          var row = await env.DB.prepare('SELECT pixel_ids, config_version, fb_events, tt_pixel_ids, tt_events FROM account_sites WHERE site = ?1 AND username = ?2').bind(candidates[ci], username).first();
+          var row = await env.DB.prepare('SELECT pixel_ids, config_version, fb_events, tt_pixel_ids, tt_events, fb_event_mode FROM account_sites WHERE site = ?1 AND username = ?2').bind(candidates[ci], username).first();
           if (row) { d1Row = row; foundAnySite = true; }
         } catch (e) {
           // fb_events / tt_pixel_ids / tt_events 列还没迁移：逐级退化，保证像素加载不受影响
@@ -150,6 +150,10 @@ export async function onRequest(context) {
     }
     if (!Array.isArray(ttEvents)) ttEvents = ['ClickButton','Contact','AddToCart','CompleteRegistration'];
 
+    // FB 事件回传通道（二选一：pixel=前端浏览器像素 / capi=后端 API token；默认 pixel）
+    var eventMode = 'pixel';
+    if (d1Result && d1Result.fb_event_mode) eventMode = d1Result.fb_event_mode;
+
     // 记录访问日志（非阻塞）+ 预聚合计数（stats_daily.visits +1，独立 waitUntil，互不影响）
     if (username && matchedSite) {
       var ip = request.headers.get('CF-Connecting-IP') || '';
@@ -166,7 +170,7 @@ export async function onRequest(context) {
       );
     }
 
-    return new Response(JSON.stringify({ ids: ids, events: events, tt_ids: ttIds, tt_events: ttEvents, version: version, _site: site, _dbg: { rawSite: rawSite, site: site, foundMapping: !!siteRow, username: username, matchedSite: matchedSite, matchedHost: typeof matchedHost !== 'undefined' ? matchedHost : '', fromD1: !!d1Result } }), {
+    return new Response(JSON.stringify({ ids: ids, events: events, tt_ids: ttIds, tt_events: ttEvents, event_mode: eventMode, version: version, _site: site, _dbg: { rawSite: rawSite, site: site, foundMapping: !!siteRow, username: username, matchedSite: matchedSite, matchedHost: typeof matchedHost !== 'undefined' ? matchedHost : '', fromD1: !!d1Result } }), {
       headers: {
         'Content-Type': 'application/json',
         'Access-Control-Allow-Origin': '*',
