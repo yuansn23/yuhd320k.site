@@ -1160,7 +1160,7 @@ async function loadSiteSelector(){
     // 若 _currentSite 是旧账户/旧站点的残留（不在当前站点列表里），重置为第一个站点，避免保存到错误站点
     if(_currentSite && sites.length && !sites.some(function(s){ return s.site===_currentSite; })){ _currentSite = sites[0].site; sessionStorage.setItem('st_current_site', _currentSite); }
     var sel = '<select id="siteSelector" style="padding:8px 12px;border-radius:8px;border:1px solid var(--border);background:var(--input);color:var(--text);font-size:.86rem;max-width:100%">'+
-      sites.map(function(s){ return '<option value="'+esc(s.site)+'"'+(s.site===_currentSite?' selected':'')+'>'+esc(s.site)+'</option>'; }).join('')+'</select>';
+      sites.map(function(s){ return '<option value="'+esc(s.site)+'"'+(s.site===_currentSite?' selected':'')+'>'+esc(s.site)+(s.remark?'　·　'+esc(s.remark):'')+'</option>'; }).join('')+'</select>';
     return { html:sel, sites:sites };
   }catch(e){ return { html:'<span style="color:var(--red)">加载站点失败</span>', sites:[] }; }
 }
@@ -3269,9 +3269,7 @@ async function loadRdLinks(){
       var short = esc(l.domain)+'/'+esc(l.id);
       var st = l.enabled===1 ? '<span class="badge green">启用</span>' : '<span class="badge red">禁用</span>';
       var btn = l.enabled===1 ? '<button class="btn btn-o btn-sm" onclick="rdToggle(\''+l.id+'\',0)">禁用</button>' : '<button class="btn btn-p btn-sm" onclick="rdToggle(\''+l.id+'\',1)">启用</button>';
-      var protCell = (l.protection === null)
-        ? '<button class="btn btn-p btn-sm" onclick="openRdProtect(\''+l.id+'\')">🛡️ 新增防护</button>'
-        : '<div style="display:flex;align-items:center;gap:6px;white-space:nowrap">'+(l.protection===1?'<span class="badge green">防护中</span>':'<span class="badge red">停用</span>')+'<button class="btn btn-o btn-sm" onclick="openRdProtect(\''+l.id+'\')">设置</button></div>';
+      var protCell = '<div style="display:flex;align-items:center;gap:6px;white-space:nowrap">'+(l.protection===1?'<span class="badge green">防护中</span>':'<span class="badge red">未启用防护</span>')+(l.protection===null?'<button class="btn btn-p btn-sm" onclick="openRdProtect(\''+l.id+'\')">🛡️ 新增防护</button>':'<button class="btn btn-o btn-sm" onclick="openRdProtect(\''+l.id+'\')">设置</button>')+'</div>';
       return '<tr><td style="font-family:monospace">'+esc(l.id)+'</td>'+
         '<td style="white-space:nowrap;font-family:monospace">'+short+'</td>'+
         '<td style="white-space:nowrap;font-family:monospace">'+bTxt+'</td>'+
