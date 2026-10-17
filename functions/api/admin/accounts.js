@@ -174,20 +174,44 @@ export async function onRequest(context) {
       }
       await Promise.all(kvTasks);
 
-      // 4. 查询所有站点的 account_sites 数据
+      // 4. 查询所有站点的 account_sites 数据 + site_mappings 绑定关系
       try {
         var allSites = await env.DB.prepare('SELECT site, username, pixel_ids, apk_url FROM account_sites').all();
+        var allMaps = await env.DB.prepare('SELECT site, username FROM site_mappings').all();
+        // 站点配置索引（username+site → 像素数/APK）；JSON.parse 逐条保护，避免单条坏数据拖垮整列
+        var siteConfig = {};
         if (allSites && allSites.results) {
-          for (var si2 = 0; si2 < accounts.length; si2++) {
-            var un = accounts[si2].username;
-            accounts[si2].stats.sites = allSites.results
-              .filter(function(s){ return s.username === un; })
-              .map(function(s){ return { site: s.site, pixelCount: JSON.parse(s.pixel_ids||'[]').length, apkUrl: s.apk_url || '' }; });
-            // 兜底：account_sites 为空时用主站点
-            if (!accounts[si2].stats.sites.length && accounts[si2].site) {
-              accounts[si2].stats.sites = [{ site: accounts[si2].site, pixelCount: accounts[si2].stats.pixels.length, apkUrl: accounts[si2].stats.apkUrl }];
+          for (var sci = 0; sci < allSites.results.length; sci++) {
+            var sr = allSites.results[sci];
+            var pids = [];
+            try { pids = JSON.parse(sr.pixel_ids || '[]'); } catch (e) { pids = []; }
+            if (!Array.isArray(pids)) pids = [];
+            siteConfig[sr.username + '\u0000' + sr.site] = { site: sr.site, pixelCount: pids.length, apkUrl: sr.apk_url || '' };
+          }
+        }
+        // 每个账户：以 site_mappings 绑定为准，account_sites 补充，最后主站点兜底（三源并集去重）
+        for (var si2 = 0; si2 < accounts.length; si2++) {
+          var un = accounts[si2].username;
+          var seen = {};
+          var sites = [];
+          var addSite = function(site) {
+            if (!site || seen[site]) return;
+            seen[site] = true;
+            var cfg = siteConfig[un + '\u0000' + site];
+            sites.push(cfg || { site: site, pixelCount: 0, apkUrl: '' });
+          };
+          if (allMaps && allMaps.results) {
+            for (var mi = 0; mi < allMaps.results.length; mi++) {
+              if (allMaps.results[mi].username === un) addSite(allMaps.results[mi].site);
             }
           }
+          if (allSites && allSites.results) {
+            for (var ci2 = 0; ci2 < allSites.results.length; ci2++) {
+              if (allSites.results[ci2].username === un) addSite(allSites.results[ci2].site);
+            }
+          }
+          addSite(accounts[si2].site);
+          accounts[si2].stats.sites = sites;
         }
       } catch (e) {}
 

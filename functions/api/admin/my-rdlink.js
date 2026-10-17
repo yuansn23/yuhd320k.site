@@ -116,9 +116,14 @@ export async function onRequest(context) {
         var links = (lr && lr.results) || [];
         for (var i = 0; i < links.length; i++) {
           try {
-            var tr = await env.DB.prepare('SELECT type, url, weight, sort FROM rd_targets WHERE link_id = ?1 ORDER BY sort ASC, id ASC').bind(links[i].id).all();
+            var tr = await env.DB.prepare('SELECT type, url, weight, quota, sort FROM rd_targets WHERE link_id = ?1 ORDER BY sort ASC, id ASC').bind(links[i].id).all();
             links[i].targets = (tr && tr.results) || [];
-          } catch (e) { links[i].targets = []; }
+          } catch (e) {
+            try {
+              var tr2 = await env.DB.prepare('SELECT type, url, weight, sort FROM rd_targets WHERE link_id = ?1 ORDER BY sort ASC, id ASC').bind(links[i].id).all();
+              links[i].targets = (tr2 && tr2.results) || [];
+            } catch (e2) { links[i].targets = []; }
+          }
         }
         // 备注说明：读 rd_link_remarks 合并到短链列表（无备注时默认空串）
         var rmMap = {};
@@ -185,7 +190,7 @@ export async function onRequest(context) {
         var isEdit = (act === 'link_edit');
         var linkId = isEdit ? String(body.id || '').toLowerCase().trim() : '';
         var d = normalizeDomain(body.domain);
-        var mode = body.mode === 'weighted' ? 'weighted' : 'random';
+        var mode = (body.mode === 'weighted' || body.mode === 'fixed') ? body.mode : 'random';
         var dedup = (body.dedup === false || body.dedup === 0) ? 0 : 1;
         var fast = (body.fast === true || body.fast === 1) ? 1 : 0;
         var rawTargets = Array.isArray(body.targets) ? body.targets : [];
@@ -197,12 +202,13 @@ export async function onRequest(context) {
           var rt = rawTargets[t] || {};
           var type = rt.type === 'whatsapp' ? 'whatsapp' : 'url';
           var weight = Math.min(9, Math.max(1, parseInt(rt.weight, 10) || 1));
+          var quota = Math.max(1, parseInt(rt.quota, 10) || 100);
           if (type === 'whatsapp') {
             var numbers = String(rt.numbers || rt.url || '').split(/\r?\n/);
             var msg = String(rt.text || '').trim();
             for (var n = 0; n < numbers.length; n++) {
               var num = cleanNumber(numbers[n]);
-              if (num) targets.push({ type: 'whatsapp', url: 'https://api.whatsapp.com/send/?phone=' + num + '&text=' + encodeURIComponent(msg) + '&type=phone_number&app_absent=0', weight: weight });
+              if (num) targets.push({ type: 'whatsapp', url: 'https://api.whatsapp.com/send/?phone=' + num + '&text=' + encodeURIComponent(msg) + '&type=phone_number&app_absent=0', weight: weight, quota: quota });
             }
           } else {
             var u = String(rt.url || '').trim();
@@ -210,7 +216,7 @@ export async function onRequest(context) {
               if (isWhatsappUrl(u)) return json({ error: '第 ' + (t + 1) + ' 个是 WhatsApp 链接，请把「链接形式」选择为 WhatsApp（💬）' }, 400);
               var nu = normalizeTargetUrl(u);
               if (!nu) return json({ error: '第 ' + (t + 1) + ' 个链接格式不正确，请输入完整网址（如 https://example.com）：' + u }, 400);
-              targets.push({ type: 'url', url: nu, weight: weight });
+              targets.push({ type: 'url', url: nu, weight: weight, quota: quota });
             }
           }
         }
@@ -235,7 +241,12 @@ export async function onRequest(context) {
           }
         }
         for (var k = 0; k < targets.length; k++) {
-          await env.DB.prepare('INSERT INTO rd_targets (link_id, type, url, weight, sort, created_at) VALUES (?1,?2,?3,?4,?5,?6)').bind(linkId, targets[k].type, targets[k].url, targets[k].weight, k, new Date().toISOString()).run();
+          try {
+            await env.DB.prepare('INSERT INTO rd_targets (link_id, type, url, weight, quota, sort, created_at) VALUES (?1,?2,?3,?4,?5,?6,?7)').bind(linkId, targets[k].type, targets[k].url, targets[k].weight, targets[k].quota, k, new Date().toISOString()).run();
+          } catch (e) {
+            // quota 列尚未迁移时的兜底：按旧列结构插入（quota 用默认 100）
+            await env.DB.prepare('INSERT INTO rd_targets (link_id, type, url, weight, sort, created_at) VALUES (?1,?2,?3,?4,?5,?6)').bind(linkId, targets[k].type, targets[k].url, targets[k].weight, k, new Date().toISOString()).run();
+          }
         }
         return json({ ok: true, id: linkId, url: d + '/' + linkId });
       }

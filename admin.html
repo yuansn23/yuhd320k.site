@@ -1080,6 +1080,14 @@ async function loadApkData(){
   }catch(e){}
 }
 
+function goToRdlink(){
+  // 关闭弹窗后跳转到「超强分流链接」功能页（复用侧边栏导航逻辑）
+  document.getElementById('apkModalWrap').innerHTML = '';
+  var n = document.querySelector('#sidebarNav a[data-p="rdlink"]');
+  if(n) n.click();
+  else showRdlink();
+}
+
 function openApkModal(){
   var html = '<div style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.7);z-index:99;display:flex;align-items:center;justify-content:center;padding:16px">'+
     '<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:24px;width:640px;max-width:96vw;max-height:92vh;overflow-y:auto">'+
@@ -1093,12 +1101,15 @@ function openApkModal(){
       '<div style="font-size:.78rem;color:var(--muted);margin-bottom:6px">输入完整跳转地址（网址或 .apk 下载地址）</div>'+
       '<div class="form-row"><input type="text" id="apkUrlInput" placeholder="https://example.com 或 https://cdn.example.com/app.apk"><button class="btn btn-p" id="saveUrlBtn">保存</button></div>'+
       '<div style="margin-top:14px">'+
-        '<div style="font-size:.78rem;color:var(--muted);margin-bottom:6px">🔀 或选择超强分流链接（选中后自动填入上方地址）</div>'+
+        '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px">'+
+          '<div style="font-size:.78rem;color:var(--muted)">🔀 或选择超强分流链接（选中后自动填入上方地址）</div>'+
+          '<a href="javascript:void(0)" onclick="goToRdlink()" style="font-size:.78rem;color:var(--blue);text-decoration:underline;white-space:nowrap">前往「超强分流链接」↗</a>'+
+        '</div>'+
         '<select id="apkRdLinkSelect" style="width:100%;padding:9px 12px;border-radius:8px;border:1px solid var(--border);background:var(--input);color:var(--text);font-size:.86rem"><option value="">— 选择一条分流链接 —</option></select>'+
         '<div id="apkRdLinkHint" class="hide" style="margin-top:10px;padding:11px 14px;background:rgba(88,166,255,.08);border-left:3px solid var(--blue);border-radius:6px;font-size:.8rem;line-height:1.75;color:var(--text)">'+
           '<div style="font-weight:600;margin-bottom:5px">✅ 已选分流短链 · 直接跳转（少一跳，不再经点击计数包装）</div>'+
           '<div>📊 <b>分流数据在哪看：</b>进入「🔀 超强分流链接」→「跳转统计」页签，按短链查看每条跳转的时间 / IP / 设备 / 跳转后链接与拦截原因。</div>'+
-          '<div>⚙️ <b>分流怎么配置：</b>进入「🔀 超强分流链接」→「短链管理」，点该短链的「修改」设置跳转目标（任意网址或 WhatsApp）、随机/权重分流与去重；点「🛡️ 设置」配置防护规则。</div>'+
+          '<div>⚙️ <b>分流怎么配置：</b>进入「🔀 超强分流链接」→「短链管理」，点该短链的「修改」设置跳转目标（任意网址或 WhatsApp）、随机/权重/固定轮换分流与去重；点「🛡️ 设置」配置防护规则。</div>'+
         '</div>'+
       '</div>'+
       '<div id="urlMsg"></div>'+
@@ -3298,7 +3309,7 @@ async function loadRdLinks(){
     _rdLinks = d.links || [];
     if(!_rdLinks.length){ tbody.innerHTML='<tr><td colspan="9" class="empty">暂无短链，点击右上角「新增短链」创建</td></tr>'; return; }
     tbody.innerHTML = _rdLinks.map(function(l){
-      var modeTxt = l.mode==='weighted' ? '⚖️ 权重' : '🎲 随机';
+      var modeTxt = l.mode==='weighted' ? '⚖️ 权重' : (l.mode==='fixed' ? '🔁 固定轮换' : '🎲 随机');
       var targets = (l.targets||[]).map(function(t){ return esc(t.url); });
       var bTxt = targets.length ? targets.slice(0,2).join('<br>') + (targets.length>2 ? '<br>…等'+targets.length+'个' : '') : '<span class="empty">未配置</span>';
       var short = esc(l.domain)+'/'+esc(l.id);
@@ -3375,6 +3386,16 @@ function renderRdModal(domains, link){
       '<div style="'+stepHint+'">决定访客打开短链后跳到哪一个链接。</div>'+
       '<label style="'+modeOpt+'"><input type="radio" name="rdMode" value="random" '+(mode==='random'?'checked':'')+' style="margin-top:3px"><div style="flex:1"><b>🎲 随机跳转</b><div style="font-size:.78rem;color:var(--muted);line-height:1.5">每个链接被跳到的机会一样，无需设置比例。</div></div></label>'+
       '<label style="'+modeOpt+'"><input type="radio" name="rdMode" value="weighted" '+(mode==='weighted'?'checked':'')+' style="margin-top:3px"><div style="flex:1"><b>⚖️ 按比例分流</b><div style="font-size:.78rem;color:var(--muted);line-height:1.5">给每个链接设置权重（范围 1-9），例如 3 和 7 → 概率 30% 和 70%。</div></div></label>'+
+      '<label style="'+modeOpt+'"><input type="radio" name="rdMode" value="fixed" '+(mode==='fixed'?'checked':'')+' style="margin-top:3px"><div style="flex:1"><b>🔁 固定轮换</b><div style="font-size:.78rem;color:var(--muted);line-height:1.5">按顺序轮流跳转，每个链接当天跳满设定的「每日最大点击数」后自动切到下一个，次日（+8 时区）清零重新轮换。</div></div></label>'+
+      '<div id="rdFixedHint" style="display:none;margin:4px 0 10px;padding:12px 14px;background:rgba(255,176,32,.12);border:1px solid rgba(255,176,32,.55);border-left:4px solid #ffb020;border-radius:8px;font-size:.8rem;line-height:1.8;color:var(--text)">'+
+        '<div style="font-weight:700;margin-bottom:4px">🔁 固定轮换 · 轮换逻辑说明</div>'+
+        '<div>1️⃣ 访客每次点击短链，按<b>从上到下</b>的顺序跳转；先由<b>第 1 个链接</b>承接前 <b>N</b> 次点击（N = 该链接的「每日最大点击数」，默认 <b>100</b>）；</div>'+
+        '<div>2️⃣ 第 1 个链接<b>当天</b>累计点击数 <b>≥ N</b> 后，自动切换到<b>第 2 个链接</b>；</div>'+
+        '<div>3️⃣ 第 2 个满额后切第 3 个……<b>依此类推</b>；</div>'+
+        '<div>4️⃣ <b>最后一个</b>链接满额后，回到<b>第 1 个链接重新开始</b>轮换。</div>'+
+        '<div style="margin-top:8px;padding:8px 10px;background:rgba(255,176,32,.18);border-radius:6px"><b>📅 统计口径（统一）：</b>每个链接的点击数按<b>当天</b>累计（<b>+8 时区 / 北京时间</b>，当天 00:00 起算），<b>次日 00:00 自动清零</b>，重新从第 1 个链接开始轮换。</div>'+
+        '<div style="margin-top:6px;color:var(--muted)">💡 每个链接的「每日最大点击数」在下方第 3 步的每个链接里单独设置（默认 100，填正整数）。⚠️ 该模式下<b>去重设置不生效</b>——每次点击都会按顺序推进，确保轮流分配。</div>'+
+      '</div>'+
     '</div></div>'+
     '<div style="'+stepWrap+'"><div style="'+stepNum+'">3</div><div style="flex:1;min-width:0">'+
       '<div style="'+stepTitle+'">添加跳转后的链接</div>'+
@@ -3428,6 +3449,7 @@ function addRdTargetRow(t){
     }
   }
   var weight = t ? (t.weight || 1) : 1;
+  var quota = t ? (parseInt(t.quota, 10) || 100) : 100;
   var idx = box.children.length + 1;
   var row = document.createElement('div');
   row.style.cssText = 'border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:10px;background:rgba(255,255,255,.02)';
@@ -3444,6 +3466,11 @@ function addRdTargetRow(t){
       '<span style="font-size:.78rem;color:var(--muted);white-space:nowrap">⚖️ 权重（比例）</span>'+
       '<input class="rdtw" type="number" min="1" max="9" step="1" value="'+weight+'" style="flex:0 0 70px" title="权重范围 1-9，数值越大被跳到的概率越高（仅「按比例分流」模式生效）">'+
       '<span style="font-size:.74rem;color:var(--muted)">范围 1-9，例如 1 和 9 = 10% : 90%</span>'+
+    '</div>'+
+    '<div class="rdqwWrap" style="margin-top:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">'+
+      '<span style="font-size:.78rem;color:var(--muted);white-space:nowrap">🔢 每日最大点击数</span>'+
+      '<input class="rdquota" type="number" min="1" step="1" value="'+quota+'" style="flex:0 0 90px" title="该链接每天（+8 时区当天）最大承接点击数（正整数），当天满额后自动切换到下一个，次日清零（仅「固定轮换」模式生效）">'+
+      '<span style="font-size:.74rem;color:var(--muted)">默认 100，正整数；按 +8 时区当天计，次日清零</span>'+
     '</div>';
   box.appendChild(row);
   var sel = row.querySelector('.rdtt');
@@ -3475,7 +3502,11 @@ function renumberRdTargets(){
 function refreshRdTargetWeights(){
   var r = document.querySelector('input[name="rdMode"]:checked');
   var weighted = r ? (r.value === 'weighted') : false;
+  var fixed = r ? (r.value === 'fixed') : false;
   document.querySelectorAll('#rdTargets .rdtwWrap').forEach(function(w){ w.style.display = weighted ? 'flex' : 'none'; });
+  document.querySelectorAll('#rdTargets .rdqwWrap').forEach(function(w){ w.style.display = fixed ? 'flex' : 'none'; });
+  var fh = document.getElementById('rdFixedHint');
+  if(fh) fh.style.display = fixed ? 'block' : 'none';
 }
 
 // 目标链接容错：去空白、缺协议自动补 https://；不是「带域名的完整网址」返回空
@@ -3504,17 +3535,18 @@ async function saveRdLink(){
     var row = rdRows[ri];
     var type = row.querySelector('.rdtt').value;
     var weight = Math.min(9, Math.max(1, parseInt(row.querySelector('.rdtw').value, 10) || 1));
+    var quota = Math.max(1, parseInt(row.querySelector('.rdquota').value, 10) || 100);
     if(type === 'whatsapp'){
       var numbers = row.querySelector('.rdtn').value;
       var text = row.querySelector('.rdtext').value.trim();
-      if(numbers.trim()) targets.push({ type:'whatsapp', numbers:numbers, text:text, weight:weight });
+      if(numbers.trim()) targets.push({ type:'whatsapp', numbers:numbers, text:text, weight:weight, quota:quota });
     } else {
       var u = row.querySelector('.rdtu').value.trim();
       if(u){
         if(rdIsWhatsappUrl(u)){ msg('rdModalMsg','err','第 '+(ri+1)+' 个是 WhatsApp 链接，请把「链接形式」改为 💬 WhatsApp'); row.querySelector('.rdtt').focus(); return; }
         var nu = rdNormalizeUrl(u);
         if(!nu){ msg('rdModalMsg','err','第 '+(ri+1)+' 个链接格式不正确，请输入完整网址（如 https://example.com）'); row.querySelector('.rdtu').focus(); return; }
-        targets.push({ type:'url', url:nu, weight:weight });
+        targets.push({ type:'url', url:nu, weight:weight, quota:quota });
       }
     }
   }

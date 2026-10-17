@@ -233,6 +233,30 @@ function pickTarget(targets, mode) {
   return targets[Math.floor(Math.random() * targets.length)];
 }
 
+// 固定轮换：按 sort 顺序轮流跳转，每个链接每天最多承接 quota 次点击，满额自动切下一个，最后一个满额后回到第一个。
+// totalClicks = 该短链「今日（+8 时区）已成功跳转（status='ok'）」的总次数；用 totalClicks % 总配额 定位当前该轮到哪个链接。
+function pickFixed(targets, totalClicks) {
+  if (!targets || !targets.length) return null;
+  if (targets.length === 1) return targets[0];
+  var quotas = targets.map(function (t) { return Math.max(1, parseInt(t.quota, 10) || 100); });
+  var sum = 0;
+  for (var i = 0; i < quotas.length; i++) sum += quotas[i];
+  if (sum <= 0) return targets[0];
+  var pos = totalClicks % sum;
+  for (var j = 0; j < targets.length; j++) {
+    if (pos < quotas[j]) return targets[j];
+    pos -= quotas[j];
+  }
+  return targets[targets.length - 1];
+}
+
+// +8 时区（北京时间）当天 00:00 对应的 UTC ISO 时间串；「固定轮换」按天统计、次日清零用
+function beijingTodayStartIso() {
+  var bj = new Date(Date.now() + 8 * 3600 * 1000);
+  var startMs = Date.UTC(bj.getUTCFullYear(), bj.getUTCMonth(), bj.getUTCDate()) - 8 * 3600 * 1000;
+  return new Date(startMs).toISOString();
+}
+
 export async function onRequest(context) {
   const { request, env, params } = context;
   const id = String((params && params.id) || '').toLowerCase();
@@ -247,7 +271,11 @@ export async function onRequest(context) {
       var reads = await Promise.all([
         env.DB.prepare('SELECT id, username, domain, mode, dedup, enabled FROM rd_links WHERE id = ?1').bind(id).first().catch(function () { return null; }),
         env.DB.prepare('SELECT enabled, whitelist_ips, rules, fallback_url FROM rd_protection WHERE link_id = ?1').bind(id).first().catch(function () { return null; }),
-        env.DB.prepare('SELECT type, url, weight FROM rd_targets WHERE link_id = ?1 ORDER BY sort ASC, id ASC').bind(id).all().catch(function () { return null; }),
+        env.DB.prepare('SELECT type, url, weight, quota FROM rd_targets WHERE link_id = ?1 ORDER BY sort ASC, id ASC').bind(id).all()
+          .catch(function () {
+            // quota 列尚未迁移：退回旧列结构（quota 由 pickFixed 默认 100）
+            return env.DB.prepare('SELECT type, url, weight FROM rd_targets WHERE link_id = ?1 ORDER BY sort ASC, id ASC').bind(id).all().catch(function () { return null; });
+          }),
         env.DB.prepare('SELECT fast FROM rd_links WHERE id = ?1').bind(id).first().catch(function () { return null; })
       ]);
       link = reads[0]; pRow = reads[1]; tr = reads[2]; fRow = reads[3];
@@ -313,9 +341,9 @@ export async function onRequest(context) {
       return new Response(JSON.stringify({ error: '短链未配置目标链接' }), { status: 404, headers: jsonHeaders });
     }
 
-    // 去重设置：同一 cookie 固定跳到同一目标（仅当开启去重且目标多于 1 个时生效）
+    // 去重设置：同一 cookie 固定跳到同一目标（仅当开启去重且目标多于 1 个时生效；固定轮换模式忽略去重，每次点击按顺序推进）
     var dedupCookie = 'rd_dedup_' + id;
-    var dedupOn = (link.dedup === 1) && targets.length > 1;
+    var dedupOn = (link.dedup === 1) && link.mode !== 'fixed' && targets.length > 1;
     var chosen = null;
     if (dedupOn) {
       var prevKey = getCookie(request.headers.get('Cookie') || '', dedupCookie);
@@ -325,7 +353,19 @@ export async function onRequest(context) {
         }
       }
     }
-    if (!chosen) chosen = pickTarget(targets, link.mode);
+    if (!chosen) {
+      if (link.mode === 'fixed') {
+        // 固定轮换：按「今日（+8 时区）已成功跳转」总次数定位当前该轮到哪个链接（次日自动清零重新轮换）
+        var fixedClicks = 0;
+        try {
+          var cRow = await env.DB.prepare('SELECT COUNT(*) AS c FROM rd_logs WHERE link_id = ?1 AND status = ?2 AND created_at >= ?3').bind(id, 'ok', beijingTodayStartIso()).first();
+          fixedClicks = (cRow && cRow.c) ? cRow.c : 0;
+        } catch (e) {}
+        chosen = pickFixed(targets, fixedClicks);
+      } else {
+        chosen = pickTarget(targets, link.mode);
+      }
+    }
     if (!chosen || !chosen.url) {
       return new Response(JSON.stringify({ error: '短链目标链接无效' }), { status: 404, headers: jsonHeaders });
     }
