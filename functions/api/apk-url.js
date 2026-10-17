@@ -18,6 +18,27 @@ function hostPath(s) {
   return [host, path];
 }
 
+// 判断一个落地页地址是否是「超强分流短链」：取末段路径，8 位小写字母数字且命中 rd_links 主键即视为短链。
+// 短链由 /rd/[id] 自己记跳转统计，无需再包一层 /api/rd，故 apk-url 直接返回原地址。
+async function isRdShortLink(env, u) {
+  if (!u || !env || !env.DB) return false;
+  try {
+    var path = '';
+    try {
+      path = new URL(u).pathname;
+    } catch (e) {
+      var m = String(u).match(/([^/?#]+)\/?$/);
+      if (m) path = '/' + m[1];
+    }
+    var seg = (path.split('/').filter(Boolean).pop() || '');
+    if (!/^[a-z0-9]{8}$/.test(seg)) return false;
+    var row = await env.DB.prepare('SELECT id FROM rd_links WHERE id = ?1').bind(seg).first();
+    return !!row;
+  } catch (e) {
+    return false;
+  }
+}
+
 export async function onRequest(context) {
   const { request, env } = context;
   try {
@@ -127,12 +148,14 @@ export async function onRequest(context) {
       version = 1;
     }
 
-    // 附加追踪参数：APK 文件直传 dl.js，外链走 /api/rd 中转计数后跳转
+    // 附加追踪参数：APK 文件直传 dl.js，外链走 /api/rd 中转计数后跳转；
+    // 分流短链（rd_links）直接返回原地址，少一跳——跳转统计由 /rd/[id] 自己记录
     if (apkUrl && username) {
       var isDl = apkUrl.indexOf('/api/dl') !== -1;
+      var isRd = !isDl && await isRdShortLink(env, apkUrl);
       if (isDl) {
         apkUrl += '&_u=' + encodeURIComponent(username) + '&_s=' + encodeURIComponent(matchedSite);
-      } else {
+      } else if (!isRd) {
         var apiHost = new URL(request.url).hostname;
         apkUrl = 'https://' + apiHost + '/api/rd?_u=' + encodeURIComponent(username) + '&_s=' + encodeURIComponent(matchedSite) + '&_t=' + encodeURIComponent(apkUrl);
       }
