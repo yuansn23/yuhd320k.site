@@ -1091,7 +1091,17 @@ function openApkModal(){
     '</div>'+
     '<div id="apkModalUrl">'+
       '<div style="font-size:.78rem;color:var(--muted);margin-bottom:6px">输入完整跳转地址（网址或 .apk 下载地址）</div>'+
-      '<div class="form-row"><input type="text" id="apkUrlInput" placeholder="https://example.com 或 https://cdn.example.com/app.apk"><button class="btn btn-p" id="saveUrlBtn">保存</button></div><div id="urlMsg"></div>'+
+      '<div class="form-row"><input type="text" id="apkUrlInput" placeholder="https://example.com 或 https://cdn.example.com/app.apk"><button class="btn btn-p" id="saveUrlBtn">保存</button></div>'+
+      '<div style="margin-top:14px">'+
+        '<div style="font-size:.78rem;color:var(--muted);margin-bottom:6px">🔀 或选择超强分流链接（选中后自动填入上方地址）</div>'+
+        '<select id="apkRdLinkSelect" style="width:100%;padding:9px 12px;border-radius:8px;border:1px solid var(--border);background:var(--input);color:var(--text);font-size:.86rem"><option value="">— 选择一条分流链接 —</option></select>'+
+        '<div id="apkRdLinkHint" class="hide" style="margin-top:10px;padding:11px 14px;background:rgba(88,166,255,.08);border-left:3px solid var(--blue);border-radius:6px;font-size:.8rem;line-height:1.75;color:var(--text)">'+
+          '<div style="font-weight:600;margin-bottom:5px">✅ 已选分流短链 · 直接跳转（少一跳，不再经点击计数包装）</div>'+
+          '<div>📊 <b>分流数据在哪看：</b>进入「🔀 超强分流链接」→「跳转统计」页签，按短链查看每条跳转的时间 / IP / 设备 / 跳转后链接与拦截原因。</div>'+
+          '<div>⚙️ <b>分流怎么配置：</b>进入「🔀 超强分流链接」→「短链管理」，点该短链的「修改」设置跳转目标（任意网址或 WhatsApp）、随机/权重分流与去重；点「🛡️ 设置」配置防护规则。</div>'+
+        '</div>'+
+      '</div>'+
+      '<div id="urlMsg"></div>'+
     '</div>'+
     '<div id="apkModalUpload" class="hide">'+
       '<p style="color:var(--muted);font-size:.82rem;margin-bottom:8px;padding:8px 14px;background:rgba(88,166,255,.06);border-radius:6px;border-left:3px solid var(--blue)">⚠️ 上传较大文件约需 30 秒；上传错误重新上传即可。</p>'+
@@ -1108,6 +1118,31 @@ function openApkModal(){
     var inp = document.getElementById('apkUrlInput');
     if(inp) inp.value = d.apkUrl||'';
   }).catch(function(){});
+  // 加载超强分流链接下拉（只列启用中的短链；选中后自动填入上方地址）
+  var rdSel = document.getElementById('apkRdLinkSelect');
+  if(rdSel){
+    rdSel.onchange = function(){
+      var v = this.value;
+      var inp = document.getElementById('apkUrlInput');
+      if(v && inp) inp.value = v;
+      var hint = document.getElementById('apkRdLinkHint');
+      if(hint) hint.classList.toggle('hide', !v);
+    };
+    fetch('/api/admin/my-rdlink?action=links&_='+Date.now(),{headers:{'Authorization':'Basic '+S.token}}).then(function(r){return r.json()}).then(function(d){
+      var links = (d && d.links) || [];
+      var enabled = links.filter(function(l){ return l.enabled === 1; });
+      if(!enabled.length){
+        rdSel.innerHTML = '<option value="">— 暂无启用的分流链接 —</option>';
+      } else {
+        rdSel.innerHTML = '<option value="">— 选择一条分流链接 —</option>' + enabled.map(function(l){
+          var full = (l.domain||'') + '/' + (l.id||'');
+          return '<option value="'+esc(full)+'">'+esc(full)+(l.remark?'　·　'+esc(l.remark):'')+'</option>';
+        }).join('');
+      }
+    }).catch(function(){
+      rdSel.innerHTML = '<option value="">— 分流链接加载失败 —</option>';
+    });
+  }
 }
 
 function toggleApkModalMode(){
